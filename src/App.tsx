@@ -56,7 +56,7 @@ export default function App() {
             <rect width="32" height="32" rx="7" fill="#7132f5" />
             <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
           </svg>
-          Find<span className="brand-accent">Prop</span>
+          Fin<span className="brand-accent">Prop</span>
         </div>
         <input
           placeholder="ค้นหาทรัพย์ (รหัส, ทำเล, ประเภท…)"

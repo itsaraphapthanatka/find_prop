@@ -1,4 +1,4 @@
-# Find Prop — ฐานข้อมูลทรัพย์ให้เช่า/ขาย
+# FinProp — ฐานข้อมูลทรัพย์ให้เช่า/ขาย
 
 Web app ทดแทนแอป AppSheet "WUT Demo" — จัดการข้อมูลโกดัง โรงงาน โชว์รูม ออฟฟิศ ครัวกลาง
 (โครงสร้างข้อมูลต้นแบบ: [docs/appsheet-analysis.md](docs/appsheet-analysis.md))

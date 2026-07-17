@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Find Prop — ฐานข้อมูลทรัพย์ให้เช่า/ขาย',
-        short_name: 'Find Prop',
+        name: 'FinProp — ฐานข้อมูลทรัพย์ให้เช่า/ขาย',
+        short_name: 'FinProp',
         description: 'ฐานข้อมูลอสังหาริมทรัพย์ให้เช่า/ขาย — โกดัง โรงงาน โชว์รูม ออฟฟิศ',
         lang: 'th',
         display: 'standalone',
