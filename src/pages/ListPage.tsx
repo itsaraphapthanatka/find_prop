@@ -124,8 +124,8 @@ export default function ListPage({ search }: { search: string }) {
           <div className="filter-province">
             <Combo value={fProvince} onChange={setFProvince} options={provinces} placeholder="ทุกจังหวัด" />
           </div>
-          <span className="filter-label">ราคา (฿)</span>
           <div className="price-range">
+            <span className="filter-label">ราคา (฿)</span>
             <input
               className="filter-price"
               type="number"

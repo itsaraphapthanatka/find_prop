@@ -474,8 +474,10 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   .chip-toggle { flex: none; padding: 5px 13px; font-size: 13px; }
   .filter-row.wrap { flex-wrap: wrap; row-gap: 8px; }
   .filter-province { flex: 1 1 160px; width: auto; min-width: 0; }
-  .price-range { flex: 1 1 190px; gap: 8px; }
+  /* ป้าย "ราคา (฿)" อยู่ในก้อนเดียวกับช่องต่ำสุด–สูงสุด จะได้ขึ้นบรรทัดใหม่พร้อมกัน */
+  .price-range { flex: 1 1 250px; gap: 8px; }
   .filter-price { flex: 1 1 0; width: auto; min-width: 0; }
+  .filter-row.wrap > .btn { margin-left: auto; }
 
   /* ── การ์ดทรัพย์: ปุ่มลัดเรียงเป็นแถบล่างของการ์ด ── */
   .prop-list { padding: 10px 12px calc(18px + env(safe-area-inset-bottom)); }
