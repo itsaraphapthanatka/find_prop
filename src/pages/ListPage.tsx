@@ -5,7 +5,7 @@ import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
-import { IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash } from '../components/icons'
+import { IconCompare, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash } from '../components/icons'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -85,7 +85,12 @@ export default function ListPage({ search }: { search: string }) {
     <>
       <div className="view-header">
         <h1>รายการทรัพย์ <span className="count-badge">{filtered.length}</span></h1>
-        <button className="btn primary" onClick={() => navigate('/new')}>+ เพิ่มทรัพย์</button>
+        <div className="header-actions">
+          <button className="btn" onClick={() => navigate('/compare')}>
+            <IconCompare size={16} /> เปรียบเทียบ
+          </button>
+          <button className="btn primary" onClick={() => navigate('/new')}>+ เพิ่มทรัพย์</button>
+        </div>
       </div>
 
       <div className="filter-bar">

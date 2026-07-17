@@ -52,3 +52,22 @@ export interface Property {
 }
 
 export type PropertyInput = Omit<Property, 'id' | 'created_at'>
+
+/** จุดแวะในรูทเยี่ยมชม (อ้างถึงทรัพย์ด้วย id) */
+export interface VisitStop {
+  property_id: string
+  note?: string
+}
+
+/** แผนเยี่ยมชมทรัพย์ของลูกค้าหนึ่งราย */
+export interface VisitPlan {
+  id: string
+  org_id?: string
+  title: string
+  customer_name: string | null
+  requirement: string | null
+  visit_date: string | null
+  stops: VisitStop[]
+  created_at?: string
+  updated_at?: string
+}

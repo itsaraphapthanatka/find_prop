@@ -409,6 +409,141 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .data-table .row-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* ── แผนเยี่ยมชม (PlansPage) ─────────────── */
+.plan-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; margin-bottom: 8px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  transition: border-color 0.12s, background 0.12s;
+}
+.plan-row:hover { background: var(--purple-tint); }
+.plan-row.selected { border-color: var(--purple); background: var(--purple-tint); }
+.plan-info { flex: 1; min-width: 0; }
+.plan-title { font-weight: 700; font-size: 14.5px; }
+.plan-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.plan-req {
+  background: var(--purple-tint); border: 1px solid #e5daf9; border-radius: 10px;
+  color: var(--ink); font-size: 13.5px; padding: 8px 12px; margin: 0 0 12px;
+}
+.stop-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.stop-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 2px; border-bottom: 1px solid var(--line-soft);
+}
+.stop-no {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--purple-subtle); color: var(--purple);
+  font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.stop-info { flex: 1; min-width: 0; }
+.stop-title { font-weight: 600; font-size: 14px; }
+.stop-sub { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+.stop-actions { display: flex; gap: 0; }
+.stop-actions .icon-btn { width: 30px; height: 30px; }
+.stop-actions .icon-btn:disabled { opacity: 0.3; cursor: default; }
+.stop-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.stop-add > div { min-width: 200px; }
+
+/* ── ส่วน AI ──────────────────────────────── */
+.ai-card { border-color: #e5daf9; background: linear-gradient(180deg, #fdfcff, #fff 60px); }
+.ai-card > h3 { display: flex; align-items: center; gap: 6px; }
+.ai-hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; line-height: 1.6; }
+.ai-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-bottom: 10px; }
+.ai-result { border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 4px; }
+.ai-summary {
+  background: var(--purple-subtle); color: var(--ink); border-radius: 10px;
+  padding: 10px 14px; font-size: 13.5px; margin: 0 0 12px; line-height: 1.6;
+}
+.ai-group-title {
+  font-size: 12.5px; font-weight: 700; color: var(--success);
+  margin: 12px 0 4px; letter-spacing: 0.2px;
+}
+.ai-group-title.warn { color: var(--danger); }
+.ai-match {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 2px; border-bottom: 1px solid var(--line-soft);
+}
+.ai-match-info { flex: 1; min-width: 0; }
+.link-btn {
+  border: none; background: none; color: var(--purple); font-size: 12.5px;
+  padding: 0; margin-left: 8px; text-decoration: underline; font-weight: 500;
+}
+
+/* ── ชอร์ตลิสต์เปรียบเทียบ (ComparePage) ──── */
+.compare-wrap { max-width: 1000px; }
+.chip-x { display: inline-flex; align-items: center; gap: 5px; }
+.chip-remove {
+  border: none; background: none; color: inherit; padding: 0;
+  display: inline-flex; opacity: 0.7;
+}
+.chip-remove:hover { opacity: 1; }
+.compare-sheet {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 22px 24px; margin-bottom: 24px;
+}
+.sheet-head {
+  display: flex; align-items: flex-start; gap: 16px;
+  border-bottom: 2px solid var(--purple); padding-bottom: 14px; margin-bottom: 14px;
+}
+.sheet-head .brand {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 20px; letter-spacing: -0.4px;
+}
+.sheet-title { flex: 1; min-width: 0; }
+.sheet-title h2 { margin: 2px 0 4px; font-size: 18px; letter-spacing: -0.3px; }
+.sheet-sub { color: var(--muted); font-size: 13px; }
+.sheet-req { font-size: 13px; margin-top: 6px; color: var(--ink); }
+.sheet-intro { font-size: 13.5px; line-height: 1.7; margin: 0 0 14px; }
+.compare-scroll { overflow-x: auto; }
+.compare-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.compare-table th, .compare-table td {
+  border: 1px solid var(--line); padding: 8px 10px; text-align: left;
+  vertical-align: top; min-width: 150px;
+}
+.compare-table .spec-col {
+  min-width: 108px; width: 108px; background: var(--purple-tint);
+  color: var(--muted); font-weight: 600; font-size: 12px;
+  position: sticky; left: 0;
+}
+.compare-table thead th { background: var(--purple-subtle); }
+.compare-table thead .spec-col { background: var(--purple-tint); }
+.cmp-photo {
+  width: 100%; height: 84px; border-radius: 8px; overflow: hidden;
+  background: var(--purple-subtle); color: #b9a3ef;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 6px;
+}
+.cmp-photo img { width: 100%; height: 100%; object-fit: cover; }
+.cmp-code { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+.cmp-list { margin: 0; padding-left: 16px; }
+.cmp-list li { margin-bottom: 3px; line-height: 1.5; }
+.ai-row .spec-col { color: var(--purple); }
+.sheet-reco {
+  margin-top: 16px; border: 1px solid #e5daf9; background: var(--purple-tint);
+  border-radius: var(--radius); padding: 12px 16px;
+}
+.sheet-reco-title {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 700; color: var(--purple); font-size: 13.5px; margin-bottom: 4px;
+}
+.sheet-reco p { margin: 0; font-size: 13.5px; line-height: 1.7; }
+.sheet-foot {
+  margin-top: 16px; color: var(--muted); font-size: 11.5px;
+  border-top: 1px solid var(--line); padding-top: 10px;
+}
+
+/* ── โหมดพิมพ์: เหลือเฉพาะแผ่นชอร์ตลิสต์ ───── */
+@media print {
+  .topbar, .sidebar, .view-header, .compare-controls, .empty-state { display: none !important; }
+  .app-shell, .main, .content { display: block; height: auto; overflow: visible; }
+  body { background: #fff; }
+  .team-wrap.compare-wrap { max-width: none; padding: 0; margin: 0; }
+  .compare-sheet { border: none; box-shadow: none; border-radius: 0; padding: 0; margin: 0; }
+  .compare-scroll { overflow: visible; }
+  .compare-table th, .compare-table td { min-width: 0; }
+  .compare-table .spec-col { position: static; }
+}
+
 /* ══════════════════════════════════════════════════════
    Responsive — มือถือ/จอเล็ก
    ≤720px: topbar 2 แถว + sidebar เป็น bottom nav
