@@ -19,6 +19,8 @@ create table if not exists public.visit_plans (
 
 alter table public.visit_plans enable row level security;
 
+-- หมายเหตุ: ต้องมี "or is_super()" ทุก policy — super admin มักไม่มี org_id
+-- (current_org() = null) ถ้าไม่เผื่อไว้ super จะสร้าง/แก้แผนไม่ได้ (42501)
 drop policy if exists "plan read" on public.visit_plans;
 create policy "plan read" on public.visit_plans
   for select using (
@@ -27,13 +29,22 @@ create policy "plan read" on public.visit_plans
   );
 drop policy if exists "plan insert" on public.visit_plans;
 create policy "plan insert" on public.visit_plans
-  for insert with check (org_id = public.current_org() and public.org_ok(org_id));
+  for insert with check (
+    (org_id = public.current_org() and public.org_ok(org_id))
+    or public.is_super()
+  );
 drop policy if exists "plan update" on public.visit_plans;
 create policy "plan update" on public.visit_plans
-  for update using (org_id = public.current_org() and public.org_ok(org_id));
+  for update using (
+    (org_id = public.current_org() and public.org_ok(org_id))
+    or public.is_super()
+  );
 drop policy if exists "plan delete" on public.visit_plans;
 create policy "plan delete" on public.visit_plans
-  for delete using (org_id = public.current_org() and public.org_ok(org_id));
+  for delete using (
+    (org_id = public.current_org() and public.org_ok(org_id))
+    or public.is_super()
+  );
 
 -- อัปเดต updated_at อัตโนมัติ
 create or replace function public.touch_visit_plan() returns trigger

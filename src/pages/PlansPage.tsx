@@ -61,8 +61,13 @@ export default function PlansPage() {
       })
       .select()
       .single()
-    if (error) alert(`สร้างแผนไม่สำเร็จ: ${error.message}`)
-    else {
+    if (error) {
+      alert(
+        error.code === '42501'
+          ? 'สร้างแผนไม่สำเร็จ: สิทธิ์ไม่ผ่าน (RLS) — ถ้าใช้บัญชี super admin ให้รัน supabase/plans.sql เวอร์ชันล่าสุดใน SQL Editor อีกครั้ง หรือใช้บัญชีที่สังกัดองค์กร'
+          : `สร้างแผนไม่สำเร็จ: ${error.message}`,
+      )
+    } else {
       setShowNew(false)
       setNewTitle('')
       setNewCustomer('')
