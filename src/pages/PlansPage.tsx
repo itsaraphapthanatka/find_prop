@@ -107,13 +107,20 @@ export default function PlansPage() {
     void patchPlan(pl, { stops })
   }
 
-  /** ลิงก์เส้นทาง Google Maps ตามลำดับจุดแวะที่มีพิกัด */
+  /** ลิงก์นำทาง Google Maps: เริ่มจากตำแหน่งปัจจุบันของผู้ใช้ → ไล่ตามลำดับจุดแวะ
+      (ไม่ส่ง origin — Google Maps จะใช้ตำแหน่งปัจจุบันให้เอง ทั้งบนแอปมือถือและเว็บ) */
   function routeUrl(pl: VisitPlan): string | null {
     const pts = pl.stops
       .map((s) => byId.get(s.property_id))
       .filter((p): p is Property => Boolean(p && p.lat != null && p.lng != null))
       .map((p) => `${p.lat},${p.lng}`)
-    return pts.length >= 1 ? `https://www.google.com/maps/dir/${pts.join('/')}` : null
+    if (pts.length === 0) return null
+    const destination = pts[pts.length - 1]
+    const waypoints = pts.slice(0, -1).join('|')
+    return (
+      `https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${destination}` +
+      (waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : '')
+    )
   }
 
   // ── AI: ลูกค้าเปลี่ยน requirement → หาทรัพย์ที่ตรงจากทั้งระบบทันที ──
