@@ -107,13 +107,13 @@ export default function SuperAdminPage() {
                 <tbody>
                   {orgs.map((o) => (
                     <tr key={o.id} className={o.sub_status === 'suspended' ? 'row-off' : ''}>
-                      <td>
+                      <td data-label="องค์กร" className="td-main">
                         <b>{o.name}</b>
                         <div className="td-sub">สร้าง {formatDate(o.created_at)}</div>
                       </td>
-                      <td>{o.member_count}</td>
-                      <td>{o.property_count}</td>
-                      <td>
+                      <td data-label="สมาชิก">{o.member_count}</td>
+                      <td data-label="ทรัพย์">{o.property_count}</td>
+                      <td data-label="แพ็กเกจ">
                         <select
                           className="plan-select"
                           value={editOf(o).plan}
@@ -122,7 +122,7 @@ export default function SuperAdminPage() {
                           {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
                         </select>
                       </td>
-                      <td>
+                      <td data-label="หมดอายุ">
                         <input
                           type="date"
                           className="date-input"
@@ -131,7 +131,7 @@ export default function SuperAdminPage() {
                         />
                         {expired(o) && <div className="td-sub" style={{ color: 'var(--danger)' }}>หมดอายุแล้ว</div>}
                       </td>
-                      <td>
+                      <td data-label="สถานะ">
                         <span className={`status-pill ${o.sub_status === 'active' && !expired(o) ? 'on' : ''}`}>
                           {o.sub_status === 'suspended' ? 'ระงับ' : expired(o) ? 'หมดอายุ' : 'ใช้งานได้'}
                         </span>

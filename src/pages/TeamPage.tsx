@@ -176,14 +176,14 @@ export default function TeamPage() {
                 <tbody>
                   {members.map((m) => (
                     <tr key={m.id}>
-                      <td>{m.full_name || '—'}{m.id === me?.id && <span className="role-badge" style={{ marginLeft: 6 }}>คุณ</span>}</td>
-                      <td>{m.email}</td>
-                      <td>
+                      <td data-label="ชื่อ" className="td-main">{m.full_name || '—'}{m.id === me?.id && <span className="role-badge" style={{ marginLeft: 6 }}>คุณ</span>}</td>
+                      <td data-label="อีเมล">{m.email}</td>
+                      <td data-label="บทบาท">
                         <span className={`role-badge ${m.role === 'admin' ? '' : 'plain'}`}>
                           {m.role === 'admin' ? 'แอดมิน' : 'ลูกทีม'}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="สถานะ">
                         <span className={`status-pill ${m.active ? 'on' : ''}`}>
                           {m.active ? 'ใช้งานได้' : 'รออนุมัติ/ปิด'}
                         </span>

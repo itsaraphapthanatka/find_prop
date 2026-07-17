@@ -6,6 +6,7 @@ import { deleteProperty, useProperties } from '../hooks/useProperties'
 import type { Property } from '../types'
 import { formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
+import { IconClose, IconPin } from '../components/icons'
 
 // ไอคอนหมุดเริ่มต้นของ Leaflet ต้องชี้ URL รูปเองเมื่อใช้ผ่าน bundler
 const pinIcon = L.icon({
@@ -98,7 +99,7 @@ export default function MapPage() {
               if (picking) setDraft(null)
             }}
           >
-            {picking ? '✕ ยกเลิกวางหมุด' : '📍 วางหมุดเพิ่มทรัพย์'}
+            {picking ? <><IconClose size={16} /> ยกเลิกวางหมุด</> : <><IconPin size={16} /> วางหมุดเพิ่มทรัพย์</>}
           </button>
           <button className="btn primary" onClick={() => navigate('/new')}>+ เพิ่มทรัพย์</button>
         </div>

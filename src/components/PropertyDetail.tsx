@@ -1,5 +1,6 @@
 import type { Property } from '../types'
 import { LABELS, formatDate, formatNumber } from '../labels'
+import { IconClose, IconPhone, IconSms } from './icons'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === '' || value === '—') return null
@@ -38,8 +39,8 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
         <div className="pane-header">
           <h2>{p.code}</h2>
           <button className="btn sm danger" onClick={onDelete}>ลบ</button>
-          <button className="btn sm primary" onClick={onEdit}>✏️ แก้ไข</button>
-          <button className="icon-btn" onClick={onClose} title="ปิด">✕</button>
+          <button className="btn sm primary" onClick={onEdit}>แก้ไข</button>
+          <button className="icon-btn" onClick={onClose} title="ปิด"><IconClose /></button>
         </div>
         <div className="detail-body">
           {p.photo_url && <img className="detail-photo" src={p.photo_url} alt={p.code} />}
@@ -56,8 +57,8 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
             value={p.phone && (
               <>
                 {p.phone}{' '}
-                <a className="icon-btn" href={`tel:${p.phone}`} title="โทร">📞</a>
-                <a className="icon-btn" href={`sms:${p.phone}`} title="SMS">💬</a>
+                <a className="icon-btn" href={`tel:${p.phone}`} title="โทร"><IconPhone size={16} /></a>
+                <a className="icon-btn" href={`sms:${p.phone}`} title="SMS"><IconSms size={16} /></a>
               </>
             )}
           />

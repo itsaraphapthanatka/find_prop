@@ -5,6 +5,7 @@ import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
+import { IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash } from '../components/icons'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -124,21 +125,23 @@ export default function ListPage({ search }: { search: string }) {
             <Combo value={fProvince} onChange={setFProvince} options={provinces} placeholder="ทุกจังหวัด" />
           </div>
           <span className="filter-label">ราคา (฿)</span>
-          <input
-            className="filter-price"
-            type="number"
-            placeholder="ต่ำสุด"
-            value={priceMin}
-            onChange={(e) => setPriceMin(e.target.value)}
-          />
-          <span className="filter-dash">–</span>
-          <input
-            className="filter-price"
-            type="number"
-            placeholder="สูงสุด"
-            value={priceMax}
-            onChange={(e) => setPriceMax(e.target.value)}
-          />
+          <div className="price-range">
+            <input
+              className="filter-price"
+              type="number"
+              placeholder="ต่ำสุด"
+              value={priceMin}
+              onChange={(e) => setPriceMin(e.target.value)}
+            />
+            <span className="filter-dash">–</span>
+            <input
+              className="filter-price"
+              type="number"
+              placeholder="สูงสุด"
+              value={priceMax}
+              onChange={(e) => setPriceMax(e.target.value)}
+            />
+          </div>
           {hasFilter && (
             <button type="button" className="btn sm" onClick={clearFilters}>✕ ล้างตัวกรอง</button>
           )}
@@ -164,7 +167,7 @@ export default function ListPage({ search }: { search: string }) {
             onClick={() => setSelected(p)}
           >
             <div className="thumb">
-              {p.photo_url ? <img src={p.photo_url} alt={p.code} /> : '🏭'}
+              {p.photo_url ? <img src={p.photo_url} alt={p.code} /> : <IconHouse />}
             </div>
             <div className="info">
               <div className="title-line">
@@ -182,18 +185,18 @@ export default function ListPage({ search }: { search: string }) {
             <div className="row-actions" onClick={(e) => e.stopPropagation()}>
               {p.phone && (
                 <>
-                  <a className="icon-btn" href={`tel:${p.phone}`} title="โทร">📞</a>
-                  <a className="icon-btn" href={`sms:${p.phone}`} title="ส่งข้อความ">💬</a>
+                  <a className="icon-btn" href={`tel:${p.phone}`} title="โทร"><IconPhone /></a>
+                  <a className="icon-btn" href={`sms:${p.phone}`} title="ส่งข้อความ"><IconSms /></a>
                 </>
               )}
               {p.map_url && (
-                <a className="icon-btn" href={p.map_url} target="_blank" rel="noreferrer" title="เปิดแผนที่ (ลิงก์)">🔗</a>
+                <a className="icon-btn" href={p.map_url} target="_blank" rel="noreferrer" title="เปิดแผนที่ (ลิงก์)"><IconLink /></a>
               )}
               {p.lat != null && p.lng != null && (
-                <button className="icon-btn" title="ดูบนแผนที่" onClick={() => navigate(`/map?focus=${p.id}`)}>📍</button>
+                <button className="icon-btn" title="ดูบนแผนที่" onClick={() => navigate(`/map?focus=${p.id}`)}><IconPin /></button>
               )}
-              <button className="icon-btn" title="แก้ไข" onClick={() => navigate(`/edit/${p.id}`)}>✏️</button>
-              <button className="icon-btn" title="ลบ" onClick={() => void handleDelete(p)}>🗑️</button>
+              <button className="icon-btn" title="แก้ไข" onClick={() => navigate(`/edit/${p.id}`)}><IconEdit /></button>
+              <button className="icon-btn danger" title="ลบ" onClick={() => void handleDelete(p)}><IconTrash /></button>
             </div>
           </div>
         ))}

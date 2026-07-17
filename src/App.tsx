@@ -8,6 +8,17 @@ import SuperAdminPage from './pages/SuperAdminPage'
 import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
 import { supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
+import { IconForm, IconList, IconMap, IconShield, IconUsers } from './components/icons'
+
+/** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
+function NavText({ full, short }: { full: string; short?: string }) {
+  return (
+    <span className="nav-text">
+      <span className="nav-lg">{full}</span>
+      {short && <span className="nav-sm">{short}</span>}
+    </span>
+  )
+}
 
 export default function App() {
   const { session, profile, org, loading, signOut } = useAuth()
@@ -76,11 +87,11 @@ export default function App() {
       </header>
       <div className="main">
         <nav className="sidebar">
-          <NavLink to="/map">🗺️ <span>แผนที่</span></NavLink>
-          <NavLink to="/new">📝 <span>ฟอร์ม</span></NavLink>
-          <NavLink to="/" end>📋 <span>รายการทรัพย์</span></NavLink>
-          {isAdmin && profile.org_id && <NavLink to="/team">👥 <span>ทีม</span></NavLink>}
-          {isSuper && <NavLink to="/super">🛡️ <span>Super Admin</span></NavLink>}
+          <NavLink to="/map"><IconMap /><NavText full="แผนที่" /></NavLink>
+          <NavLink to="/new"><IconForm /><NavText full="ฟอร์ม" /></NavLink>
+          <NavLink to="/" end><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
+          {isAdmin && profile.org_id && <NavLink to="/team"><IconUsers /><NavText full="ทีม" /></NavLink>}
+          {isSuper && <NavLink to="/super"><IconShield /><NavText full="Super Admin" short="Super" /></NavLink>}
         </nav>
         <main className="content">
           <Routes>
