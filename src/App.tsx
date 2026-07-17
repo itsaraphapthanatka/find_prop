@@ -1,0 +1,105 @@
+import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import ListPage from './pages/ListPage'
+import FormPage from './pages/FormPage'
+import MapPage from './pages/MapPage'
+import TeamPage from './pages/TeamPage'
+import SuperAdminPage from './pages/SuperAdminPage'
+import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
+import { supabaseConfigured } from './lib/supabase'
+import { orgOk, useAuth } from './lib/auth'
+
+export default function App() {
+  const { session, profile, org, loading, signOut } = useAuth()
+  const [search, setSearch] = useState('')
+  const navigate = useNavigate()
+
+  if (!supabaseConfigured) {
+    return (
+      <div className="banner-warn" style={{ marginTop: 40 }}>
+        ยังไม่ได้ตั้งค่า Supabase — คัดลอก <code>.env.example</code> เป็น <code>.env</code>{' '}
+        แล้วใส่ <code>VITE_SUPABASE_URL</code> / <code>VITE_SUPABASE_ANON_KEY</code>{' '}
+        จากนั้นรัน <code>supabase/*.sql</code> ตามลำดับใน SQL Editor
+      </div>
+    )
+  }
+  if (loading) return <div className="loading" style={{ paddingTop: 80 }}>กำลังโหลด…</div>
+  if (!session) return <LoginPage />
+
+  const isSuper = Boolean(profile?.is_super)
+
+  // ยังไม่มีองค์กร → ตั้งองค์กรใหม่ (super admin ข้ามได้ เพื่อเข้าหน้าบริหารระบบ)
+  if (profile && !profile.org_id && !isSuper) {
+    return <CreateOrgScreen email={session.user.email} onSignOut={() => void signOut()} />
+  }
+  // มีองค์กรแต่ถูกปิดใช้งานรายบุคคล → รอแอดมินเปิดให้
+  if (!profile || (!profile.active && !isSuper)) {
+    return <PendingScreen email={session.user.email} onSignOut={() => void signOut()} />
+  }
+  // องค์กรถูกระงับ/หมดอายุ → ใช้งานไม่ได้ (super admin ไม่ติดล็อกนี้)
+  if (!isSuper && profile.org_id && !orgOk(org)) {
+    const expired = Boolean(
+      org?.sub_expires_at && org.sub_expires_at < new Date().toISOString().slice(0, 10),
+    )
+    return (
+      <SuspendedScreen orgName={org?.name} expired={expired} onSignOut={() => void signOut()} />
+    )
+  }
+
+  const isAdmin = profile.role === 'admin'
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <svg width="26" height="26" viewBox="0 0 32 32">
+            <rect width="32" height="32" rx="7" fill="#7132f5" />
+            <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
+          </svg>
+          Find<span className="brand-accent">Prop</span>
+        </div>
+        <input
+          placeholder="ค้นหาทรัพย์ (รหัส, ทำเล, ประเภท…)"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            navigate('/')
+          }}
+        />
+        <div className="user-chip">
+          {org && <span className="org-badge">{org.name}</span>}
+          <span className="user-name">{profile.full_name || profile.email}</span>
+          {isSuper && <span className="role-badge super">SUPER</span>}
+          {!isSuper && isAdmin && <span className="role-badge">แอดมิน</span>}
+          <button className="btn sm" onClick={() => void signOut()} title="ออกจากระบบ">ออก</button>
+        </div>
+      </header>
+      <div className="main">
+        <nav className="sidebar">
+          <NavLink to="/map">🗺️ <span>แผนที่</span></NavLink>
+          <NavLink to="/new">📝 <span>ฟอร์ม</span></NavLink>
+          <NavLink to="/" end>📋 <span>รายการทรัพย์</span></NavLink>
+          {isAdmin && profile.org_id && <NavLink to="/team">👥 <span>ทีม</span></NavLink>}
+          {isSuper && <NavLink to="/super">🛡️ <span>Super Admin</span></NavLink>}
+        </nav>
+        <main className="content">
+          <Routes>
+            <Route path="/" element={<ListPage search={search} />} />
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/new" element={<FormPage />} />
+            <Route path="/edit/:id" element={<FormPage />} />
+            <Route
+              path="/team"
+              element={isAdmin && profile.org_id ? <TeamPage /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/super"
+              element={isSuper ? <SuperAdminPage /> : <Navigate to="/" replace />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  )
+}
