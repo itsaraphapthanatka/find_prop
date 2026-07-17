@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
 import MapPage from './pages/MapPage'
@@ -7,6 +7,9 @@ import PlansPage from './pages/PlansPage'
 import ComparePage from './pages/ComparePage'
 import TeamPage from './pages/TeamPage'
 import SuperAdminPage from './pages/SuperAdminPage'
+
+// โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
+const ImportPage = lazy(() => import('./pages/ImportPage'))
 import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
 import { supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
@@ -104,6 +107,14 @@ export default function App() {
             <Route path="/edit/:id" element={<FormPage />} />
             <Route path="/plans" element={<PlansPage />} />
             <Route path="/compare" element={<ComparePage />} />
+            <Route
+              path="/import"
+              element={
+                <Suspense fallback={<div className="loading">กำลังโหลด…</div>}>
+                  <ImportPage />
+                </Suspense>
+              }
+            />
             <Route
               path="/team"
               element={isAdmin && profile.org_id ? <TeamPage /> : <Navigate to="/" replace />}

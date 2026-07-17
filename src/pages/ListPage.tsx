@@ -5,7 +5,7 @@ import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
-import { IconCompare, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash } from '../components/icons'
+import { IconCompare, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -86,6 +86,9 @@ export default function ListPage({ search }: { search: string }) {
       <div className="view-header">
         <h1>รายการทรัพย์ <span className="count-badge">{filtered.length}</span></h1>
         <div className="header-actions">
+          <button className="btn" onClick={() => navigate('/import')} title="นำเข้าจาก Excel/CSV">
+            <IconUpload size={16} /> นำเข้า
+          </button>
           <button className="btn" onClick={() => navigate('/compare')}>
             <IconCompare size={16} /> เปรียบเทียบ
           </button>

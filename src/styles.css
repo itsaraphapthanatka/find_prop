@@ -532,6 +532,25 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   border-top: 1px solid var(--line); padding-top: 10px;
 }
 
+/* ── นำเข้าข้อมูล (ImportPage) ─────────────── */
+.tag.warn { background: #fdf1e2; color: #b45309; }
+.imp-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.imp-stats .tag { font-size: 12.5px; padding: 3px 11px; }
+.imp-progress {
+  height: 8px; border-radius: 6px; background: var(--purple-subtle);
+  overflow: hidden; margin: 12px 0 2px;
+}
+.imp-progress-bar {
+  height: 100%; background: var(--purple); border-radius: 6px;
+  transition: width 0.25s ease;
+}
+.imp-errors {
+  margin: 12px 0 0; padding: 10px 14px 10px 30px;
+  background: var(--danger-subtle); border-radius: 10px;
+  color: var(--danger); font-size: 13px; line-height: 1.7;
+  max-height: 240px; overflow: auto;
+}
+
 /* ── โหมดพิมพ์: เหลือเฉพาะแผ่นชอร์ตลิสต์ ───── */
 @media print {
   .topbar, .sidebar, .view-header, .compare-controls, .empty-state { display: none !important; }
