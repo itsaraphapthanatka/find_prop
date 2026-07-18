@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
 import { usePlans } from '../hooks/usePlans'
 import { aiChat, extractJson, propertyBrief } from '../lib/ai'
+import { selectRelevant } from '../lib/relevance'
 import type { Property, VisitPlan } from '../types'
 import { formatDate } from '../labels'
 import Combo from '../components/Combo'
@@ -18,7 +19,7 @@ interface MatchResult {
   remove?: { code: string; reason: string }[]
 }
 
-const MAX_CATALOG = 150 // กันแคตตาล็อกยาวเกิน context ของโมเดล
+const MAX_CATALOG = 80 // คัดตัวที่ใกล้ requirement ก่อนส่ง — ตอบไวขึ้นโดยไม่เสียความครอบคลุมมาก
 
 export default function PlansPage() {
   const { items, reload: reloadProps } = useProperties()
@@ -135,7 +136,8 @@ export default function PlansPage() {
         .map((s) => byId.get(s.property_id)?.code)
         .filter(Boolean)
         .join(', ')
-      const catalog = items.slice(0, MAX_CATALOG).map(propertyBrief).join('\n')
+      const { picked, total, trimmed } = selectRelevant(items, `${aiReq} ${inRoute}`, MAX_CATALOG)
+      const catalog = picked.map(propertyBrief).join('\n')
       const raw = await aiChat(
         [
           {
@@ -149,7 +151,7 @@ export default function PlansPage() {
 
 ทรัพย์ที่อยู่ในรูทเยี่ยมชมปัจจุบัน (รหัส): ${inRoute || '(ยังไม่มี)'}
 
-แคตตาล็อกทรัพย์ทั้งหมด (1 บรรทัด = 1 ทรัพย์ เริ่มด้วยรหัส):
+แคตตาล็อกทรัพย์${trimmed ? ` (คัดมา ${picked.length} รายการที่ใกล้ requirement ที่สุด จากทั้งหมด ${total})` : ''} (1 บรรทัด = 1 ทรัพย์ เริ่มด้วยรหัส):
 ${catalog}
 
 ตอบ JSON โครงนี้เท่านั้น:

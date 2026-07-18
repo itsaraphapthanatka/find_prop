@@ -52,6 +52,9 @@ export default async function handler(req, res) {
           model: process.env.AI_MODEL || 'gemma-4-12b',
           messages: messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
           temperature: typeof temperature === 'number' ? temperature : 0.2,
+          // เพดานความยาวคำตอบ — decode คือคอขวดของเซิร์ฟเวอร์ ถ้าปล่อยยาวไม่จำกัด
+          // คำตอบเดียวที่เพี้ยนจะกินคิวของทุกคน (คำตอบ JSON ปกติ < 500 token)
+          max_tokens: 800,
         }),
       },
     )

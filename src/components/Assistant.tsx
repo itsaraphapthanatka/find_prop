@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
 import { usePlans } from '../hooks/usePlans'
 import { aiChat, extractJson, propertyBrief } from '../lib/ai'
+import { selectRelevant } from '../lib/relevance'
 import type { Property } from '../types'
 import PropertyDetail from './PropertyDetail'
 import VoiceButton from './VoiceButton'
@@ -11,7 +12,7 @@ import {
   IconClose, IconHouse, IconSend, IconSparkles, IconTrash, IconVolume, IconVolumeOff,
 } from './icons'
 
-const MAX_CATALOG = 150
+const MAX_CATALOG = 40 // คัดเฉพาะที่เกี่ยวกับบทสนทนา — prompt สั้น ตอบไว รับคนพร้อมกันได้มากขึ้น
 const HISTORY_KEY = 'hob-assistant-chat'
 const SPEAK_KEY = 'hob-assistant-speak'
 const CONTEXT_MSGS = 6 // จำนวนข้อความย้อนหลังที่ส่งให้โมเดล
@@ -108,8 +109,9 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
     window.speechSynthesis.speak(u)
   }
 
-  function systemPrompt(): string {
-    const catalog = items.slice(0, MAX_CATALOG).map(propertyBrief).join('\n') || '(ยังไม่มีทรัพย์ในระบบ)'
+  function systemPrompt(ctxText: string): string {
+    const { picked, total, trimmed } = selectRelevant(items, ctxText, MAX_CATALOG)
+    const catalog = picked.map(propertyBrief).join('\n') || '(ยังไม่มีทรัพย์ในระบบ)'
     const plansBrief =
       plans
         .map(
@@ -120,7 +122,7 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
     return `คุณคือ "ผู้ช่วย HOB" ผู้ช่วย AI ในแอปฐานข้อมูลทรัพย์ให้เช่า/ขายของทีมนายหน้าอสังหาริมทรัพย์
 วันนี้: ${new Date().toISOString().slice(0, 10)}
 
-ทรัพย์ทั้งหมดในระบบ (1 บรรทัด = 1 ทรัพย์ เริ่มด้วยรหัส):
+ทรัพย์ในระบบ${trimmed ? ` — คัดมา ${picked.length} รายการที่เกี่ยวกับบทสนทนาที่สุด จากทั้งหมด ${total}` : ` (ทั้งหมด ${total} รายการ)`} (1 บรรทัด = 1 ทรัพย์ เริ่มด้วยรหัส):
 ${catalog}
 
 แผนเยี่ยมชมลูกค้า (รหัสแผน | ชื่อแผน | ลูกค้า | วันนัด | จุดแวะ | requirement):
@@ -137,7 +139,8 @@ ${plansBrief}
    {"type":"create_plan","title":"ชื่อแผน","customer_name":null,"visit_date":"YYYY-MM-DD หรือ null","requirement":null,"codes":[]} = สร้างแผนเยี่ยมชมใหม่
    {"type":"open_compare","codes":["รหัส 2-4 ตัว"]} = เปิดหน้าเปรียบเทียบทรัพย์
    และใส่ action_label ข้อความสั้นๆ สำหรับปุ่มยืนยัน — ระบบจะให้ผู้ใช้กดยืนยันก่อนทำจริงเสมอ
-6. คำถามความรู้ทั่วไปด้านอสังหาฯ ตอบได้ แต่เรื่องกฎหมาย/ภาษี ให้แนะนำตรวจกับผู้เชี่ยวชาญเพิ่มเติม`
+6. คำถามความรู้ทั่วไปด้านอสังหาฯ ตอบได้ แต่เรื่องกฎหมาย/ภาษี ให้แนะนำตรวจกับผู้เชี่ยวชาญเพิ่มเติม${trimmed ? `
+7. รายการทรัพย์ด้านบนถูกคัดมาเฉพาะที่เกี่ยวข้อง — ถ้าไม่พบสิ่งที่ผู้ใช้ถาม ห้ามสรุปว่า "ไม่มีในระบบ" ให้บอกว่าไม่พบในรายการที่คัดมา และแนะนำให้ระบุประเภท/ทำเล/รหัสให้ชัดขึ้น` : ''}`
   }
 
   /** ตรวจ action จาก AI: อ้างอิงต้องมีจริง ไม่งั้นตัดทิ้ง */
@@ -178,7 +181,12 @@ ${plansBrief}
         role: m.role,
         content: m.role === 'assistant' ? (m.raw ?? m.text).slice(0, 900) : m.text,
       }))
-      const raw = await aiChat([{ role: 'system', content: systemPrompt() }, ...ctx], 0.2)
+      // ใช้ข้อความล่าสุดในบทสนทนา (รวมรหัสทรัพย์บนการ์ดที่ AI เคยแนบ) เป็นตัวคัดแคตตาล็อก
+      const ctxText = history
+        .slice(-CONTEXT_MSGS)
+        .map((m) => [m.text, ...(m.codes ?? [])].join(' '))
+        .join(' ')
+      const raw = await aiChat([{ role: 'system', content: systemPrompt(ctxText) }, ...ctx], 0.2)
       const parsed = extractJson<{ reply?: string; properties?: string[]; action?: unknown; action_label?: string }>(raw)
       const reply =
         parsed?.reply?.trim() ||
