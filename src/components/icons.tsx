@@ -90,6 +90,17 @@ export const IconPin = (p: IconProps) => (
   </Svg>
 )
 
+export const IconLocate = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="7.2" />
+    <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" />
+    <path d="M12 2.2v2.6" />
+    <path d="M12 19.2v2.6" />
+    <path d="M2.2 12h2.6" />
+    <path d="M19.2 12h2.6" />
+  </Svg>
+)
+
 export const IconEdit = (p: IconProps) => (
   <Svg {...p}>
     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />

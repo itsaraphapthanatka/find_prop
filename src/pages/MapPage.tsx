@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
 import type { Property } from '../types'
 import { formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
-import { IconClose, IconPin } from '../components/icons'
+import { IconClose, IconLocate, IconPin } from '../components/icons'
 
 // ไอคอนหมุดเริ่มต้นของ Leaflet ต้องชี้ URL รูปเองเมื่อใช้ผ่าน bundler
 const pinIcon = L.icon({
@@ -25,6 +25,15 @@ const draftIcon = L.divIcon({
   iconSize: [26, 38],
   iconAnchor: [13, 36],
   popupAnchor: [0, -34],
+})
+
+// จุดตำแหน่งปัจจุบันของผู้ใช้ (สไตล์จุดฟ้าแบบแอปแผนที่)
+const meIcon = L.divIcon({
+  className: 'me-dot-wrap',
+  html: '<div class="me-dot"></div>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -10],
 })
 
 function FitBounds({ points }: { points: [number, number][] }) {
@@ -56,6 +65,9 @@ export default function MapPage() {
   const [selected, setSelected] = useState<Property | null>(null)
   const [picking, setPicking] = useState(false)
   const [draft, setDraft] = useState<[number, number] | null>(null)
+  const [map, setMap] = useState<L.Map | null>(null)
+  const [me, setMe] = useState<{ pos: [number, number]; accuracy: number } | null>(null)
+  const [locating, setLocating] = useState(false)
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const focusId = params.get('focus')
@@ -87,6 +99,31 @@ export default function MapPage() {
     navigate(`/new?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`)
   }
 
+  function locateMe() {
+    if (!('geolocation' in navigator)) {
+      alert('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const p: [number, number] = [pos.coords.latitude, pos.coords.longitude]
+        setMe({ pos: p, accuracy: pos.coords.accuracy })
+        setLocating(false)
+        map?.flyTo(p, Math.max(map.getZoom(), 15), { duration: 0.8 })
+      },
+      (err) => {
+        setLocating(false)
+        alert(
+          err.code === err.PERMISSION_DENIED
+            ? 'ยังไม่ได้อนุญาตให้เข้าถึงตำแหน่ง — เปิดสิทธิ์ Location ให้เบราว์เซอร์/แอปก่อน แล้วลองใหม่'
+            : 'หาตำแหน่งไม่สำเร็จ ลองใหม่อีกครั้ง',
+        )
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+    )
+  }
+
   return (
     <div className={`map-page ${picking ? 'picking' : ''}`}>
       <div className="view-header">
@@ -109,7 +146,18 @@ export default function MapPage() {
       )}
       <div className="leaflet-holder">
         {!loading && (
+          <button
+            className="locate-btn"
+            title="ไปที่ตำแหน่งปัจจุบันของฉัน"
+            disabled={locating}
+            onClick={locateMe}
+          >
+            <IconLocate size={20} className={locating ? 'locating' : undefined} />
+          </button>
+        )}
+        {!loading && (
           <MapContainer
+            ref={setMap}
             center={focused ? [focused.lat, focused.lng] : [13.6, 100.7]}
             zoom={focused ? 15 : 10}
             scrollWheelZoom
@@ -143,6 +191,23 @@ export default function MapPage() {
                 </Popup>
               </Marker>
             ))}
+            {me && (
+              <>
+                <Circle
+                  center={me.pos}
+                  radius={me.accuracy}
+                  pathOptions={{ color: '#2a78d6', weight: 1, opacity: 0.35, fillColor: '#2a78d6', fillOpacity: 0.08 }}
+                />
+                <Marker position={me.pos} icon={meIcon}>
+                  <Popup>
+                    <div className="map-popup">
+                      <div className="title">ตำแหน่งของคุณ</div>
+                      <div className="hint">แม่นยำ ±{Math.round(me.accuracy).toLocaleString('th-TH')} ม.</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
             {draft && (
               <>
                 <Marker
