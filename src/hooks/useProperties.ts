@@ -14,25 +14,19 @@ export function useProperties() {
       return
     }
     setLoading(true)
-    // join ชื่อองค์กรมาด้วย — ใช้แสดงป้าย/ตัวกรองตอนล็อกอินเป็น super (คนในองค์กรได้ชื่อ org ตัวเองซึ่งไม่ถูกแสดง)
-    let { data, error } = await supabase
-      .from('properties')
-      .select('*, organizations(name)')
-      .order('code', { ascending: true })
-    if (error) {
-      // ฐานข้อมูลบางชุดอาจ join organizations ไม่ได้ (เช่นไม่มี FK properties.org_id) — ถอยมาอ่านแบบไม่มีชื่อองค์กร
-      console.warn('โหลดชื่อองค์กรไม่สำเร็จ (ใช้โหมดสำรอง):', error.message)
-      ;({ data, error } = await supabase.from('properties').select('*').order('code', { ascending: true }))
-    }
-    if (error) setError(error.message)
+    // ชื่อองค์กรดึงแยกอีก query แล้วจับคู่เองที่นี่ (ทนกว่า embed ของ PostgREST ที่พึ่ง FK/schema cache)
+    // — RLS คุมเอง: สมาชิกเห็นแค่องค์กรตัวเอง / super เห็นทุกองค์กร
+    const [propsRes, orgsRes] = await Promise.all([
+      supabase.from('properties').select('*').order('code', { ascending: true }),
+      supabase.from('organizations').select('id, name'),
+    ])
+    if (propsRes.error) setError(propsRes.error.message)
     else {
-      // เผื่อ PostgREST คืน embed เป็น array (ความสัมพันธ์ไม่ถูกมองเป็น to-one)
-      type Rel = { name: string } | { name: string }[] | null | undefined
-      const rows = (data ?? []) as (Property & { organizations?: Rel })[]
-      setItems(rows.map(({ organizations, ...p }) => {
-        const rel = Array.isArray(organizations) ? organizations[0] : organizations
-        return { ...p, org_name: rel?.name ?? null }
-      }))
+      const nameById = new Map(
+        ((orgsRes.data ?? []) as { id: string; name: string }[]).map((o) => [o.id, o.name]),
+      )
+      const rows = (propsRes.data ?? []) as Property[]
+      setItems(rows.map((p) => ({ ...p, org_name: (p.org_id && nameById.get(p.org_id)) || null })))
     }
     setLoading(false)
   }, [])
