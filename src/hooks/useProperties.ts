@@ -20,13 +20,19 @@ export function useProperties() {
       .select('*, organizations(name)')
       .order('code', { ascending: true })
     if (error) {
-      // ฐานข้อมูลบางชุดอาจ join organizations ไม่ได้ (เช่นยังไม่รัน org.sql) — ถอยมาอ่านแบบไม่มีชื่อองค์กร
+      // ฐานข้อมูลบางชุดอาจ join organizations ไม่ได้ (เช่นไม่มี FK properties.org_id) — ถอยมาอ่านแบบไม่มีชื่อองค์กร
+      console.warn('โหลดชื่อองค์กรไม่สำเร็จ (ใช้โหมดสำรอง):', error.message)
       ;({ data, error } = await supabase.from('properties').select('*').order('code', { ascending: true }))
     }
     if (error) setError(error.message)
     else {
-      const rows = (data ?? []) as (Property & { organizations?: { name: string } | null })[]
-      setItems(rows.map(({ organizations, ...p }) => ({ ...p, org_name: organizations?.name ?? null })))
+      // เผื่อ PostgREST คืน embed เป็น array (ความสัมพันธ์ไม่ถูกมองเป็น to-one)
+      type Rel = { name: string } | { name: string }[] | null | undefined
+      const rows = (data ?? []) as (Property & { organizations?: Rel })[]
+      setItems(rows.map(({ organizations, ...p }) => {
+        const rel = Array.isArray(organizations) ? organizations[0] : organizations
+        return { ...p, org_name: rel?.name ?? null }
+      }))
     }
     setLoading(false)
   }, [])
