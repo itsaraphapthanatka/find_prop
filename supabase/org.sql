@@ -16,14 +16,30 @@ alter table public.properties
   add column if not exists org_id uuid references public.organizations(id) on delete cascade;
 
 -- backfill: ถ้ามีผู้ใช้/ข้อมูลเดิมที่ยังไม่มีองค์กร สร้างองค์กรเริ่มต้นแล้วผูกให้ทั้งหมด
+-- ยกเว้นบัญชี super (ต้องไม่มีสังกัดองค์กร) — กันการรันซ้ำแล้วดูด super เข้าองค์กรโดยไม่ตั้งใจ
 do $$
 declare v_org uuid;
+declare has_super_col boolean;
 begin
-  if exists (select 1 from public.profiles where org_id is null)
-     or exists (select 1 from public.properties where org_id is null) then
-    insert into public.organizations (name) values ('องค์กรของฉัน') returning id into v_org;
-    update public.profiles set org_id = v_org where org_id is null;
-    update public.properties set org_id = v_org where org_id is null;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'profiles' and column_name = 'is_super'
+  ) into has_super_col;
+
+  if has_super_col then
+    if exists (select 1 from public.profiles where org_id is null and not is_super)
+       or exists (select 1 from public.properties where org_id is null) then
+      insert into public.organizations (name) values ('องค์กรของฉัน') returning id into v_org;
+      update public.profiles set org_id = v_org where org_id is null and not is_super;
+      update public.properties set org_id = v_org where org_id is null;
+    end if;
+  else
+    if exists (select 1 from public.profiles where org_id is null)
+       or exists (select 1 from public.properties where org_id is null) then
+      insert into public.organizations (name) values ('องค์กรของฉัน') returning id into v_org;
+      update public.profiles set org_id = v_org where org_id is null;
+      update public.properties set org_id = v_org where org_id is null;
+    end if;
   end if;
 end $$;
 

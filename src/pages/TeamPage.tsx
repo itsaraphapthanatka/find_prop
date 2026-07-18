@@ -25,9 +25,9 @@ export default function TeamPage() {
   const [adding, setAdding] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
-  // องค์กรที่มีผลจริง: org ของตัวเอง หรือองค์กรที่ super กำลังสวมสิทธิ์อยู่
+  // องค์กรที่มีผลจริง: สำหรับ super ให้องค์กรที่สวมสิทธิ์มาก่อนเสมอ
   // (super เห็นโปรไฟล์ทุกองค์กรผ่าน RLS จึงต้องกรองฝั่งนี้ให้เหลือองค์กรเดียว)
-  const orgId = me?.org_id ?? (me?.is_super ? me?.impersonate_org_id ?? null : null)
+  const orgId = (me?.is_super ? me?.impersonate_org_id : null) ?? me?.org_id ?? null
 
   async function reload() {
     if (!orgId) {
