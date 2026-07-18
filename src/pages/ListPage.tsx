@@ -23,8 +23,9 @@ export default function ListPage({ search }: { search: string }) {
   const [selected, setSelected] = useState<Property | null>(null)
   const navigate = useNavigate()
   const { profile } = useAuth()
-  // super เห็นทรัพย์ทุกองค์กรรวมกัน — ต้องมีป้าย/ตัวกรององค์กรช่วยแยกของลูกค้าแต่ละราย
-  const isSuper = Boolean(profile?.is_super)
+  // ป้าย/ตัวกรององค์กรมีเฉพาะ super "โหมดภาพรวม" (เห็นหลายองค์กรปนกัน) —
+  // ตอนสวมสิทธิ์ให้มุมมองเหมือนสมาชิกองค์กรจริงทุกประการ
+  const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
 
   // ── ตัวกรอง ──
   const [fType, setFType] = useState<string | null>(null)

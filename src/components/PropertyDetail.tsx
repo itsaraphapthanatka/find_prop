@@ -34,7 +34,8 @@ interface Props {
 
 export default function PropertyDetail({ property: p, onClose, onEdit, onDelete }: Props) {
   const { profile } = useAuth()
-  const isSuper = Boolean(profile?.is_super)
+  // ป้ายองค์กรเฉพาะ super โหมดภาพรวม — ตอนสวมสิทธิ์มุมมองเหมือนสมาชิกจริง
+  const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
   return (
     <>
       <div className="detail-overlay" onClick={onClose} />

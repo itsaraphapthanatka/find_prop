@@ -64,7 +64,8 @@ function ClickCatcher({ enabled, onPick }: {
 export default function MapPage() {
   const { items, loading, reload } = useProperties()
   const { profile } = useAuth()
-  const isSuper = Boolean(profile?.is_super)
+  // ชื่อองค์กรใน popup เฉพาะ super โหมดภาพรวม — ตอนสวมสิทธิ์มุมมองเหมือนสมาชิกจริง
+  const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
   const [selected, setSelected] = useState<Property | null>(null)
   const [picking, setPicking] = useState(false)
   const [draft, setDraft] = useState<[number, number] | null>(null)
