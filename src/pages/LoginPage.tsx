@@ -66,6 +66,7 @@ export default function LoginPage() {
           {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
         </button>
         <p className="auth-note">ยังไม่มีบัญชี? ติดต่อผู้ดูแลทีมเพื่อเพิ่มคุณเข้าระบบ</p>
+        <p className="auth-note"><a href="#/">← กลับหน้าแรก</a></p>
       </form>
     </div>
   )

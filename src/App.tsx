@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Suspense, lazy, useState } from 'react'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
@@ -13,6 +13,7 @@ import LogsPage from './pages/LogsPage'
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
 import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
+import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
 import { supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
@@ -32,6 +33,7 @@ export default function App() {
   const { session, profile, org, loading, signOut } = useAuth()
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
 
   if (!supabaseConfigured) {
     return (
@@ -43,7 +45,8 @@ export default function App() {
     )
   }
   if (loading) return <div className="loading" style={{ paddingTop: 80 }}>กำลังโหลด…</div>
-  if (!session) return <LoginPage />
+  // ยังไม่ล็อกอิน: คนทั่วไป (ลูกค้า) เห็น landing page — ทีมงานเข้าผ่านปุ่ม/เส้นทาง /login
+  if (!session) return location.pathname === '/login' ? <LoginPage /> : <LandingPage />
 
   const isSuper = Boolean(profile?.is_super)
 
