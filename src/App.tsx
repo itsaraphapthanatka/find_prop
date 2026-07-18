@@ -11,6 +11,7 @@ import SuperAdminPage from './pages/SuperAdminPage'
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
 import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
+import Assistant from './components/Assistant'
 import { supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { IconForm, IconList, IconMap, IconRoute, IconShield, IconUsers } from './components/icons'
@@ -127,6 +128,7 @@ export default function App() {
           </Routes>
         </main>
       </div>
+      <Assistant />
     </div>
   )
 }

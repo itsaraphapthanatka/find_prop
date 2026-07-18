@@ -532,6 +532,95 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   border-top: 1px solid var(--line); padding-top: 10px;
 }
 
+/* ── ผู้ช่วย AI (Assistant) ────────────────── */
+.assist-fab {
+  position: fixed; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom));
+  width: 54px; height: 54px; border-radius: 50%; border: none; z-index: 1150;
+  background: var(--purple); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 20px rgba(113, 50, 245, 0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.assist-fab:hover { transform: scale(1.06); box-shadow: 0 8px 24px rgba(113, 50, 245, 0.5); }
+.assist-overlay { position: fixed; inset: 0; background: rgba(16, 17, 20, 0.35); z-index: 1180; }
+.assist-panel {
+  position: fixed; z-index: 1181; background: #fff;
+  display: flex; flex-direction: column;
+  top: max(20px, env(safe-area-inset-top)); right: 0; bottom: 0; left: 0;
+  border-radius: 18px 18px 0 0; box-shadow: var(--shadow-lg);
+  animation: sheet-up 0.22s cubic-bezier(0.32, 0.72, 0.33, 1);
+}
+@media (min-width: 721px) {
+  .assist-fab { right: 22px; bottom: 22px; }
+  .assist-panel {
+    top: 0; left: auto; width: min(430px, 100vw); border-radius: 0;
+    animation: slide-in 0.18s ease-out;
+  }
+}
+.assist-head {
+  display: flex; align-items: center; gap: 4px;
+  padding: 12px 12px 12px 18px; border-bottom: 1px solid var(--line);
+}
+.assist-title {
+  flex: 1; display: flex; align-items: center; gap: 7px;
+  font-weight: 700; font-size: 15.5px; color: var(--purple); min-width: 0;
+}
+.assist-head .icon-btn.on { background: var(--purple-subtle); color: var(--purple); }
+.assist-body { flex: 1; overflow: auto; padding: 16px 14px; background: var(--bg); }
+.assist-welcome { color: var(--muted); font-size: 13.5px; line-height: 1.7; }
+.assist-welcome p { margin: 4px 0 14px; }
+.assist-suggest { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.assist-suggest .chip-toggle { text-align: left; white-space: normal; }
+.msg {
+  max-width: 88%; padding: 9px 13px; border-radius: 14px; margin-bottom: 8px;
+  font-size: 14px; line-height: 1.65; width: fit-content;
+}
+.msg-text { white-space: pre-wrap; word-break: break-word; }
+.msg.user {
+  margin-left: auto; background: var(--purple); color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.msg.ai {
+  background: #fff; border: 1px solid var(--line);
+  border-bottom-left-radius: 4px; box-shadow: var(--shadow);
+}
+.assist-props { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.assist-prop {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid #e5daf9; background: var(--purple-subtle); color: var(--purple);
+  border-radius: 10px; padding: 4px 11px; font-size: 12.5px; font-weight: 600;
+}
+.assist-prop:hover { background: var(--purple); color: #fff; }
+.assist-action {
+  display: inline-flex; margin-top: 8px;
+  white-space: normal; text-align: left; line-height: 1.5;
+}
+.assist-done {
+  margin-top: 8px; font-size: 12.5px; color: var(--success);
+  background: var(--success-subtle); border-radius: 8px; padding: 5px 10px;
+}
+.msg.typing { display: flex; gap: 4px; padding: 13px 15px; }
+.msg.typing span {
+  width: 7px; height: 7px; border-radius: 50%; background: #c7b6f2;
+  animation: typing-dot 1.2s infinite;
+}
+.msg.typing span:nth-child(2) { animation-delay: 0.15s; }
+.msg.typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-dot { 0%, 60%, 100% { transform: none; opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }
+.assist-input {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); background: #fff;
+}
+.assist-input input {
+  flex: 1; min-width: 0; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 22px;
+  font: inherit; font-size: 15px; outline: none; background: var(--bg);
+}
+.assist-input input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(113, 50, 245, 0.12); }
+.assist-send { border-radius: 50%; width: 42px; height: 42px; padding: 0; flex: none; }
+.voice-btn.voice-compact { border-radius: 50%; width: 42px; height: 42px; padding: 0; flex: none; }
+
 /* ── ปุ่มพูด (VoiceButton) ─────────────────── */
 .voice-wrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .voice-btn.listening {

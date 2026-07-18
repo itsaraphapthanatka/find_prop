@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useProperties } from '../hooks/useProperties'
 import { aiChat, extractJson, propertyDetailText } from '../lib/ai'
 import type { Property } from '../types'
@@ -50,6 +51,18 @@ export default function ComparePage() {
 
   const byCode = useMemo(() => new Map(items.map((p) => [p.code, p])), [items])
   const picked = codes.map((c) => byCode.get(c)).filter((p): p is Property => Boolean(p))
+
+  // เปิดหน้าพร้อมเลือกทรัพย์ให้แล้ว (เช่นมาจากผู้ช่วย AI: /compare?codes=A,B) — ใช้ครั้งเดียวตอนข้อมูลพร้อม
+  const [params] = useSearchParams()
+  const appliedParam = useRef(false)
+  useEffect(() => {
+    if (appliedParam.current || items.length === 0) return
+    appliedParam.current = true
+    const q = params.get('codes')
+    if (!q) return
+    const valid = q.split(',').map((s) => s.trim()).filter((c) => byCode.has(c)).slice(0, MAX_PICK)
+    if (valid.length) setCodes(valid)
+  }, [items, params, byCode])
   const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
 
   function addProp(code: string | null) {

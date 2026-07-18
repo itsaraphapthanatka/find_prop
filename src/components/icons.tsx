@@ -142,6 +142,29 @@ export const IconPrint = (p: IconProps) => (
   </Svg>
 )
 
+export const IconSend = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m22 2-7 20-4-9-9-4Z" />
+    <path d="M22 2 11 13" />
+  </Svg>
+)
+
+export const IconVolume = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M19 5a9 9 0 0 1 0 14" />
+  </Svg>
+)
+
+export const IconVolumeOff = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+    <path d="m23 9-6 6" />
+    <path d="m17 9 6 6" />
+  </Svg>
+)
+
 export const IconMic = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
