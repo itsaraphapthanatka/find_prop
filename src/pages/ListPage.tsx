@@ -100,11 +100,11 @@ export default function ListPage({ search }: { search: string }) {
       <div className="view-header">
         <h1>รายการทรัพย์ <span className="count-badge">{filtered.length}</span></h1>
         <div className="header-actions">
-          <button className="btn" onClick={() => navigate('/import')} title="นำเข้าจาก Excel/CSV">
-            <IconUpload size={16} /> นำเข้า
+          <button className="btn mob-icon" onClick={() => navigate('/import')} title="นำเข้าจาก Excel/CSV">
+            <IconUpload size={16} /><span className="btn-label">นำเข้า</span>
           </button>
-          <button className="btn" onClick={() => navigate('/compare')}>
-            <IconCompare size={16} /> เปรียบเทียบ
+          <button className="btn mob-icon" onClick={() => navigate('/compare')} title="เปรียบเทียบทรัพย์">
+            <IconCompare size={16} /><span className="btn-label">เปรียบเทียบ</span>
           </button>
           <button className="btn primary" onClick={() => navigate('/new')}>+ เพิ่มทรัพย์</button>
         </div>

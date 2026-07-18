@@ -792,10 +792,13 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 @media (max-width: 640px) {
   /* ── View header ── */
   .view-header { padding: 10px 14px; }
-  .view-header h1 { font-size: 16.5px; }
+  .view-header h1 { font-size: 16.5px; white-space: nowrap; }
   .view-header .btn { padding: 7px 13px; font-size: 13.5px; }
-  .header-actions { gap: 6px; }
+  .header-actions { gap: 6px; flex-wrap: nowrap; }
   .header-actions .btn { padding: 7px 12px; font-size: 13px; }
+  /* ปุ่มรองเหลือแค่ไอคอน — ให้ชื่อหน้า+ปุ่มหลักอยู่บรรทัดเดียวจบ */
+  .btn.mob-icon .btn-label { display: none; }
+  .btn.mob-icon { padding: 8px 10px; }
 
   /* ── Filter bar: label ชิดหน้าแถว + chip เลื่อนข้างได้ ── */
   .filter-bar { padding: 8px 0 10px; gap: 6px; }
