@@ -4,6 +4,7 @@ import { aiChat, extractJson, propertyDetailText } from '../lib/ai'
 import type { Property } from '../types'
 import { formatNumber } from '../labels'
 import Combo from '../components/Combo'
+import VoiceButton from '../components/VoiceButton'
 import { IconClose, IconHouse, IconPrint, IconSparkles } from '../components/icons'
 
 /** บทวิเคราะห์จาก AI ต่อชอร์ตลิสต์หนึ่งชุด */
@@ -143,6 +144,7 @@ ${details}
               onChange={(e) => setRequirement(e.target.value)} />
           </div>
           <div className="ai-actions">
+            <VoiceButton onText={(t) => setRequirement((d) => (d ? `${d} ` : '') + t)} />
             <button className="btn primary" disabled={picked.length < 2 || aiBusy} onClick={() => void runAnalysis()}>
               <IconSparkles size={16} /> {aiBusy ? 'AI กำลังเขียนบทวิเคราะห์…' : 'สร้างบทวิเคราะห์ด้วย AI'}
             </button>

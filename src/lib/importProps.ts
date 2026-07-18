@@ -4,13 +4,13 @@ import { LABELS } from '../labels'
 /** ฟิลด์ที่นำเข้าได้ (ทุกฟิลด์ของทรัพย์) เรียงตามลำดับใน LABELS */
 export const IMPORT_FIELDS = Object.keys(LABELS) as (keyof PropertyInput)[]
 
-const NUM_FIELDS = new Set<keyof PropertyInput>([
+export const NUM_FIELDS = new Set<keyof PropertyInput>([
   'building_area', 'office_area_fl1', 'office_area_total', 'building_area_total',
   'rent_per_month', 'price_per_sqm', 'sale_price', 'door_count', 'building_height',
   'lat', 'lng',
 ])
-const ARRAY_FIELDS = new Set<keyof PropertyInput>(['zones', 'features', 'usages'])
-const DATE_FIELDS = new Set<keyof PropertyInput>(['record_date'])
+export const ARRAY_FIELDS = new Set<keyof PropertyInput>(['zones', 'features', 'usages'])
+export const DATE_FIELDS = new Set<keyof PropertyInput>(['record_date'])
 
 /** ชื่อเรียกอื่นที่พบบ่อยในไฟล์จริง (นอกเหนือจากป้าย LABELS และชื่อฟิลด์อังกฤษ) */
 const ALIASES: Record<string, keyof PropertyInput> = {

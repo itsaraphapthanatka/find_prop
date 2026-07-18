@@ -8,6 +8,7 @@ import type { Property, VisitPlan } from '../types'
 import { formatDate } from '../labels'
 import Combo from '../components/Combo'
 import PropertyDetail from '../components/PropertyDetail'
+import VoiceButton from '../components/VoiceButton'
 import { IconClose, IconDown, IconPin, IconSparkles, IconTrash, IconUp } from '../components/icons'
 
 /** ผลวิเคราะห์จาก AI เมื่อลูกค้าเปลี่ยน requirement */
@@ -314,6 +315,7 @@ ${catalog}
                 />
               </div>
               <div className="ai-actions">
+                <VoiceButton onText={(t) => setAiReq((d) => (d ? `${d} ` : '') + t)} />
                 <button className="btn primary" disabled={aiBusy || !aiReq.trim()} onClick={() => void runMatch(sel)}>
                   <IconSparkles size={16} /> {aiBusy ? 'AI กำลังวิเคราะห์…' : 'หาทรัพย์ที่ตรง requirement ใหม่'}
                 </button>

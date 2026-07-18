@@ -4,6 +4,9 @@ import { PHOTO_BUCKET, supabase, supabaseConfigured } from '../lib/supabase'
 import type { Property, PropertyInput } from '../types'
 import { LABELS, OPTIONS } from '../labels'
 import Combo, { MultiSelect } from '../components/Combo'
+import VoiceButton from '../components/VoiceButton'
+import { aiExtractProperty } from '../lib/ai'
+import { IconSparkles } from '../components/icons'
 
 const emptyForm: PropertyInput = {
   code: '',
@@ -189,6 +192,29 @@ export default function FormPage() {
   const [uploading, setUploading] = useState(false)
   const editing = Boolean(id)
 
+  // ── บันทึกด่วนด้วยเสียง/ข้อความ → ให้ AI กรอกฟอร์ม ──
+  const [dictation, setDictation] = useState('')
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiFilled, setAiFilled] = useState<(keyof PropertyInput)[] | null>(null)
+
+  async function fillFromDictation() {
+    setAiBusy(true)
+    setAiError(null)
+    setAiFilled(null)
+    try {
+      const extracted = await aiExtractProperty(dictation)
+      const keys = Object.keys(extracted) as (keyof PropertyInput)[]
+      if (keys.length === 0) throw new Error('AI อ่านไม่พบข้อมูลทรัพย์ในข้อความ — ลองเล่าใหม่อีกครั้ง')
+      setForm((f) => ({ ...f, ...extracted }))
+      setAiFilled(keys)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
   useEffect(() => {
     if (!id || !supabaseConfigured) return
     void supabase
@@ -248,6 +274,45 @@ export default function FormPage() {
         <h1>{editing ? `แก้ไข ${form.code || ''}` : 'เพิ่มทรัพย์ใหม่'}</h1>
       </div>
       <form className="form-wrap" onSubmit={handleSubmit}>
+        <section className="form-card ai-card">
+          <h3><IconSparkles size={16} /> บันทึกด่วนด้วยเสียงหรือข้อความ</h3>
+          <p className="ai-hint">
+            กด "พูด" แล้วเล่ารายละเอียดทรัพย์รวดเดียว (ทำเล ขนาด ราคา สเปก เจ้าของ เบอร์โทร…)
+            หรือวางข้อความจากแชท แล้วให้ AI กรอกลงฟอร์มให้ — กรอกทับเฉพาะฟิลด์ที่พูดถึง
+            อย่าลืมตรวจก่อนบันทึก
+          </p>
+          <div className="form-field">
+            <textarea
+              value={dictation}
+              placeholder='เช่น "โกดังให้เช่าบางพลีใหญ่ อำเภอบางพลี สมุทรปราการ พื้นที่พันสองร้อยตารางเมตร ค่าเช่าแปดหมื่นห้า สูงแปดเมตร ไฟสามเฟส มีรปภ. เจ้าของคุณสมชาย เบอร์ศูนย์แปดหนึ่งสองสามสี่ห้าหกเจ็ดแปด"'
+              onChange={(e) => setDictation(e.target.value)}
+            />
+          </div>
+          <div className="ai-actions">
+            <VoiceButton onText={(t) => setDictation((d) => (d ? `${d} ` : '') + t)} />
+            <button
+              type="button"
+              className="btn primary"
+              disabled={aiBusy || !dictation.trim()}
+              onClick={() => void fillFromDictation()}
+            >
+              <IconSparkles size={16} /> {aiBusy ? 'AI กำลังอ่าน…' : 'ให้ AI กรอกฟอร์ม'}
+            </button>
+            {dictation && !aiBusy && (
+              <button type="button" className="btn sm" onClick={() => { setDictation(''); setAiFilled(null) }}>
+                ล้างข้อความ
+              </button>
+            )}
+          </div>
+          {aiError && <div className="auth-error" style={{ marginTop: 10 }}>{aiError}</div>}
+          {aiFilled && (
+            <div className="auth-notice" style={{ marginTop: 10 }}>
+              กรอกให้แล้ว {aiFilled.length} ฟิลด์: {aiFilled.map((f) => LABELS[f]).join(', ')} —
+              ตรวจความถูกต้องด้านล่างก่อนบันทึก
+            </div>
+          )}
+        </section>
+
         <Section title="ข้อมูลทั่วไป">
           <div className="form-grid-2">
             <TextField name="record_date" type="date" required {...fp} />

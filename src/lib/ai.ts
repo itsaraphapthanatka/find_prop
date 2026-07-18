@@ -1,27 +1,38 @@
 import { supabase } from './supabase'
-import type { Property } from '../types'
-import { formatNumber } from '../labels'
+import type { Property, PropertyInput } from '../types'
+import { LABELS, OPTIONS, formatNumber } from '../labels'
+import { ARRAY_FIELDS, IMPORT_FIELDS, NUM_FIELDS, convertValue } from './importProps'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
 }
 
-/** เรียก LLM ผ่าน serverless proxy (/api/ai) — ต้องล็อกอินอยู่ */
+/** เรียก LLM ผ่าน serverless proxy (/api/ai) — ต้องล็อกอินอยู่
+    บริการ AI สะดุดเป็นช่วงๆ กับ prompt ยาว จึง retry ให้เองหนึ่งครั้ง */
 export async function aiChat(messages: ChatMessage[], temperature = 0.2): Promise<string> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new Error('ยังไม่ได้เข้าสู่ระบบ')
-  const res = await fetch('/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ messages, temperature }),
-  })
-  const body = (await res.json().catch(() => null)) as { content?: string; error?: string } | null
-  if (!res.ok || !body?.content) {
-    throw new Error(body?.error || `เรียก AI ไม่สำเร็จ (${res.status})`)
+
+  let lastError = 'เรียก AI ไม่สำเร็จ'
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500))
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ messages, temperature }),
+      })
+      const body = (await res.json().catch(() => null)) as { content?: string; error?: string } | null
+      if (res.ok && body?.content) return body.content
+      lastError = body?.error || `เรียก AI ไม่สำเร็จ (${res.status})`
+      if (res.status === 401 || res.status === 400) break // ปัญหาฝั่งเรา retry ไปก็ไม่หาย
+    } catch {
+      lastError = 'เชื่อมต่อ AI ไม่ได้ — เช็คอินเทอร์เน็ตแล้วลองใหม่'
+    }
   }
-  return body.content
+  throw new Error(lastError)
 }
 
 /** ดึง JSON ก้อนแรกออกจากคำตอบโมเดล (ตัด code fence / ข้อความห่อหุ้มออก) */
@@ -56,6 +67,67 @@ export function propertyBrief(p: Property): string {
   if (p.usages?.length) parts.push(`ใช้ทำ ${p.usages.slice(0, 4).join(', ')}`)
   if (p.nearby) parts.push(`ใกล้ ${p.nearby.slice(0, 80)}`)
   return parts.filter(Boolean).join(' | ')
+}
+
+/** คู่มือฟิลด์สำหรับ prompt แกะข้อมูลจากคำพูด (key | ความหมาย | ชนิดค่า | ตัวเลือก) */
+function fieldGuide(): string {
+  return IMPORT_FIELDS
+    .filter((f) => f !== 'photo_url') // รูปไม่ได้มาจากคำพูด
+    .map((f) => {
+      const opts = (OPTIONS as Partial<Record<keyof PropertyInput, string[]>>)[f]
+      const kind = NUM_FIELDS.has(f)
+        ? 'ตัวเลขล้วน'
+        : ARRAY_FIELDS.has(f)
+          ? 'array ของข้อความ'
+          : f === 'record_date'
+            ? 'วันที่ YYYY-MM-DD'
+            : 'ข้อความ'
+      return `${f} | ${LABELS[f]} | ${kind}${opts ? ` | ตัวเลือกแนะนำ: ${opts.join(', ')}` : ''}`
+    })
+    .join('\n')
+}
+
+/** แกะข้อมูลทรัพย์จากคำบอกเล่า (เสียงถอดเป็นข้อความ/ข้อความที่วางมา) → ฟิลด์ของฟอร์ม */
+export async function aiExtractProperty(speech: string): Promise<Partial<PropertyInput>> {
+  const raw = await aiChat(
+    [
+      {
+        role: 'system',
+        content:
+          'คุณแกะข้อมูลอสังหาริมทรัพย์จากคำบอกเล่าภาษาไทยของนายหน้า ตอบเป็น JSON object เดียวล้วนๆ ใส่เฉพาะฟิลด์ที่ถูกพูดถึงจริง ห้ามเดาหรือแต่งเติมค่าที่ไม่ได้พูด',
+      },
+      {
+        role: 'user',
+        content: `ฟิลด์ทั้งหมดที่ใช้ได้ (key | ความหมาย | ชนิดค่า | ตัวเลือกถ้ามี):
+${fieldGuide()}
+
+กติกา:
+- ตัวเลขที่พูดเป็นคำไทยให้แปลงเป็นตัวเลข เช่น "แปดหมื่นห้า" → 85000, "พันสอง" → 1200, "สองแสน" → 200000, "สามล้านครึ่ง" → 3500000
+- ราคาหน่วยบาท พื้นที่หน่วยตารางเมตร ความสูงหน่วยเมตร — ตัวเลขล้วนไม่มีคอมมา/หน่วย
+- ถ้าค่าที่พูดใกล้เคียงตัวเลือกแนะนำ ให้ใช้คำจากตัวเลือกนั้น
+- แขวง/ตำบล เขต/อำเภอ จังหวัด แยกให้ถูกฟิลด์
+- เบอร์โทรเป็นข้อความตัวเลขติดกัน
+- จุดเด่น/สิ่งอำนวยความสะดวกของทรัพย์ (เช่น มีรถโฟล์คลิฟท์ มีเครน รปภ. ที่จอดรถ) ใส่ array ของ features ไม่ใช่ notes
+
+คำบอกเล่าของนายหน้า:
+"""${speech.trim()}"""
+
+ตอบ JSON object เดียว โดย key เป็นชื่อฟิลด์ภาษาอังกฤษจากรายการด้านบนเท่านั้น`,
+      },
+    ],
+    0.1,
+  )
+  const parsed = extractJson<Record<string, unknown>>(raw)
+  if (!parsed) throw new Error('อ่านคำตอบ AI ไม่ได้ ลองใหม่อีกครั้ง')
+  const out: Partial<PropertyInput> = {}
+  for (const f of IMPORT_FIELDS) {
+    if (!(f in parsed)) continue
+    const v = parsed[f]
+    if (v === null || v === undefined || v === '') continue
+    const converted = convertValue(f, Array.isArray(v) ? v.join(', ') : v)
+    if (converted !== null) (out as Record<string, unknown>)[f] = converted
+  }
+  return out
 }
 
 /** ข้อมูลทรัพย์แบบละเอียด (หลายบรรทัด) สำหรับชอร์ตลิสต์เปรียบเทียบ */
