@@ -25,6 +25,7 @@ export default function SuperAdminPage() {
   const [edits, setEdits] = useState<Record<string, { plan: string; sub_expires_at: string }>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   const [enteringId, setEnteringId] = useState<string | null>(null)
+  const [fOrg, setFOrg] = useState<string | null>(null)
   const { profile, refreshProfile } = useAuth()
   const navigate = useNavigate()
 
@@ -99,10 +100,13 @@ export default function SuperAdminPage() {
   const expired = (o: OrgOverview) =>
     o.sub_expires_at != null && o.sub_expires_at < new Date().toISOString().slice(0, 10)
 
+  // ตัวกรององค์กร (dropdown แบบเดียวกับหน้ารายการทรัพย์)
+  const shown = fOrg ? orgs.filter((o) => o.name === fOrg) : orgs
+
   return (
     <>
       <div className="view-header">
-        <h1>Super Admin <span className="count-badge">{orgs.length} องค์กร</span></h1>
+        <h1>Super Admin <span className="count-badge">{shown.length} องค์กร</span></h1>
         <div className="header-actions">
           <Link to="/logs" className="btn">ประวัติการใช้งาน</Link>
         </div>
@@ -110,6 +114,21 @@ export default function SuperAdminPage() {
       <div className="team-wrap super-wrap">
         <section className="form-card">
           <h3>องค์กรทั้งหมด · บริหาร Subscription</h3>
+          {orgs.length > 0 && (
+            <div className="filter-row" style={{ marginBottom: 12 }}>
+              <span className="filter-label">องค์กร</span>
+              <select
+                className="filter-select"
+                value={fOrg ?? ''}
+                onChange={(e) => setFOrg(e.target.value || null)}
+              >
+                <option value="">ทุกองค์กร</option>
+                {[...orgs].sort((a, b) => a.name.localeCompare(b.name, 'th')).map((o) => (
+                  <option key={o.id} value={o.name}>{o.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {error && <div className="auth-error">{error}</div>}
           {loading && <div className="loading">กำลังโหลด…</div>}
           {!loading && orgs.length === 0 && !error && (
@@ -130,7 +149,7 @@ export default function SuperAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orgs.map((o) => (
+                  {shown.map((o) => (
                     <tr key={o.id} className={o.sub_status === 'suspended' ? 'row-off' : ''}>
                       <td data-label="องค์กร" className="td-main">
                         <button
