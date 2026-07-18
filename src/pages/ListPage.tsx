@@ -160,9 +160,16 @@ export default function ListPage({ search }: { search: string }) {
           {isSuper && orgs.length > 0 && (
             <>
               <span className="filter-label">องค์กร</span>
-              <div className="filter-province">
-                <Combo value={fOrg} onChange={setFOrg} options={orgs} placeholder="ทุกองค์กร" />
-              </div>
+              <select
+                className="filter-select"
+                value={fOrg ?? ''}
+                onChange={(e) => setFOrg(e.target.value || null)}
+              >
+                <option value="">ทุกองค์กร</option>
+                {orgs.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
             </>
           )}
           <div className="price-range">
