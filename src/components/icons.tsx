@@ -142,6 +142,15 @@ export const IconPrint = (p: IconProps) => (
   </Svg>
 )
 
+export const IconChart = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+    <path d="M7 16v-5" />
+    <path d="M12 16V8" />
+    <path d="M17 16v-3" />
+  </Svg>
+)
+
 export const IconSend = (p: IconProps) => (
   <Svg {...p}>
     <path d="m22 2-7 20-4-9-9-4Z" />

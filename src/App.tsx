@@ -3,6 +3,7 @@ import { Suspense, lazy, useState } from 'react'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
 import MapPage from './pages/MapPage'
+import DashboardPage from './pages/DashboardPage'
 import PlansPage from './pages/PlansPage'
 import ComparePage from './pages/ComparePage'
 import TeamPage from './pages/TeamPage'
@@ -14,7 +15,7 @@ import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pa
 import Assistant from './components/Assistant'
 import { supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
-import { IconForm, IconList, IconMap, IconRoute, IconShield, IconUsers } from './components/icons'
+import { IconChart, IconForm, IconList, IconMap, IconRoute, IconShield, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
 function NavText({ full, short }: { full: string; short?: string }) {
@@ -96,6 +97,7 @@ export default function App() {
           <NavLink to="/map"><IconMap /><NavText full="แผนที่" /></NavLink>
           <NavLink to="/new"><IconForm /><NavText full="ฟอร์ม" /></NavLink>
           <NavLink to="/" end><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
+          <NavLink to="/dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>
           <NavLink to="/plans"><IconRoute /><NavText full="แผนเยี่ยมชม" short="แผนเยี่ยม" /></NavLink>
           {isAdmin && profile.org_id && <NavLink to="/team"><IconUsers /><NavText full="ทีม" /></NavLink>}
           {isSuper && <NavLink to="/super"><IconShield /><NavText full="Super Admin" short="Super" /></NavLink>}
@@ -103,6 +105,7 @@ export default function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<ListPage search={search} />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/new" element={<FormPage />} />
             <Route path="/edit/:id" element={<FormPage />} />

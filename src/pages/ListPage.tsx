@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
 import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
@@ -28,6 +28,20 @@ export default function ListPage({ search }: { search: string }) {
   const [fProvince, setFProvince] = useState<string | null>(null)
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
+
+  // เปิดหน้าพร้อมตัวกรองจากลิงก์ (เช่นจิ้มกราฟใน Dashboard: /?type=โกดัง) — ใช้ครั้งเดียว
+  const [params] = useSearchParams()
+  const paramApplied = useRef(false)
+  useEffect(() => {
+    if (paramApplied.current) return
+    paramApplied.current = true
+    const t = params.get('type')
+    const l = params.get('listing')
+    const pv = params.get('province')
+    if (t) setFType(t)
+    if (l) setFListing(l)
+    if (pv) setFProvince(pv)
+  }, [params])
 
   const provinces = useMemo(
     () => Array.from(new Set(items.map((p) => p.province).filter((v): v is string => Boolean(v)))).sort(),

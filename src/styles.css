@@ -532,6 +532,85 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   border-top: 1px solid var(--line); padding-top: 10px;
 }
 
+/* ── Dashboard (สรุปภาพรวม) ────────────────── */
+.dash-wrap { max-width: 860px; }
+.dash-tiles {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;
+}
+@media (max-width: 640px) { .dash-tiles { grid-template-columns: 1fr 1fr; } }
+.stat-tile {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 14px; position: relative; min-width: 0;
+}
+.stat-label { font-size: 12px; color: var(--muted); }
+.stat-value {
+  font-size: 26px; font-weight: 700; letter-spacing: -0.6px; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stat-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.stat-tile .spark { position: absolute; right: 10px; bottom: 10px; opacity: 0.9; }
+.dash-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .dash-cols { grid-template-columns: 1fr; gap: 0; } }
+
+/* stacked bar + legend (ตัวเลขกำกับครบทุกชิ้น = relief ของสีอ่อน) */
+.stackbar {
+  display: flex; gap: 2px; height: 16px; border-radius: 8px; overflow: hidden;
+  margin: 4px 0 12px;
+}
+.stackbar-seg { min-width: 6px; }
+.stackbar-seg:first-child { border-radius: 8px 0 0 8px; }
+.stackbar-seg:last-child { border-radius: 0 8px 8px 0; }
+.legend { display: flex; flex-direction: column; gap: 2px; }
+.legend-row {
+  display: flex; align-items: center; gap: 8px; border: none; background: none;
+  padding: 5px 6px; border-radius: 8px; font-size: 13px; color: var(--ink);
+  text-align: left; width: 100%;
+}
+.legend-row:not(:disabled):hover { background: var(--purple-tint); }
+.legend-row:disabled { cursor: default; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.legend-val { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+
+/* แท่งแนวนอนชุดเดียว (สีแบรนด์เดียว ตามหลัก nominal bars) */
+.hbars { display: flex; flex-direction: column; gap: 8px; }
+.hbar-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.hbar-label { width: 96px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar-track { flex: 1; height: 10px; background: var(--line-soft); border-radius: 5px; overflow: hidden; }
+.hbar-fill { display: block; height: 100%; background: var(--purple); border-radius: 5px; min-width: 3px; }
+.hbar-val { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+
+/* นัดใกล้ถึง */
+.dash-visit {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 2px; border-bottom: 1px solid var(--line-soft);
+}
+.visit-day {
+  flex: none; min-width: 64px; text-align: center;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px 8px;
+}
+.visit-day.soon { background: var(--purple-subtle); color: var(--purple); border-color: #e5daf9; }
+
+/* price picks + health */
+.dash-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+@media (max-width: 640px) { .dash-picks { grid-template-columns: 1fr; } }
+.dash-pick {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  border: none; background: none; padding: 6px 6px; border-radius: 8px;
+  font-size: 13.5px; font-weight: 600; color: var(--ink); text-align: left;
+}
+.dash-pick:hover { background: var(--purple-tint); }
+.dash-pick .stop-sub { font-weight: 400; }
+.pick-diff { font-size: 12px; font-weight: 700; border-radius: 8px; padding: 1px 8px; }
+.pick-diff.good { background: var(--success-subtle); color: var(--success); }
+.pick-diff.bad { background: var(--danger-subtle); color: var(--danger); }
+.health-chip { cursor: pointer; border: 1px solid transparent; }
+.health-chip.open { border-color: #b45309; }
+.health-list { margin-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+.insight-list { margin: 4px 0 10px; padding-left: 20px; font-size: 13.5px; line-height: 1.7; }
+.insight-action { margin: 6px 0 10px; font-size: 13.5px; line-height: 1.6; }
+
 /* ── ผู้ช่วย AI (Assistant) ────────────────── */
 .assist-fab {
   position: fixed; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom));
