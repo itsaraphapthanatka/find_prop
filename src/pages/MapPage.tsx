@@ -3,6 +3,7 @@ import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } 
 import L from 'leaflet'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
+import { useAuth } from '../lib/auth'
 import type { Property } from '../types'
 import { formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
@@ -62,6 +63,8 @@ function ClickCatcher({ enabled, onPick }: {
 
 export default function MapPage() {
   const { items, loading, reload } = useProperties()
+  const { profile } = useAuth()
+  const isSuper = Boolean(profile?.is_super)
   const [selected, setSelected] = useState<Property | null>(null)
   const [picking, setPicking] = useState(false)
   const [draft, setDraft] = useState<[number, number] | null>(null)
@@ -179,6 +182,7 @@ export default function MapPage() {
                 <Popup>
                   <div className="map-popup">
                     <div className="title">{p.code}</div>
+                    {isSuper && p.org_name && <div className="hint">องค์กร: {p.org_name}</div>}
                     <div>{[p.property_type, p.listing_type].filter(Boolean).join(' · ')}</div>
                     <div>{[p.district, p.province].filter(Boolean).join(', ')}</div>
                     {p.rent_per_month != null && (

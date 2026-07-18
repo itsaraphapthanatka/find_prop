@@ -49,9 +49,11 @@ export interface Property {
   map_url: string | null
   notes: string | null
   created_at?: string
+  /** ชื่อองค์กรเจ้าของแถว (join มาตอนอ่าน) — ใช้แสดงเฉพาะมุมมอง super admin */
+  org_name?: string | null
 }
 
-export type PropertyInput = Omit<Property, 'id' | 'created_at'>
+export type PropertyInput = Omit<Property, 'id' | 'created_at' | 'org_name'>
 
 /** จุดแวะในรูทเยี่ยมชม (อ้างถึงทรัพย์ด้วย id) */
 export interface VisitStop {

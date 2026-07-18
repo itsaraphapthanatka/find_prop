@@ -14,12 +14,16 @@ export function useProperties() {
       return
     }
     setLoading(true)
+    // join ชื่อองค์กรมาด้วย — ใช้แสดงป้าย/ตัวกรองตอนล็อกอินเป็น super (คนในองค์กรได้ชื่อ org ตัวเองซึ่งไม่ถูกแสดง)
     const { data, error } = await supabase
       .from('properties')
-      .select('*')
+      .select('*, organizations(name)')
       .order('code', { ascending: true })
     if (error) setError(error.message)
-    else setItems((data ?? []) as Property[])
+    else {
+      const rows = (data ?? []) as (Property & { organizations: { name: string } | null })[]
+      setItems(rows.map(({ organizations, ...p }) => ({ ...p, org_name: organizations?.name ?? null })))
+    }
     setLoading(false)
   }, [])
 

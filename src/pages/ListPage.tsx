@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
 import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
@@ -21,11 +22,15 @@ export default function ListPage({ search }: { search: string }) {
   const { items, loading, error, reload } = useProperties()
   const [selected, setSelected] = useState<Property | null>(null)
   const navigate = useNavigate()
+  const { profile } = useAuth()
+  // super เห็นทรัพย์ทุกองค์กรรวมกัน — ต้องมีป้าย/ตัวกรององค์กรช่วยแยกของลูกค้าแต่ละราย
+  const isSuper = Boolean(profile?.is_super)
 
   // ── ตัวกรอง ──
   const [fType, setFType] = useState<string | null>(null)
   const [fListing, setFListing] = useState<string | null>(null)
   const [fProvince, setFProvince] = useState<string | null>(null)
+  const [fOrg, setFOrg] = useState<string | null>(null)
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
 
@@ -47,7 +52,11 @@ export default function ListPage({ search }: { search: string }) {
     () => Array.from(new Set(items.map((p) => p.province).filter((v): v is string => Boolean(v)))).sort(),
     [items],
   )
-  const hasFilter = Boolean(fType || fListing || fProvince || priceMin || priceMax)
+  const orgs = useMemo(
+    () => Array.from(new Set(items.map((p) => p.org_name).filter((v): v is string => Boolean(v)))).sort(),
+    [items],
+  )
+  const hasFilter = Boolean(fType || fListing || fProvince || fOrg || priceMin || priceMax)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -67,6 +76,7 @@ export default function ListPage({ search }: { search: string }) {
       if (fType && p.property_type !== fType) return false
       if (fListing && p.listing_type !== fListing) return false
       if (fProvince && p.province !== fProvince) return false
+      if (fOrg && p.org_name !== fOrg) return false
       if (min != null || max != null) {
         const price = effectivePrice(p)
         if (price == null) return false
@@ -75,12 +85,13 @@ export default function ListPage({ search }: { search: string }) {
       }
       return true
     })
-  }, [items, search, fType, fListing, fProvince, priceMin, priceMax])
+  }, [items, search, fType, fListing, fProvince, fOrg, priceMin, priceMax])
 
   function clearFilters() {
     setFType(null)
     setFListing(null)
     setFProvince(null)
+    setFOrg(null)
     setPriceMin('')
     setPriceMax('')
   }
@@ -146,6 +157,14 @@ export default function ListPage({ search }: { search: string }) {
           <div className="filter-province">
             <Combo value={fProvince} onChange={setFProvince} options={provinces} placeholder="ทุกจังหวัด" />
           </div>
+          {isSuper && orgs.length > 0 && (
+            <>
+              <span className="filter-label">องค์กร</span>
+              <div className="filter-province">
+                <Combo value={fOrg} onChange={setFOrg} options={orgs} placeholder="ทุกองค์กร" />
+              </div>
+            </>
+          )}
           <div className="price-range">
             <span className="filter-label">ราคา (฿)</span>
             <input
@@ -196,6 +215,7 @@ export default function ListPage({ search }: { search: string }) {
                 <span className="title">{p.code}</span>
                 {p.property_type && <span className="tag">{p.property_type}</span>}
                 {p.listing_type && <span className="tag alt">{p.listing_type}</span>}
+                {isSuper && p.org_name && <span className="tag org">{p.org_name}</span>}
               </div>
               <div className="sub">
                 {formatDate(p.record_date)}

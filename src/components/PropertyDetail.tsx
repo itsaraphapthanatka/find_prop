@@ -1,5 +1,6 @@
 import type { Property } from '../types'
 import { LABELS, formatDate, formatNumber } from '../labels'
+import { useAuth } from '../lib/auth'
 import { IconClose, IconPhone, IconSms } from './icons'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -32,12 +33,15 @@ interface Props {
 }
 
 export default function PropertyDetail({ property: p, onClose, onEdit, onDelete }: Props) {
+  const { profile } = useAuth()
+  const isSuper = Boolean(profile?.is_super)
   return (
     <>
       <div className="detail-overlay" onClick={onClose} />
       <aside className="detail-pane">
         <div className="pane-header">
           <h2>{p.code}</h2>
+          {isSuper && p.org_name && <span className="tag org">{p.org_name}</span>}
           <button className="btn sm danger" onClick={onDelete}>ลบ</button>
           <button className="btn sm primary" onClick={onEdit}>แก้ไข</button>
           <button className="icon-btn" onClick={onClose} title="ปิด"><IconClose /></button>

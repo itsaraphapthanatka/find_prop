@@ -1,7 +1,7 @@
-import type { Property } from './types'
+import type { PropertyInput } from './types'
 
 /** ป้ายชื่อฟิลด์ภาษาไทย (ตามแอป AppSheet ต้นแบบ) */
-export const LABELS: Record<keyof Omit<Property, 'id' | 'created_at'>, string> = {
+export const LABELS: Record<keyof PropertyInput, string> = {
   code: 'ลำดับที่',
   record_date: 'วันที่',
   photo_url: 'รูป',
