@@ -1,80 +1,100 @@
 import { useNavigate } from 'react-router-dom'
-import { IconCompare, IconPhone, IconRoute, IconSparkles } from '../components/icons'
+import {
+  IconChart,
+  IconCompare,
+  IconMap,
+  IconMic,
+  IconPhone,
+  IconRoute,
+  IconShield,
+  IconSparkles,
+  IconUpload,
+} from '../components/icons'
 
-// ── ช่องทางติดต่อ — แก้ตรงนี้จุดเดียว ──────────────────────────
+// ── ช่องทางติดต่อ/ทีมขาย — แก้ตรงนี้จุดเดียว ──────────────────
 const CONTACT = {
   phone: '081-234-5678', // TODO: ใส่เบอร์จริง
-  lineId: '@hobproperty', // TODO: ใส่ LINE ID จริง
-  lineUrl: 'https://line.me/R/ti/p/@hobproperty', // TODO: ลิงก์ LINE OA จริง
-  email: 'contact@hob-property.com', // TODO: ใส่อีเมลจริง
-  hours: 'ทุกวัน 8:30 – 18:00 น.',
+  lineId: '@hobplatform', // TODO: ใส่ LINE ID จริง
+  lineUrl: 'https://line.me/R/ti/p/@hobplatform', // TODO: ลิงก์ LINE OA จริง
+  email: 'sales@hob-platform.com', // TODO: ใส่อีเมลจริง
 }
 
-const PROPERTY_TYPES = [
+const FEATURES = [
   {
-    name: 'โกดัง / คลังสินค้า',
-    desc: 'พื้นที่จัดเก็บ-กระจายสินค้า ใกล้ถนนหลักและนิคมฯ มีทั้งพร้อมใช้และสร้างตามแบบ',
-    icon: (
-      <svg viewBox="0 0 24 24"><path d="M3 21V9l9-5 9 5v12" /><path d="M7 21v-8h10v8" /><path d="M7 17h10" /></svg>
-    ),
+    title: 'ฐานข้อมูลทรัพย์ครบทุกมิติ',
+    desc: 'โกดัง โรงงาน โชว์รูม ออฟฟิศ — เก็บครบ ~50 ฟิลด์ต่อทรัพย์ พร้อมรูปภาพ พิกัดบนแผนที่ ค้นหา/กรองได้ทันใจ',
+    icon: <IconMap size={22} />,
   },
   {
-    name: 'โรงงาน',
-    desc: 'โซนสีม่วง/สีเหลือง ไฟ 3 เฟส เครน พื้นรับน้ำหนักสูง พร้อมใบอนุญาตที่เกี่ยวข้อง',
-    icon: (
-      <svg viewBox="0 0 24 24"><path d="M2 20V8l6 4V8l6 4V4h8v16z" /><path d="M17 12h2M17 16h2" /></svg>
-    ),
+    title: 'พูดปุ๊บ ได้ข้อมูลปั๊บ',
+    desc: 'เซลส์ยืนหน้างาน กดพูดเล่ารายละเอียดทรัพย์รวดเดียว AI แกะเป็นฟิลด์กรอกฟอร์มให้อัตโนมัติ รวมถึงตัวเลขภาษาไทย',
+    icon: <IconMic size={22} />,
   },
   {
-    name: 'โชว์รูม',
-    desc: 'อาคารติดถนนใหญ่ หน้ากว้าง มองเห็นง่าย เหมาะทำโชว์รูมสินค้า-ศูนย์บริการ',
-    icon: (
-      <svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14" /><path d="M4 11h16" /><path d="M9 21v-6h6v6" /></svg>
-    ),
-  },
-  {
-    name: 'ออฟฟิศ / สำนักงาน',
-    desc: 'สำนักงานพร้อมเข้า ทั้งแบบเดี่ยวและในโครงการ ใกล้ทางด่วนเดินทางสะดวก',
-    icon: (
-      <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1.5" /><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2" /><path d="M11 21v-3h2v3" /></svg>
-    ),
-  },
-  {
-    name: 'ครัวกลาง',
-    desc: 'พื้นที่ครัวผลิตอาหาร ระบบระบายอากาศ-บ่อดักไขมันพร้อม เริ่มธุรกิจได้เร็ว',
-    icon: (
-      <svg viewBox="0 0 24 24"><path d="M7 3v7M10 3v7M8.5 10v11" /><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8" /></svg>
-    ),
-  },
-]
-
-const WHY = [
-  {
-    title: 'จับคู่ความต้องการแม่นยำ',
-    desc: 'บอกสเปกที่ต้องการครั้งเดียว ทีมงานใช้ระบบฐานข้อมูล + AI คัดทรัพย์ที่ตรงจริงมาให้ ไม่เสียเวลาดูของที่ไม่ใช่',
-    icon: <IconSparkles size={22} />,
-  },
-  {
-    title: 'ชอร์ตลิสต์เปรียบเทียบชัดเจน',
-    desc: 'รับเอกสารเทียบสเปก-ราคา-ทำเลแบบเห็นภาพ พร้อมบทวิเคราะห์จุดเด่นข้อควรพิจารณา ประกอบการตัดสินใจ',
-    icon: <IconCompare size={22} />,
-  },
-  {
-    title: 'จัดรูทพาชมถึงที่',
-    desc: 'นัดหมายครั้งเดียว ดูได้หลายทรัพย์ เราวางเส้นทางให้ครบจบในวันเดียว มีทีมงานพาชมทุกจุด',
+    title: 'แผนพาลูกค้าชมทรัพย์',
+    desc: 'จัดรูทหลายจุดในคลิกเดียว เปิดนำทาง Google Maps จากตำแหน่งปัจจุบัน — ลูกค้าเปลี่ยนโจทย์กลางทาง AI หาตัวใหม่ให้ทันที',
     icon: <IconRoute size={22} />,
   },
   {
-    title: 'ดูแลจนจบดีล',
-    desc: 'ประสานเจ้าของทรัพย์ ต่อรอง เงื่อนไขสัญญา จนถึงวันส่งมอบ — บริการฟรีสำหรับผู้เช่า/ผู้ซื้อ',
+    title: 'เอกสารเปรียบเทียบเสนอลูกค้า',
+    desc: 'เลือกทรัพย์ 2–4 ตัว ระบบสร้างตารางเทียบสเปก + บทวิเคราะห์จาก AI พิมพ์เป็น PDF สวยงามส่งลูกค้าได้ทันที',
+    icon: <IconCompare size={22} />,
+  },
+  {
+    title: 'Dashboard เห็นภาพทั้งพอร์ต',
+    desc: 'มูลค่าพอร์ต สัดส่วนประเภททรัพย์ ทำเลยอดนิยม ราคาเฉลี่ย/ตร.ม. สุขภาพข้อมูล และ AI วิเคราะห์พอร์ตรายวัน',
+    icon: <IconChart size={22} />,
+  },
+  {
+    title: 'ผู้ช่วย AI ประจำทีม',
+    desc: 'ถามหาทรัพย์เป็นภาษาพูด สั่งเพิ่มจุดแวะ สร้างแผน เปิดหน้าเปรียบเทียบผ่านแชทได้เลย — ตอบจากข้อมูลจริงของทีมคุณ',
+    icon: <IconSparkles size={22} />,
+  },
+]
+
+const TRUST = [
+  {
+    title: 'ย้ายจากระบบเดิมได้ในวันเดียว',
+    desc: 'นำเข้า Excel / CSV / ข้อมูลจาก AppSheet หรือ Google Sheets เดิม — จับคู่คอลัมน์อัตโนมัติ รองรับวันที่ พ.ศ. ตรวจรหัสซ้ำให้',
+    icon: <IconUpload size={22} />,
+  },
+  {
+    title: 'ข้อมูลแยกองค์กร ปลอดภัยจริง',
+    desc: 'แต่ละบริษัทเห็นเฉพาะข้อมูลตัวเอง บังคับที่ชั้นฐานข้อมูล (Row Level Security) พร้อมประวัติการใช้งานสำหรับแอดมิน',
+    icon: <IconShield size={22} />,
+  },
+  {
+    title: 'ใช้บนมือถือเหมือนแอปจริง',
+    desc: 'ติดตั้งลงหน้าจอโฮมได้ทั้ง Android และ iPhone อัปเดตตัวเองอัตโนมัติ ออกแบบมาให้ใช้หน้างานด้วยมือเดียว',
     icon: <IconPhone size={22} />,
   },
 ]
 
+const PLANS = [
+  {
+    name: 'Free',
+    tag: 'เริ่มต้นใช้งาน',
+    points: ['ฐานข้อมูลทรัพย์ + แผนที่', 'ทีมขนาดเล็ก', 'นำเข้า Excel/CSV'],
+    featured: false,
+  },
+  {
+    name: 'Pro',
+    tag: 'ทีมที่กำลังเติบโต',
+    points: ['ทุกอย่างใน Free', 'ฟีเจอร์ AI ครบชุด (เสียง/จับคู่/ผู้ช่วย)', 'Dashboard + เอกสารเปรียบเทียบ'],
+    featured: true,
+  },
+  {
+    name: 'Enterprise',
+    tag: 'องค์กรขนาดใหญ่',
+    points: ['ทุกอย่างใน Pro', 'จำนวนผู้ใช้ไม่จำกัด', 'ซัพพอร์ตแบบ dedicated'],
+    featured: false,
+  },
+]
+
 const STEPS = [
-  { n: '1', title: 'บอกความต้องการ', desc: 'ประเภททรัพย์ ขนาด งบประมาณ ทำเล — ทางโทรศัพท์หรือ LINE' },
-  { n: '2', title: 'รับชอร์ตลิสต์', desc: 'ภายใน 1-2 วัน รับรายการทรัพย์ที่คัดแล้ว พร้อมเอกสารเปรียบเทียบ' },
-  { n: '3', title: 'นัดชม-ปิดดีล', desc: 'เลือกวันสะดวก เราจัดเส้นทางพาชม แล้วดูแลต่อจนเซ็นสัญญา' },
+  { n: '1', title: 'ทักมาคุยกับเรา', desc: 'เล่าหน้างานทีมคุณให้ฟัง เราเปิดบัญชีองค์กรพร้อมพาตั้งค่าให้' },
+  { n: '2', title: 'นำเข้าข้อมูลเดิม', desc: 'อัปโหลดไฟล์ Excel / ข้อมูล AppSheet เดิม ระบบจับคู่คอลัมน์ให้อัตโนมัติ' },
+  { n: '3', title: 'ทีมเริ่มใช้ได้เลย', desc: 'เพิ่มสมาชิกทีม แล้วใช้งานได้ทันทีทั้งคอมและมือถือ พร้อม AI ครบชุด' },
 ]
 
 function Brand() {
@@ -96,64 +116,90 @@ export default function LandingPage() {
       <header className="ld-topbar">
         <Brand />
         <nav className="ld-nav">
-          <a href={`tel:${CONTACT.phone.replace(/-/g, '')}`} className="btn sm">
-            <IconPhone size={15} /> {CONTACT.phone}
+          <a href="#pricing" className="btn sm ghost">แพ็กเกจ</a>
+          <a href={CONTACT.lineUrl} target="_blank" rel="noreferrer" className="btn sm">
+            ติดต่อทีมขาย
           </a>
           <button className="btn sm ghost" onClick={() => navigate('/login')}>
-            เข้าสู่ระบบทีมงาน
+            เข้าสู่ระบบ
           </button>
         </nav>
       </header>
 
       <section className="ld-hero">
-        <p className="ld-eyebrow">นายหน้าอสังหาริมทรัพย์เชิงอุตสาหกรรมและพาณิชย์</p>
+        <p className="ld-eyebrow">แพลตฟอร์มบริหารทรัพย์สำหรับทีมนายหน้าอสังหาฯ</p>
         <h1>
-          หาโกดัง โรงงาน โชว์รูม ออฟฟิศ<br />
-          <span className="hl">ที่ใช่สำหรับธุรกิจคุณ</span>
+          บริหารทรัพย์ทั้งพอร์ต ทีมทั้งบริษัท<br />
+          <span className="hl">จบในแพลตฟอร์มเดียว พร้อม AI</span>
         </h1>
         <p className="ld-sub">
-          ให้เช่าและขาย ทำเลกรุงเทพฯ ตะวันออก – สมุทรปราการ ใกล้สนามบิน ท่าเรือ และนิคมอุตสาหกรรม
-          บริการฟรีสำหรับผู้เช่า/ผู้ซื้อ ตั้งแต่คัดทรัพย์จนถึงวันเซ็นสัญญา
+          โกดัง โรงงาน โชว์รูม ออฟฟิศ — จากกระดาษ/Excel/AppSheet ที่กระจัดกระจาย
+          สู่ระบบเดียวที่ทั้งทีมใช้ร่วมกัน: ฐานข้อมูล แผนที่ แผนพาชม เอกสารเสนอลูกค้า
+          และผู้ช่วย AI ที่รู้จักทรัพย์ของคุณทุกตัว
         </p>
         <div className="ld-cta-row">
-          <a className="btn primary ld-cta" href={`tel:${CONTACT.phone.replace(/-/g, '')}`}>
-            <IconPhone size={18} /> โทร {CONTACT.phone}
+          <a className="btn primary ld-cta" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
+            ทดลองใช้ฟรี — ทัก LINE {CONTACT.lineId}
           </a>
-          <a className="btn ld-cta" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
-            LINE {CONTACT.lineId}
+          <a className="btn ld-cta" href={`tel:${CONTACT.phone.replace(/-/g, '')}`}>
+            <IconPhone size={18} /> นัดดูเดโม {CONTACT.phone}
           </a>
         </div>
-        <p className="ld-hours">เปิดให้บริการ{CONTACT.hours}</p>
+        <p className="ld-hours">เริ่มได้โดยไม่ต้องผูกบัตรเครดิต · ย้ายข้อมูลจากระบบเดิมได้ในวันเดียว</p>
       </section>
 
       <section className="ld-section">
-        <h2>ทรัพย์ที่เรามีให้บริการ</h2>
-        <div className="ld-grid types">
-          {PROPERTY_TYPES.map((t) => (
-            <div key={t.name} className="ld-card">
-              <div className="ld-icon">{t.icon}</div>
-              <h3>{t.name}</h3>
-              <p>{t.desc}</p>
+        <h2>เครื่องมือครบ ตั้งแต่รับทรัพย์จนปิดดีล</h2>
+        <div className="ld-grid why">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="ld-card">
+              <div className="ld-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section className="ld-section tint">
-        <h2>ทำไมลูกค้าเลือกเรา</h2>
+        <h2>ออกแบบมาให้ทีมจริงใช้ได้จริง</h2>
         <div className="ld-grid why">
-          {WHY.map((w) => (
-            <div key={w.title} className="ld-card">
-              <div className="ld-icon">{w.icon}</div>
-              <h3>{w.title}</h3>
-              <p>{w.desc}</p>
+          {TRUST.map((t) => (
+            <div key={t.title} className="ld-card">
+              <div className="ld-icon">{t.icon}</div>
+              <h3>{t.title}</h3>
+              <p>{t.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="ld-section">
-        <h2>เริ่มต้นง่ายๆ 3 ขั้นตอน</h2>
+      <section className="ld-section" id="pricing">
+        <h2>แพ็กเกจ</h2>
+        <div className="ld-pricing">
+          {PLANS.map((p) => (
+            <div key={p.name} className={`ld-price-card ${p.featured ? 'featured' : ''}`}>
+              {p.featured && <span className="ld-price-badge">ยอดนิยม</span>}
+              <h3>{p.name}</h3>
+              <p className="ld-price-tag">{p.tag}</p>
+              <ul>
+                {p.points.map((pt) => <li key={pt}>{pt}</li>)}
+              </ul>
+              <a
+                className={`btn ld-cta ${p.featured ? 'primary' : ''}`}
+                href={CONTACT.lineUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                สอบถามราคา
+              </a>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="ld-section tint">
+        <h2>เริ่มใช้งานใน 3 ขั้นตอน</h2>
         <div className="ld-steps">
           {STEPS.map((s) => (
             <div key={s.n} className="ld-step">
@@ -166,22 +212,22 @@ export default function LandingPage() {
       </section>
 
       <section className="ld-contact" id="contact">
-        <h2>พร้อมเริ่มหาทรัพย์ที่ใช่แล้วหรือยัง?</h2>
-        <p>ทักมาคุยก่อนได้ ไม่มีค่าใช้จ่าย — บอกความต้องการคร่าวๆ เดี๋ยวเราคัดของมาให้เลือก</p>
+        <h2>พร้อมยกระดับทีมของคุณหรือยัง?</h2>
+        <p>ทักมาคุยก่อนได้ ไม่มีค่าใช้จ่าย — เล่าหน้างานของทีมคุณ เดี๋ยวเราพาดูว่าระบบช่วยตรงไหนได้บ้าง</p>
         <div className="ld-cta-row">
-          <a className="btn primary ld-cta" href={`tel:${CONTACT.phone.replace(/-/g, '')}`}>
-            <IconPhone size={18} /> {CONTACT.phone}
-          </a>
-          <a className="btn ld-cta on-dark" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
+          <a className="btn primary ld-cta" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
             LINE {CONTACT.lineId}
+          </a>
+          <a className="btn ld-cta on-dark" href={`tel:${CONTACT.phone.replace(/-/g, '')}`}>
+            <IconPhone size={18} /> {CONTACT.phone}
           </a>
           <a className="btn ld-cta on-dark" href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
         </div>
       </section>
 
       <footer className="ld-footer">
-        <span>© {new Date().getFullYear()} HOB Property</span>
-        <button className="linklike" onClick={() => navigate('/login')}>สำหรับทีมงาน: เข้าสู่ระบบ</button>
+        <span>© {new Date().getFullYear()} HOB — แพลตฟอร์มบริหารทรัพย์</span>
+        <button className="linklike" onClick={() => navigate('/login')}>ลูกค้าปัจจุบัน: เข้าสู่ระบบ</button>
       </footer>
     </div>
   )

@@ -1015,6 +1015,8 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .ld-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
 /* การ์ดประเภททรัพย์มี 5 ใบ — จอกว้างให้เรียงแถวเดียว ไม่ปล่อยใบสุดท้ายตกบรรทัดโดดๆ */
 .ld-grid.types { grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); }
+/* การ์ดฟีเจอร์ 6 ใบ — จำกัด ~3 คอลัมน์ให้แบ่ง 3+3 ไม่ใช่ 4+2 */
+.ld-grid.why { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .ld-card {
   background: #fff; border: 1px solid var(--line); border-radius: 16px;
   padding: 22px 20px; box-shadow: var(--shadow);
@@ -1039,6 +1041,37 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 }
 .ld-step h3 { font-size: 16px; margin-bottom: 4px; }
 .ld-step p { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+
+/* แพ็กเกจ (ขายแพลตฟอร์ม) */
+.ld-pricing {
+  display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  max-width: 940px; margin: 0 auto; align-items: stretch;
+}
+.ld-price-card {
+  position: relative; background: #fff; border: 1px solid var(--line); border-radius: 18px;
+  padding: 26px 22px; box-shadow: var(--shadow); text-align: center;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ld-price-card.featured {
+  border-color: var(--purple); box-shadow: 0 10px 30px rgba(113, 50, 245, 0.16);
+}
+.ld-price-badge {
+  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+  background: var(--purple); color: #fff; font-size: 11.5px; font-weight: 700;
+  border-radius: 999px; padding: 3px 12px; white-space: nowrap;
+}
+.ld-price-card h3 { font-size: 21px; letter-spacing: -0.01em; }
+.ld-price-tag { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+.ld-price-card ul { list-style: none; padding: 0; margin: 0 0 18px; flex: 1; }
+.ld-price-card li {
+  font-size: 13.5px; color: var(--ink); padding: 7px 0 7px 24px; position: relative; text-align: left;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ld-price-card li:last-child { border-bottom: none; }
+.ld-price-card li::before {
+  content: '✓'; position: absolute; left: 4px; color: var(--success); font-weight: 700;
+}
+.ld-price-card .btn { width: 100%; }
 
 .ld-contact {
   text-align: center; color: #fff; background: linear-gradient(135deg, var(--purple), var(--purple-dark));
