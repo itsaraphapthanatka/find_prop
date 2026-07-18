@@ -235,12 +235,20 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .form-field input[type='url'],
 .form-field input[type='email'],
 .form-field input[type='password'],
+.form-field input[type='search'],
+.form-field select,
 .form-field textarea {
   width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px;
   font: inherit; font-size: 14px; background: #fff; outline: none;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
-.form-field input:focus, .form-field textarea:focus {
+.form-field select {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.form-field input[type='search'] { -webkit-appearance: none; }
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus {
   border-color: var(--purple); box-shadow: 0 0 0 3px rgba(113, 50, 245, 0.12);
 }
 .form-field textarea { min-height: 70px; resize: vertical; }
@@ -383,12 +391,20 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .role-badge.plain { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
 .role-badge.super { background: var(--ink); color: #fff; letter-spacing: 0.4px; }
 .plan-line { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
-.super-wrap { max-width: 920px; }
+/* หน้า super กว้างกว่าหน้าทีม (ตาราง 7 คอลัมน์) — ต้องเจาะจงกว่า .team-wrap ที่ประกาศทีหลัง */
+.team-wrap.super-wrap { max-width: 1080px; }
+.super-wrap .plan-select { width: 118px; }
+.super-wrap .date-input { width: 148px; }
 .data-table .row-off { opacity: 0.55; }
 .td-sub { color: var(--muted); font-size: 11.5px; margin-top: 2px; font-weight: 400; }
 .plan-select, .date-input {
   padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px;
   font: inherit; font-size: 13px; background: #fff; outline: none;
+}
+.plan-select {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
 }
 .plan-select:focus, .date-input:focus { border-color: var(--purple); }
 .status-pill {
@@ -407,12 +423,17 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   border-bottom: 1px solid var(--line); white-space: nowrap;
 }
 .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-.data-table .row-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+/* จอใหญ่: ปุ่มท้ายแถวต้องคง display ของ table-cell ไว้ (flex บน td ทำตารางพัง/ปุ่มหลุดนอกการ์ด)
+   ส่วนโหมดการ์ดมือถือค่อยสลับเป็น flex ใน media query ด้านล่าง */
+.data-table td.row-btns { white-space: nowrap; text-align: right; }
+.data-table td.row-btns .btn + .btn { margin-left: 6px; }
 
 /* ── ประวัติการใช้งาน (LogsPage — เห็นเฉพาะแอดมิน) ── */
 .logs-wrap { max-width: 900px; margin: 0 auto; padding: 20px 20px 40px; }
 .logs-filters { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
-.logs-filters .form-field { margin-bottom: 10px; min-width: 160px; }
+.logs-filters .form-field { margin-bottom: 10px; min-width: 0; }
+.logs-filters .form-field:first-child { flex: 0 0 190px; }
+.logs-filters .form-field:last-child { flex: 1 1 240px; }
 .log-when { white-space: nowrap; color: var(--muted); font-size: 13px; }
 .log-badge {
   display: inline-block; padding: 2px 9px; border-radius: 999px;
@@ -872,8 +893,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   }
   .data-table td.td-main::before { content: none; }
   .data-table td:last-child { border-bottom: none; }
-  .data-table .row-btns { display: flex; gap: 8px; padding: 10px 0; }
-  .data-table .row-btns .btn { flex: 1; padding: 8px 10px; font-size: 13.5px; white-space: normal; }
+  .data-table td.row-btns { display: flex; gap: 8px; padding: 10px 0; white-space: normal; }
+  .data-table td.row-btns .btn + .btn { margin-left: 0; }
+  .data-table td.row-btns .btn { flex: 1; padding: 8px 10px; font-size: 13.5px; white-space: normal; }
   .data-table td.row-btns:empty { display: none; }
   .plan-select, .date-input { padding: 7px 10px; }
 

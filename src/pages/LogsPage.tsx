@@ -125,7 +125,7 @@ export default function LogsPage() {
                 ))}
               </select>
             </div>
-            <div className="form-field" style={{ flex: 1 }}>
+            <div className="form-field">
               <label>ค้นหา (ชื่อคน / รหัสทรัพย์ / ชื่อแผน)</label>
               <input
                 type="search"
