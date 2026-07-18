@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
+import { OrgFilterSelect, useOrgFilter } from '../hooks/useOrgFilter'
 import { usePlans } from '../hooks/usePlans'
 import { aiChat, extractJson, propertyBrief } from '../lib/ai'
 import type { Property, VisitPlan } from '../types'
@@ -121,8 +122,20 @@ function money(n: number): string {
 }
 
 export default function DashboardPage() {
-  const { items, reload } = useProperties()
-  const { plans } = usePlans()
+  const { items: allItems, reload } = useProperties()
+  const { plans: allPlans } = usePlans()
+  // super โหมดภาพรวม: dropdown เลือกดูรายองค์กร — ตัวเลข/กราฟ/AI ทั้งหน้าตามตัวกรอง
+  const orgFilter = useOrgFilter(allItems)
+  const items = useMemo(
+    () => allItems.filter((p) => orgFilter.matches(p.org_id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allItems, orgFilter.fOrg, orgFilter.superOverview],
+  )
+  const plans = useMemo(
+    () => allPlans.filter((pl) => orgFilter.matches(pl.org_id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allPlans, orgFilter.fOrg, orgFilter.superOverview],
+  )
   const navigate = useNavigate()
   const [preview, setPreview] = useState<Property | null>(null)
   const [healthOpen, setHealthOpen] = useState<string | null>(null)
@@ -228,15 +241,17 @@ export default function DashboardPage() {
     ].filter((h) => h.list.length > 0)
   }, [items])
 
-  // ── 6) AI วิเคราะห์พอร์ต ──
-  const [insight, setInsight] = useState<Insight | null>(() => {
+  // ── 6) AI วิเคราะห์พอร์ต ── (แคชวันละครั้ง แยกตามองค์กรที่กรอง)
+  const insightKey = INSIGHT_KEY + (orgFilter.fOrg ? `-${orgFilter.fOrg}` : '')
+  const [insight, setInsight] = useState<Insight | null>(null)
+  useEffect(() => {
     try {
-      const c = JSON.parse(localStorage.getItem(INSIGHT_KEY) ?? 'null') as { date: string; data: Insight } | null
-      return c?.date === today ? c.data : null
+      const c = JSON.parse(localStorage.getItem(insightKey) ?? 'null') as { date: string; data: Insight } | null
+      setInsight(c?.date === today ? c.data : null)
     } catch {
-      return null
+      setInsight(null)
     }
-  })
+  }, [insightKey, today])
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
 
@@ -271,7 +286,7 @@ ${items.slice(0, 120).map(propertyBrief).join('\n')}
       if (!parsed) throw new Error('อ่านคำตอบ AI ไม่ได้ ลองใหม่อีกครั้ง')
       parsed.actions = (parsed.actions ?? []).map((a) => ({ ...a, codes: (a.codes ?? []).filter((c) => byCode.has(c)) }))
       setInsight(parsed)
-      localStorage.setItem(INSIGHT_KEY, JSON.stringify({ date: today, data: parsed }))
+      localStorage.setItem(insightKey, JSON.stringify({ date: today, data: parsed }))
     } catch (err) {
       setAiError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -285,6 +300,9 @@ ${items.slice(0, 120).map(propertyBrief).join('\n')}
     <>
       <div className="view-header">
         <h1>สรุปภาพรวม</h1>
+        <div className="header-actions">
+          <OrgFilterSelect filter={orgFilter} />
+        </div>
       </div>
       <div className="team-wrap dash-wrap">
 

@@ -7,6 +7,7 @@ import Combo, { MultiSelect } from '../components/Combo'
 import VoiceButton from '../components/VoiceButton'
 import { aiExtractProperty } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
+import { useAuth } from '../lib/auth'
 import { IconSparkles } from '../components/icons'
 
 const emptyForm: PropertyInput = {
@@ -193,6 +194,20 @@ export default function FormPage() {
   const [uploading, setUploading] = useState(false)
   const editing = Boolean(id)
 
+  // super โหมดภาพรวม: ต้องเลือกว่าบันทึกทรัพย์ในนามองค์กรไหน (สมาชิกปกติระบบผูกให้เอง)
+  const { profile } = useAuth()
+  const superOverview = Boolean(profile?.is_super && !profile?.impersonate_org_id)
+  const [orgChoices, setOrgChoices] = useState<{ id: string; name: string }[]>([])
+  const [formOrg, setFormOrg] = useState('')
+  useEffect(() => {
+    if (!superOverview || !supabaseConfigured) return
+    void supabase
+      .from('organizations')
+      .select('id, name')
+      .order('name')
+      .then(({ data }) => setOrgChoices((data ?? []) as { id: string; name: string }[]))
+  }, [superOverview])
+
   // ── บันทึกด่วนด้วยเสียง/ข้อความ → ให้ AI กรอกฟอร์ม ──
   const [dictation, setDictation] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
@@ -227,8 +242,9 @@ export default function FormPage() {
       .then(({ data, error }) => {
         if (error) alert(`โหลดข้อมูลไม่สำเร็จ: ${error.message}`)
         else if (data) {
-          const { id: _id, created_at: _c, ...rest } = data as Property
+          const { id: _id, created_at: _c, org_id, org_name: _o, ...rest } = data as Property
           setForm({ ...emptyForm, ...rest })
+          if (org_id) setFormOrg(org_id)
         }
       })
   }, [id])
@@ -258,8 +274,13 @@ export default function FormPage() {
       alert('ยังไม่ได้ตั้งค่า Supabase — ตั้งค่า .env ก่อนจึงจะบันทึกได้')
       return
     }
+    if (superOverview && !formOrg) {
+      alert('เลือกองค์กรเจ้าของทรัพย์ก่อนบันทึก')
+      return
+    }
     setSaving(true)
-    const payload = { ...form }
+    // super ระบุองค์กรปลายทางเอง / สมาชิกปกติปล่อยให้ระบบผูกองค์กรตัวเองอัตโนมัติ
+    const payload = superOverview ? { ...form, org_id: formOrg } : { ...form }
     const res = editing
       ? await supabase.from('properties').update(payload).eq('id', id!)
       : await supabase.from('properties').insert(payload)
@@ -279,6 +300,20 @@ export default function FormPage() {
         <h1>{editing ? `แก้ไข ${form.code || ''}` : 'เพิ่มทรัพย์ใหม่'}</h1>
       </div>
       <form className="form-wrap" onSubmit={handleSubmit}>
+        {superOverview && orgChoices.length > 0 && (
+          <section className="form-card">
+            <div className="form-field" style={{ marginBottom: 4 }}>
+              <label>องค์กรเจ้าของทรัพย์ <span className="req">*</span></label>
+              <select value={formOrg} onChange={(e) => setFormOrg(e.target.value)} required>
+                <option value="">— เลือกองค์กร —</option>
+                {orgChoices.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </div>
+            <p className="ai-hint">คุณกำลังบันทึกในนามองค์กรลูกค้า (ส่วนนี้เห็นเฉพาะ super admin)</p>
+          </section>
+        )}
         <section className="form-card ai-card">
           <h3><IconSparkles size={16} /> บันทึกด่วนด้วยเสียงหรือข้อความ</h3>
           <p className="ai-hint">

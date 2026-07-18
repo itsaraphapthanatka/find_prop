@@ -3,6 +3,7 @@ import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } 
 import L from 'leaflet'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
+import { OrgFilterSelect, useOrgFilter } from '../hooks/useOrgFilter'
 import { useAuth } from '../lib/auth'
 import type { Property } from '../types'
 import { formatNumber } from '../labels'
@@ -76,10 +77,13 @@ export default function MapPage() {
   const navigate = useNavigate()
   const focusId = params.get('focus')
 
+  const orgFilter = useOrgFilter(items)
   const withCoords = useMemo(
     () => items.filter((p): p is Property & { lat: number; lng: number } =>
-      p.lat != null && p.lng != null),
-    [items],
+      p.lat != null && p.lng != null && orgFilter.matches(p.org_id)),
+    // matches เปลี่ยนตามค่าที่เลือกใน dropdown (fOrg)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, orgFilter.fOrg, orgFilter.superOverview],
   )
   const points = useMemo(
     () => withCoords.map((p) => [p.lat, p.lng] as [number, number]),
@@ -133,6 +137,7 @@ export default function MapPage() {
       <div className="view-header">
         <h1>แผนที่ <span className="count-badge">{withCoords.length}</span></h1>
         <div className="header-actions">
+          <OrgFilterSelect filter={orgFilter} />
           <button
             className={`btn ${picking ? 'primary' : ''}`}
             onClick={() => {
