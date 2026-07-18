@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/auth'
 import { formatDate } from '../labels'
 
 interface OrgOverview {
@@ -23,6 +24,26 @@ export default function SuperAdminPage() {
   // ค่าที่แก้ค้างไว้ต่อองค์กร (ยังไม่บันทึก)
   const [edits, setEdits] = useState<Record<string, { plan: string; sub_expires_at: string }>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [enteringId, setEnteringId] = useState<string | null>(null)
+  const { profile, refreshProfile } = useAuth()
+  const navigate = useNavigate()
+
+  // คลิกชื่อองค์กร → สวมสิทธิ์เข้าไปทำงานเสมือนสมาชิกองค์กรนั้น (ต้องรัน supabase/impersonate.sql ก่อน)
+  async function enterOrg(o: OrgOverview) {
+    setEnteringId(o.id)
+    const { error } = await supabase.rpc('super_impersonate', { p_org: o.id })
+    setEnteringId(null)
+    if (error) {
+      alert(
+        error.message.includes('super_impersonate')
+          ? 'ยังไม่ได้ติดตั้งฟีเจอร์สวมสิทธิ์ — รัน supabase/impersonate.sql ใน SQL Editor ก่อน'
+          : `เข้าใช้สิทธิ์ไม่สำเร็จ: ${error.message}`,
+      )
+      return
+    }
+    await refreshProfile()
+    navigate('/')
+  }
 
   async function reload() {
     setLoading(true)
@@ -112,8 +133,21 @@ export default function SuperAdminPage() {
                   {orgs.map((o) => (
                     <tr key={o.id} className={o.sub_status === 'suspended' ? 'row-off' : ''}>
                       <td data-label="องค์กร" className="td-main">
-                        <b>{o.name}</b>
-                        <div className="td-sub">สร้าง {formatDate(o.created_at)}</div>
+                        <button
+                          type="button"
+                          className="org-enter"
+                          title={`เข้าใช้สิทธิ์แทน ${o.name}`}
+                          disabled={enteringId === o.id}
+                          onClick={() => void enterOrg(o)}
+                        >
+                          {o.name}
+                        </button>
+                        {profile?.impersonate_org_id === o.id && (
+                          <span className="tag org">กำลังใช้สิทธิ์</span>
+                        )}
+                        <div className="td-sub">
+                          สร้าง {formatDate(o.created_at)} · คลิกชื่อเพื่อเข้าใช้สิทธิ์แทน
+                        </div>
                       </td>
                       <td data-label="สมาชิก">{o.member_count}</td>
                       <td data-label="ทรัพย์">{o.property_count}</td>

@@ -15,7 +15,7 @@ const ImportPage = lazy(() => import('./pages/ImportPage'))
 import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
-import { supabaseConfigured } from './lib/supabase'
+import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { IconChart, IconForm, IconList, IconMap, IconRoute, IconShield, IconUsers } from './components/icons'
 
@@ -30,7 +30,7 @@ function NavText({ full, short }: { full: string; short?: string }) {
 }
 
 export default function App() {
-  const { session, profile, org, loading, signOut } = useAuth()
+  const { session, profile, org, loading, signOut, refreshProfile } = useAuth()
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
@@ -69,9 +69,25 @@ export default function App() {
   }
 
   const isAdmin = profile.role === 'admin'
+  const impersonating = Boolean(isSuper && profile.impersonate_org_id)
+
+  async function exitImpersonation() {
+    await supabase.rpc('super_impersonate', { p_org: null })
+    await refreshProfile()
+    navigate('/super')
+  }
 
   return (
     <div className="app-shell">
+      {impersonating && (
+        <div className="impersonate-bar">
+          <IconShield size={15} />
+          <span>
+            กำลังใช้สิทธิ์แทนองค์กร <b>{org?.name ?? '…'}</b> — สิ่งที่เพิ่ม/แก้จะเป็นข้อมูลขององค์กรนี้
+          </span>
+          <button className="btn sm" onClick={() => void exitImpersonation()}>ออกจากสิทธิ์</button>
+        </div>
+      )}
       <header className="topbar">
         <div className="brand">
           <svg width="26" height="26" viewBox="0 0 32 32">

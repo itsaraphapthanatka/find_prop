@@ -11,6 +11,8 @@ export interface Profile {
   active: boolean
   org_id: string | null
   is_super?: boolean
+  /** super กำลังสวมสิทธิ์องค์กรนี้อยู่ (null = โหมดภาพรวมปกติ) */
+  impersonate_org_id?: string | null
   created_at?: string
 }
 
@@ -53,11 +55,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const p = (data as Profile | null) ?? null
     setProfile(p)
     setLogActor(p ? p.full_name || p.email : null)
-    if (p?.org_id) {
+    // super ที่กำลังสวมสิทธิ์ → ใช้องค์กรที่สวมอยู่เป็นองค์กรปัจจุบันของแอป
+    const effectiveOrgId = (p?.is_super && p.impersonate_org_id) || p?.org_id
+    if (effectiveOrgId) {
       const { data: o } = await supabase
         .from('organizations')
         .select('*')
-        .eq('id', p.org_id)
+        .eq('id', effectiveOrgId)
         .single()
       setOrg((o as Organization | null) ?? null)
     } else {
