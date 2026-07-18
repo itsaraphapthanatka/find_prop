@@ -143,7 +143,11 @@ export default function App() {
             />
             <Route
               path="/team"
-              element={isAdmin && profile.org_id ? <TeamPage /> : <Navigate to="/" replace />}
+              element={
+                (isAdmin && profile.org_id) || impersonating
+                  ? <TeamPage />
+                  : <Navigate to="/" replace />
+              }
             />
             <Route
               path="/super"
