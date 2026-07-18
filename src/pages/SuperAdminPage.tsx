@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatDate } from '../labels'
 
@@ -81,6 +82,9 @@ export default function SuperAdminPage() {
     <>
       <div className="view-header">
         <h1>Super Admin <span className="count-badge">{orgs.length} องค์กร</span></h1>
+        <div className="header-actions">
+          <Link to="/logs" className="btn">ประวัติการใช้งาน</Link>
+        </div>
       </div>
       <div className="team-wrap super-wrap">
         <section className="form-card">

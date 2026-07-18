@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { useAuth, type Profile } from '../lib/auth'
@@ -79,6 +80,9 @@ export default function TeamPage() {
     <>
       <div className="view-header">
         <h1>ทีม <span className="count-badge">{members.length}</span></h1>
+        <div className="header-actions">
+          <Link to="/logs" className="btn">ประวัติการใช้งาน</Link>
+        </div>
       </div>
 
       <div className="team-wrap">

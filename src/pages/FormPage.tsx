@@ -6,6 +6,7 @@ import { LABELS, OPTIONS } from '../labels'
 import Combo, { MultiSelect } from '../components/Combo'
 import VoiceButton from '../components/VoiceButton'
 import { aiExtractProperty } from '../lib/ai'
+import { logActivity } from '../lib/activityLog'
 import { IconSparkles } from '../components/icons'
 
 const emptyForm: PropertyInput = {
@@ -208,6 +209,7 @@ export default function FormPage() {
       if (keys.length === 0) throw new Error('AI อ่านไม่พบข้อมูลทรัพย์ในข้อความ — ลองเล่าใหม่อีกครั้ง')
       setForm((f) => ({ ...f, ...extracted }))
       setAiFilled(keys)
+      logActivity('ai.voice_fill', extracted.code ?? form.code ?? null, { fields: keys.length })
     } catch (err) {
       setAiError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -263,7 +265,10 @@ export default function FormPage() {
       : await supabase.from('properties').insert(payload)
     setSaving(false)
     if (res.error) alert(`บันทึกไม่สำเร็จ: ${res.error.message}`)
-    else navigate('/')
+    else {
+      logActivity(editing ? 'property.update' : 'property.create', form.code || null)
+      navigate('/')
+    }
   }
 
   const fp = { form, set }

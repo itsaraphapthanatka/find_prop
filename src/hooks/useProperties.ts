@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, supabaseConfigured } from '../lib/supabase'
+import { logActivity } from '../lib/activityLog'
 import type { Property } from '../types'
 
 export function useProperties() {
@@ -29,7 +30,8 @@ export function useProperties() {
   return { items, loading, error, reload }
 }
 
-export async function deleteProperty(id: string): Promise<string | null> {
+export async function deleteProperty(id: string, code?: string | null): Promise<string | null> {
   const { error } = await supabase.from('properties').delete().eq('id', id)
+  if (!error) logActivity('property.delete', code ?? null)
   return error ? error.message : null
 }

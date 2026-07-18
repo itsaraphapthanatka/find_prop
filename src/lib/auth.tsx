@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
+import { setLogActor } from './activityLog'
 
 export interface Profile {
   id: string
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
     const p = (data as Profile | null) ?? null
     setProfile(p)
+    setLogActor(p ? p.full_name || p.email : null)
     if (p?.org_id) {
       const { data: o } = await supabase
         .from('organizations')
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       else {
         setProfile(null)
         setOrg(null)
+        setLogActor(null)
       }
     })
     return () => sub.subscription.unsubscribe()

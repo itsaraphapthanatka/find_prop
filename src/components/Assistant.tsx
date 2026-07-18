@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
 import { usePlans } from '../hooks/usePlans'
 import { aiChat, extractJson, propertyBrief } from '../lib/ai'
+import { logActivity } from '../lib/activityLog'
 import { selectRelevant } from '../lib/relevance'
 import type { Property } from '../types'
 import PropertyDetail from './PropertyDetail'
@@ -215,6 +216,7 @@ ${plansBrief}
     try {
       if (a.type === 'open_compare') {
         navigate(`/compare?codes=${encodeURIComponent((a.codes ?? []).join(','))}`)
+        logActivity('ai.assistant', (a.codes ?? []).join(', '), { type: a.type })
         done(`✅ เปิดหน้าเปรียบเทียบ ${(a.codes ?? []).join(', ')} แล้ว`)
         onClose()
         return
@@ -230,6 +232,7 @@ ${plansBrief}
         })
         if (error) throw new Error(error.message)
         await reloadPlans()
+        logActivity('ai.assistant', a.title!.trim(), { type: a.type })
         done(`✅ สร้างแผน "${a.title!.trim()}" แล้ว — ดูได้ที่เมนูแผนเยี่ยมชม`)
         return
       }
@@ -243,6 +246,7 @@ ${plansBrief}
       const { error } = await supabase.from('visit_plans').update({ stops }).eq('id', pl.id)
       if (error) throw new Error(error.message)
       await reloadPlans()
+      logActivity('ai.assistant', (a.codes ?? []).join(', '), { type: a.type, plan: pl.title })
       done(`✅ ${a.type === 'add_stop' ? 'เพิ่ม' : 'เอา'} ${(a.codes ?? []).join(', ')} ${a.type === 'add_stop' ? 'เข้ารูท' : 'ออกจากรูท'} "${pl.title}" แล้ว`)
     } catch (err) {
       done(`⚠️ ทำไม่สำเร็จ: ${err instanceof Error ? err.message : String(err)}`)

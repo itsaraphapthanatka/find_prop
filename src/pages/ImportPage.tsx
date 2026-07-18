@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
+import { logActivity } from '../lib/activityLog'
 import { useProperties } from '../hooks/useProperties'
 import type { PropertyInput } from '../types'
 import { LABELS } from '../labels'
@@ -136,6 +137,12 @@ export default function ImportPage() {
       updated,
       skipped: noCode.length + (dupMode === 'skip' ? dups.length : 0),
       errors,
+    })
+    logActivity('import.run', fileName || null, {
+      inserted,
+      updated,
+      skipped: noCode.length + (dupMode === 'skip' ? dups.length : 0),
+      failed: errors.length,
     })
     setBusy(false)
     await reload()

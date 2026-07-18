@@ -8,6 +8,7 @@ import PlansPage from './pages/PlansPage'
 import ComparePage from './pages/ComparePage'
 import TeamPage from './pages/TeamPage'
 import SuperAdminPage from './pages/SuperAdminPage'
+import LogsPage from './pages/LogsPage'
 
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
@@ -126,6 +127,10 @@ export default function App() {
             <Route
               path="/super"
               element={isSuper ? <SuperAdminPage /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/logs"
+              element={isAdmin || isSuper ? <LogsPage /> : <Navigate to="/" replace />}
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

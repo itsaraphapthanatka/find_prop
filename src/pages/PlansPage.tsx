@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
 import { usePlans } from '../hooks/usePlans'
 import { aiChat, extractJson, propertyBrief } from '../lib/ai'
+import { logActivity } from '../lib/activityLog'
 import { selectRelevant } from '../lib/relevance'
 import type { Property, VisitPlan } from '../types'
 import { formatDate } from '../labels'
@@ -70,6 +71,7 @@ export default function PlansPage() {
           : `สร้างแผนไม่สำเร็จ: ${error.message}`,
       )
     } else {
+      logActivity('plan.create', newTitle.trim(), { customer: newCustomer.trim() || undefined })
       setShowNew(false)
       setNewTitle('')
       setNewCustomer('')
@@ -91,6 +93,7 @@ export default function PlansPage() {
     const { error } = await supabase.from('visit_plans').delete().eq('id', pl.id)
     if (error) alert(`ลบไม่สำเร็จ: ${error.message}`)
     else {
+      logActivity('plan.delete', pl.title)
       if (selId === pl.id) setSelId(null)
       await reload()
     }

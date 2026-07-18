@@ -409,6 +409,20 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .data-table .row-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* ── ประวัติการใช้งาน (LogsPage — เห็นเฉพาะแอดมิน) ── */
+.logs-wrap { max-width: 900px; margin: 0 auto; padding: 20px 20px 40px; }
+.logs-filters { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.logs-filters .form-field { margin-bottom: 10px; min-width: 160px; }
+.log-when { white-space: nowrap; color: var(--muted); font-size: 13px; }
+.log-badge {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; background: var(--purple-tint); color: var(--purple);
+  white-space: nowrap;
+}
+.log-badge.plan { background: #e7f6ef; color: #157a53; }
+.log-badge.import { background: #fdf3e0; color: #9c6a04; }
+.log-badge.ai { background: #eaf1fb; color: #2a5ca8; }
+
 /* ── แผนเยี่ยมชม (PlansPage) ─────────────── */
 .plan-row {
   display: flex; align-items: center; gap: 10px;
@@ -887,6 +901,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   /* ── อื่น ๆ ── */
   .map-hint { padding: 8px 14px; }
   .team-wrap { padding: 14px 12px calc(28px + env(safe-area-inset-bottom)); }
+  .logs-wrap { padding: 14px 12px calc(28px + env(safe-area-inset-bottom)); }
   .org-row { flex-wrap: wrap; }
   .org-row .btn { flex: 1; }
   .auth-card { padding: 26px 20px; }

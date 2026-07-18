@@ -87,7 +87,7 @@ export default function ListPage({ search }: { search: string }) {
 
   async function handleDelete(p: Property) {
     if (!window.confirm(`ลบรายการ ${p.code}?`)) return
-    const err = await deleteProperty(p.id)
+    const err = await deleteProperty(p.id, p.code)
     if (err) alert(`ลบไม่สำเร็จ: ${err}`)
     else {
       if (selected?.id === p.id) setSelected(null)
