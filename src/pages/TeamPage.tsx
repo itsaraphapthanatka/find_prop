@@ -25,11 +25,21 @@ export default function TeamPage() {
   const [adding, setAdding] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
+  // องค์กรที่มีผลจริง: org ของตัวเอง หรือองค์กรที่ super กำลังสวมสิทธิ์อยู่
+  // (super เห็นโปรไฟล์ทุกองค์กรผ่าน RLS จึงต้องกรองฝั่งนี้ให้เหลือองค์กรเดียว)
+  const orgId = me?.org_id ?? (me?.is_super ? me?.impersonate_org_id ?? null : null)
+
   async function reload() {
+    if (!orgId) {
+      setMembers([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
+      .eq('org_id', orgId)
       .order('created_at', { ascending: true })
     if (error) setError(error.message)
     else setMembers((data ?? []) as Profile[])
@@ -38,7 +48,8 @@ export default function TeamPage() {
 
   useEffect(() => {
     void reload()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId])
 
   async function addMember(e: React.FormEvent) {
     e.preventDefault()

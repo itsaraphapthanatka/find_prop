@@ -119,7 +119,9 @@ export default function App() {
           <NavLink to="/" end><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
           <NavLink to="/dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>
           <NavLink to="/plans"><IconRoute /><NavText full="แผนเยี่ยมชม" short="แผนเยี่ยม" /></NavLink>
-          {isAdmin && profile.org_id && <NavLink to="/team"><IconUsers /><NavText full="ทีม" /></NavLink>}
+          {((isAdmin && profile.org_id) || impersonating) && (
+            <NavLink to="/team"><IconUsers /><NavText full="ทีม" /></NavLink>
+          )}
           {isSuper && <NavLink to="/super"><IconShield /><NavText full="Super Admin" short="Super" /></NavLink>}
         </nav>
         <main className="content">

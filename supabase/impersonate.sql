@@ -42,7 +42,26 @@ begin
 end $$;
 grant execute on function public.super_impersonate(uuid) to authenticated;
 
--- 5) การอ่านข้อมูลหลัก: เห็นทุกองค์กรเฉพาะตอน "ไม่ได้สวมสิทธิ์"
+-- 5) เพิ่มลูกทีม: super ที่สวมสิทธิ์อยู่ทำแทนแอดมินองค์กรได้
+--    (org ปลายทางมาจาก current_org() ซึ่งชี้องค์กรที่สวมอยู่แล้ว)
+create or replace function public.adopt_member(member_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not (public.is_admin() or public.is_super()) then
+    raise exception 'เฉพาะแอดมินเท่านั้น';
+  end if;
+  if public.current_org() is null then
+    raise exception 'ยังไม่ได้เลือกองค์กร — super ต้องสวมสิทธิ์องค์กรก่อนเพิ่มลูกทีม';
+  end if;
+  update public.profiles
+  set org_id = public.current_org(), active = true
+  where id = member_id and org_id is null;
+  if not found then
+    raise exception 'ไม่พบบัญชีนี้ หรือบัญชีอยู่ในองค์กรอื่นแล้ว';
+  end if;
+end $$;
+
+-- 6) การอ่านข้อมูลหลัก: เห็นทุกองค์กรเฉพาะตอน "ไม่ได้สวมสิทธิ์"
 drop policy if exists "team read" on public.properties;
 create policy "team read" on public.properties
   for select using (
