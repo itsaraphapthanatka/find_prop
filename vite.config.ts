@@ -25,6 +25,8 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        // หน้าเอกสาร static ต้องไม่ถูก SW ดักพาเข้า SPA
+        navigateFallbackDenylist: [/\/features\.html$/],
         runtimeCaching: [
           {
             // แผนที่ OSM — ใช้ซ้ำบ่อย เก็บ cache ไว้ดู offline ได้
