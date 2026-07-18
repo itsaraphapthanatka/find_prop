@@ -15,13 +15,17 @@ export function useProperties() {
     }
     setLoading(true)
     // join ชื่อองค์กรมาด้วย — ใช้แสดงป้าย/ตัวกรองตอนล็อกอินเป็น super (คนในองค์กรได้ชื่อ org ตัวเองซึ่งไม่ถูกแสดง)
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('properties')
       .select('*, organizations(name)')
       .order('code', { ascending: true })
+    if (error) {
+      // ฐานข้อมูลบางชุดอาจ join organizations ไม่ได้ (เช่นยังไม่รัน org.sql) — ถอยมาอ่านแบบไม่มีชื่อองค์กร
+      ;({ data, error } = await supabase.from('properties').select('*').order('code', { ascending: true }))
+    }
     if (error) setError(error.message)
     else {
-      const rows = (data ?? []) as (Property & { organizations: { name: string } | null })[]
+      const rows = (data ?? []) as (Property & { organizations?: { name: string } | null })[]
       setItems(rows.map(({ organizations, ...p }) => ({ ...p, org_name: organizations?.name ?? null })))
     }
     setLoading(false)
