@@ -17,7 +17,7 @@ function buildId(): string {
 }
 
 export default defineConfig({
-  define: { __BUILD_ID__: JSON.stringify(buildId()) },
+  define: { __BUILD_ID__: JSON.stringify(buildId()), __BUILT_AT__: JSON.stringify(Date.now()) },
   plugins: [
     react(),
     VitePWA({

@@ -20,5 +20,9 @@ const version = buildId()
 const zip = new AdmZip()
 zip.addLocalFolder('dist', undefined, (entry) => !entry.startsWith('app-update.'))
 zip.writeZip('dist/app-update.zip')
-writeFileSync('dist/app-update.json', JSON.stringify({ version, url: '/app-update.zip' }, null, 2) + '\n')
+// builtAt ใช้กันดาวน์เกรด: แอปจะโหลดเฉพาะ bundle ที่ build ใหม่กว่าตัวเอง (ดู appUpdate.ts)
+writeFileSync(
+  'dist/app-update.json',
+  JSON.stringify({ version, url: '/app-update.zip', builtAt: Date.now() }, null, 2) + '\n',
+)
 console.log(`app-update ready: ${version}`)

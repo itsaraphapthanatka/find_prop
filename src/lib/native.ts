@@ -5,6 +5,14 @@ import { Geolocation } from '@capacitor/geolocation'
 /** true เมื่อรันเป็นแอปมือถือ (Capacitor) — ใช้สลับพฤติกรรม native/เว็บ */
 export const isNativeApp = Capacitor.isNativePlatform()
 
+/** true เมื่อรัน "แบบแอปที่ติดตั้งไว้" — แอป Capacitor หรือ PWA ที่ปักหน้าจอโฮม (standalone)
+    ใช้ตัดหน้า landing: คนที่ติดตั้งถึงขั้นนี้คือทีมงาน ไม่ใช่ลูกค้าที่เพิ่งหลงเข้ามาดูเว็บ */
+export const isInstalledApp =
+  isNativeApp ||
+  (typeof window !== 'undefined' &&
+    (window.matchMedia?.('(display-mode: standalone)').matches ||
+      (navigator as { standalone?: boolean }).standalone === true))
+
 export type PositionResult =
   | { ok: true; lat: number; lng: number; accuracy: number }
   | { ok: false; reason: 'unsupported' | 'denied' | 'failed' }

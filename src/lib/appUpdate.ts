@@ -24,12 +24,15 @@ export async function initAppUpdate(apiBase: string) {
 async function check(apiBase: string) {
   const res = await fetch(`${apiBase}/app-update.json`, { cache: 'no-store' })
   if (!res.ok) return
-  const manifest = (await res.json()) as { version?: string; url?: string }
+  const manifest = (await res.json()) as { version?: string; url?: string; builtAt?: number }
   if (!manifest.version || !manifest.url) return
   // ข้ามเมื่อ: เว็บเป็น commit เดียวกับโค้ดที่รันอยู่ หรือเคยโหลดเวอร์ชันนี้ไปแล้ว
   // (กรณี bundle ใหม่พังแล้วถูกย้อนกลับ ค่า APPLIED_KEY จะกันไม่ให้วนโหลดตัวที่พังซ้ำ)
   const applied = localStorage.getItem(APPLIED_KEY)
   if (manifest.version === __BUILD_ID__ || manifest.version === applied) return
+  // กันดาวน์เกรด: โหลดเฉพาะของที่ "ใหม่กว่า" โค้ดที่รันอยู่เท่านั้น — ไม่งั้น APK
+  // ที่เพิ่ง build สดกว่าเว็บจะโดนเว็บเวอร์ชันเก่าดึงถอยหลัง
+  if (!manifest.builtAt || manifest.builtAt <= __BUILT_AT__) return
   const bundle = await CapacitorUpdater.download({
     url: new URL(manifest.url, apiBase).toString(),
     version: manifest.version,
