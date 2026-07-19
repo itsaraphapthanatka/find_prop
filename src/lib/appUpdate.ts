@@ -1,4 +1,5 @@
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
+import { API_BASE } from './native'
 
 // live-update แบบ self-hosted: ทุก deploy เว็บจะแนบ dist ทั้งก้อนเป็น zip + manifest
 // (scripts/update-zip.mjs) — แอปเช็ค /app-update.json ตอนเปิด ถ้าเป็นคนละ commit
@@ -12,17 +13,17 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater'
 // ยังต้องติดตั้ง APK รอบใหม่ (ดู docs/MOBILE.md)
 const APPLIED_KEY = 'hob-bundle-version'
 
-export async function initAppUpdate(apiBase: string) {
+export async function initAppUpdate() {
   await CapacitorUpdater.notifyAppReady()
-  if (!apiBase) return
+  if (!API_BASE) return
   // เช็คหลังแอปเปิดเสร็จสักพัก — ไม่แย่งเน็ตช่วงโหลดข้อมูลแรก
   setTimeout(() => {
-    void check(apiBase).catch(() => {}) // พลาดก็เงียบไว้ เปิดแอปครั้งหน้าลองใหม่เอง
+    void check().catch(() => {}) // พลาดก็เงียบไว้ เปิดแอปครั้งหน้าลองใหม่เอง
   }, 3000)
 }
 
-async function check(apiBase: string) {
-  const res = await fetch(`${apiBase}/app-update.json`, { cache: 'no-store' })
+async function check() {
+  const res = await fetch(`${API_BASE}/app-update.json`, { cache: 'no-store' })
   if (!res.ok) return
   const manifest = (await res.json()) as { version?: string; url?: string; builtAt?: number }
   if (!manifest.version || !manifest.url) return
@@ -34,7 +35,7 @@ async function check(apiBase: string) {
   // ที่เพิ่ง build สดกว่าเว็บจะโดนเว็บเวอร์ชันเก่าดึงถอยหลัง
   if (!manifest.builtAt || manifest.builtAt <= __BUILT_AT__) return
   const bundle = await CapacitorUpdater.download({
-    url: new URL(manifest.url, apiBase).toString(),
+    url: new URL(manifest.url, API_BASE).toString(),
     version: manifest.version,
   })
   await CapacitorUpdater.next(bundle)

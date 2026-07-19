@@ -159,7 +159,7 @@ export default function ListPage({ search }: { search: string }) {
             <Combo value={fProvince} onChange={setFProvince} options={provinces} placeholder="ทุกจังหวัด" />
           </div>
           {isSuper && orgs.length > 0 && (
-            <>
+            <label className="org-filter">
               <span className="filter-label">องค์กร</span>
               <select
                 className="filter-select"
@@ -171,7 +171,7 @@ export default function ListPage({ search }: { search: string }) {
                   <option key={o} value={o}>{o}</option>
                 ))}
               </select>
-            </>
+            </label>
           )}
           <div className="price-range">
             <span className="filter-label">ราคา (฿)</span>

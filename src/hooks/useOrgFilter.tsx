@@ -30,8 +30,9 @@ export function useOrgFilter(items: Property[]) {
 /** dropdown "องค์กร: ทุกองค์กร ▾" — วางในแถบหัวเพจ/แถบตัวกรองได้เลย */
 export function OrgFilterSelect({ filter }: { filter: ReturnType<typeof useOrgFilter> }) {
   if (!filter.show) return null
+  // ป้าย+ช่องอยู่ใน <label> เดียวกัน — เป็นก้อนเดียวใน flex จะได้ไม่โดนดันแยกคนละแถว
   return (
-    <>
+    <label className="org-filter">
       <span className="filter-label">องค์กร</span>
       <select
         className="filter-select"
@@ -43,6 +44,6 @@ export function OrgFilterSelect({ filter }: { filter: ReturnType<typeof useOrgFi
           <option key={o.id} value={o.id}>{o.name}</option>
         ))}
       </select>
-    </>
+    </label>
   )
 }

@@ -7,8 +7,10 @@ android {
         applicationId "com.hobproperty.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // บั๊มเวอร์ชันเมื่อ native เปลี่ยน — CapacitorUpdater (resetWhenUpdate) จะล้าง
+        // bundle ที่เคยโหลดค้างไว้ แล้วกลับมาใช้โค้ดใน APK ตัวใหม่เสมอ
+        versionCode 2
+        versionName "1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

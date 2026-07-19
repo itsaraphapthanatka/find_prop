@@ -137,6 +137,10 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   background-repeat: no-repeat; background-position: right 10px center;
 }
 .filter-select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(113, 50, 245, 0.12); }
+/* ป้าย "องค์กร" + dropdown เป็นก้อนเดียว ไม่แยกวงกันเวลาจอแคบ */
+.org-filter { display: inline-flex; align-items: center; gap: 7px; flex: none; min-width: 0; }
+.org-filter .filter-label { min-width: auto; }
+.org-filter .filter-select { min-width: 0; }
 
 /* ── Chips (เลือกได้) ─────────────────────── */
 .chip-select { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
@@ -894,10 +898,11 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 
 @media (max-width: 640px) {
   /* ── View header ── */
-  .view-header { padding: 10px 14px; }
+  .view-header { padding: 10px 14px; flex-wrap: wrap; row-gap: 8px; }
   .view-header h1 { font-size: 16.5px; white-space: nowrap; }
   .view-header .btn { padding: 7px 13px; font-size: 13.5px; }
-  .header-actions { gap: 6px; flex-wrap: nowrap; }
+  /* จอแคบให้ตัวกรอง/ปุ่มไหลลงบรรทัดใหม่ได้ — ห้าม nowrap ไม่งั้นปุ่มขวาหลุดจอ */
+  .header-actions { gap: 6px; row-gap: 8px; flex-wrap: wrap; }
   .header-actions .btn { padding: 7px 12px; font-size: 13px; }
   /* ปุ่มรองเหลือแค่ไอคอน — ให้ชื่อหน้า+ปุ่มหลักอยู่บรรทัดเดียวจบ */
   .btn.mob-icon .btn-label { display: none; }

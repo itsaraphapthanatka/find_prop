@@ -8,9 +8,8 @@ export interface ChatMessage {
   content: string
 }
 
-// ฐาน URL ของ API — บนเว็บปล่อยว่าง (เรียก /api/ai โดเมนเดียวกัน) แต่ในแอป Capacitor
-// หน้าเว็บรันจาก https://localhost จึงต้องชี้กลับไปเว็บ prod ผ่าน VITE_API_BASE
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+// ฐาน URL ของ API — บนเว็บว่าง (เรียก /api/ai โดเมนเดียวกัน) ในแอปชี้กลับเว็บ prod เสมอ
+import { API_BASE } from './native'
 
 /** เรียก LLM ผ่าน serverless proxy (/api/ai) — ต้องล็อกอินอยู่
     บริการ AI สะดุดเป็นช่วงๆ กับ prompt ยาว จึง retry ให้เองหนึ่งครั้ง */

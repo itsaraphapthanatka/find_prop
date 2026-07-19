@@ -15,7 +15,7 @@ if (!Capacitor.isNativePlatform()) {
 } else {
   // ในแอปใช้ live-update แทน SW: ตามเว็บ prod อัตโนมัติโดยไม่ต้องลง APK ใหม่ (ดู lib/appUpdate.ts)
   void import('./lib/appUpdate')
-    .then((m) => m.initAppUpdate((import.meta.env.VITE_API_BASE as string | undefined) ?? ''))
+    .then((m) => m.initAppUpdate())
     .catch(() => {})
 }
 
