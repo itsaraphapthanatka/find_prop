@@ -8,7 +8,8 @@ import VoiceButton from '../components/VoiceButton'
 import { aiExtractProperty } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
 import { useAuth } from '../lib/auth'
-import { IconSparkles } from '../components/icons'
+import { IconCamera, IconSparkles } from '../components/icons'
+import { isNativeApp, takePhoto } from '../lib/native'
 
 const emptyForm: PropertyInput = {
   code: '',
@@ -371,6 +372,19 @@ export default function FormPage() {
                 onChange={(e) => e.target.files?.[0] && void handlePhoto(e.target.files[0])}
               />
             </label>
+            {isNativeApp && (
+              <button
+                type="button"
+                className="btn photo-camera-btn"
+                disabled={uploading}
+                onClick={async () => {
+                  const file = await takePhoto()
+                  if (file) void handlePhoto(file)
+                }}
+              >
+                <IconCamera size={16} /> ถ่ายรูปด้วยกล้อง
+              </button>
+            )}
           </div>
           <TextField name="pic" {...fp} />
         </Section>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "514217679956",
+    "project_id": "hobs-2fdf3",
+    "storage_bucket": "hobs-2fdf3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:514217679956:android:3a704c88fb0317886221c1",
+        "android_client_info": {
+          "package_name": "com.hobproperty.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdw83AphQnkzQnDoF9Q0dIWyKZCe8IQ4Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

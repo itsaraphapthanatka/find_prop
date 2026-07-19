@@ -12,6 +12,11 @@ import 'leaflet/dist/leaflet.css'
 // อยู่ในเครื่องอยู่แล้ว และ SW ที่แคชค้างคือสาเหตุคลาสสิกของจอขาวหลังอัปเดตแอป จึงไม่ลงทะเบียน
 if (!Capacitor.isNativePlatform()) {
   registerSW({ immediate: true })
+} else {
+  // ในแอปใช้ live-update แทน SW: ตามเว็บ prod อัตโนมัติโดยไม่ต้องลง APK ใหม่ (ดู lib/appUpdate.ts)
+  void import('./lib/appUpdate')
+    .then((m) => m.initAppUpdate((import.meta.env.VITE_API_BASE as string | undefined) ?? ''))
+    .catch(() => {})
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

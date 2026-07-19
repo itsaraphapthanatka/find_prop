@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/update-zip.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",
+    "@capacitor/camera": "^7.0.5",
     "@capacitor/core": "^7.6.8",
+    "@capacitor/geolocation": "^7.1.8",
+    "@capgo/capacitor-updater": "^7.50.2",
     "@supabase/supabase-js": "^2.45.0",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
@@ -25,6 +28,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "adm-zip": "^0.6.0",
     "sharp": "^0.35.3",
     "typescript": "^5.5.4",
     "vite": "^5.4.0",

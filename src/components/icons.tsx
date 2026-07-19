@@ -101,6 +101,13 @@ export const IconLocate = (p: IconProps) => (
   </Svg>
 )
 
+export const IconCamera = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14.5 4h-5L7.9 6.2H4.5A1.5 1.5 0 0 0 3 7.7v10a1.5 1.5 0 0 0 1.5 1.5h15a1.5 1.5 0 0 0 1.5-1.5v-10a1.5 1.5 0 0 0-1.5-1.5h-3.4Z" />
+    <circle cx="12" cy="12.6" r="3.4" />
+  </Svg>
+)
+
 export const IconEdit = (p: IconProps) => (
   <Svg {...p}>
     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />

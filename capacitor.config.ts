@@ -6,6 +6,11 @@ const config: CapacitorConfig = {
   appId: 'com.hobproperty.app',
   appName: 'HOB',
   webDir: 'dist',
+  plugins: {
+    // live-update ควบคุมเองที่ src/lib/appUpdate.ts — ปิดโหมดอัตโนมัติของปลั๊กอิน
+    // (ค่าเริ่มต้นของมันผูกกับบริการ cloud ของ Capgo ซึ่งเราไม่ได้ใช้)
+    CapacitorUpdater: { autoUpdate: false },
+  },
 }
 
 export default config

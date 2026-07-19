@@ -9,6 +9,7 @@ import type { Property } from '../types'
 import { formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import { IconClose, IconLocate, IconPin } from '../components/icons'
+import { getPosition } from '../lib/native'
 
 // ไอคอนหมุดเริ่มต้นของ Leaflet ต้องชี้ URL รูปเองเมื่อใช้ผ่าน bundler
 const pinIcon = L.icon({
@@ -107,29 +108,23 @@ export default function MapPage() {
     navigate(`/new?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`)
   }
 
-  function locateMe() {
-    if (!('geolocation' in navigator)) {
-      alert('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง')
-      return
-    }
+  async function locateMe() {
     setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const p: [number, number] = [pos.coords.latitude, pos.coords.longitude]
-        setMe({ pos: p, accuracy: pos.coords.accuracy })
-        setLocating(false)
-        map?.flyTo(p, Math.max(map.getZoom(), 15), { duration: 0.8 })
-      },
-      (err) => {
-        setLocating(false)
-        alert(
-          err.code === err.PERMISSION_DENIED
+    const r = await getPosition()
+    setLocating(false)
+    if (!r.ok) {
+      alert(
+        r.reason === 'unsupported'
+          ? 'เครื่องนี้ไม่รองรับการระบุตำแหน่ง'
+          : r.reason === 'denied'
             ? 'ยังไม่ได้อนุญาตให้เข้าถึงตำแหน่ง — เปิดสิทธิ์ Location ให้เบราว์เซอร์/แอปก่อน แล้วลองใหม่'
             : 'หาตำแหน่งไม่สำเร็จ ลองใหม่อีกครั้ง',
-        )
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
-    )
+      )
+      return
+    }
+    const p: [number, number] = [r.lat, r.lng]
+    setMe({ pos: p, accuracy: r.accuracy })
+    map?.flyTo(p, Math.max(map.getZoom(), 15), { duration: 0.8 })
   }
 
   return (

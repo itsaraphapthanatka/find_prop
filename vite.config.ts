@@ -1,8 +1,23 @@
+import { execSync } from 'node:child_process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// รหัส build = commit ที่กำลัง build (CI/Vercel มี env ให้ / เครื่อง dev ถามจาก git)
+// แอปมือถือใช้เทียบกับ /app-update.json เพื่อรู้ว่าตัวเองรันโค้ดชุดล่าสุดหรือยัง
+// — ต้องคำนวณเหมือนกันกับ scripts/update-zip.mjs
+function buildId(): string {
+  const fromEnv = process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA
+  if (fromEnv) return fromEnv
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
+  } catch {
+    return 'dev'
+  }
+}
+
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(buildId()) },
   plugins: [
     react(),
     VitePWA({

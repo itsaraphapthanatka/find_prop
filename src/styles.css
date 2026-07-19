@@ -306,6 +306,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 }
 .photo-drop:hover { border-color: var(--purple); color: var(--purple); }
 .photo-drop img { max-width: 100%; max-height: 200px; border-radius: 10px; }
+.photo-camera-btn { margin-top: 8px; width: 100%; justify-content: center; }
 
 /* ── Combo (dropdown เลือกหรือพิมพ์เพิ่ม) ── */
 .combo { position: relative; }
