@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
+import { isNativeApp } from '../lib/native'
 
 function Brand() {
   return (
@@ -66,7 +67,8 @@ export default function LoginPage() {
           {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
         </button>
         <p className="auth-note">ยังไม่มีบัญชี? ติดต่อผู้ดูแลทีมเพื่อเพิ่มคุณเข้าระบบ</p>
-        <p className="auth-note"><a href="#/">← กลับหน้าแรก</a></p>
+        {/* ในแอปไม่มีหน้า landing ให้กลับ */}
+        {!isNativeApp && <p className="auth-note"><a href="#/">← กลับหน้าแรก</a></p>}
       </form>
     </div>
   )

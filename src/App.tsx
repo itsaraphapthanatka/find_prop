@@ -17,6 +17,7 @@ import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
+import { isNativeApp } from './lib/native'
 import { IconChart, IconForm, IconList, IconMap, IconRoute, IconShield, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
@@ -45,8 +46,9 @@ export default function App() {
     )
   }
   if (loading) return <div className="loading" style={{ paddingTop: 80 }}>กำลังโหลด…</div>
-  // ยังไม่ล็อกอิน: คนทั่วไป (ลูกค้า) เห็น landing page — ทีมงานเข้าผ่านปุ่ม/เส้นทาง /login
-  if (!session) return location.pathname === '/login' ? <LoginPage /> : <LandingPage />
+  // ยังไม่ล็อกอิน: บนเว็บคนทั่วไปเห็น landing page (ทีมงานเข้าทาง /login)
+  // ส่วนในแอปมือถือผู้ใช้คือทีมงานอยู่แล้ว — ข้ามไปหน้า login เลย
+  if (!session) return isNativeApp || location.pathname === '/login' ? <LoginPage /> : <LandingPage />
 
   const isSuper = Boolean(profile?.is_super)
 

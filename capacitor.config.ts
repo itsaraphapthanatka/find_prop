@@ -6,6 +6,11 @@ const config: CapacitorConfig = {
   appId: 'com.hobproperty.app',
   appName: 'HOB',
   webDir: 'dist',
+  android: {
+    // Android 15 (targetSdk 35) บังคับวาดเต็มขอบจอ (edge-to-edge) ทำให้ header/nav
+    // ของแอปมุดไปอยู่ใต้แถบระบบ — ให้ Capacitor เว้นระยะ WebView ตาม inset ให้อัตโนมัติ
+    adjustMarginsForEdgeToEdge: 'auto',
+  },
   plugins: {
     // live-update ควบคุมเองที่ src/lib/appUpdate.ts — ปิดโหมดอัตโนมัติของปลั๊กอิน
     // (ค่าเริ่มต้นของมันผูกกับบริการ cloud ของ Capgo ซึ่งเราไม่ได้ใช้)
