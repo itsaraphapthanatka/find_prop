@@ -898,11 +898,14 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 
 @media (max-width: 640px) {
   /* ── View header ── */
-  .view-header { padding: 10px 14px; flex-wrap: wrap; row-gap: 8px; }
-  .view-header h1 { font-size: 16.5px; white-space: nowrap; }
+  .view-header { padding: 10px 14px; flex-wrap: wrap; row-gap: 9px; gap: 8px; justify-content: flex-end; }
+  .view-header h1 { font-size: 16.5px; white-space: nowrap; margin-right: auto; }
   .view-header .btn { padding: 7px 13px; font-size: 13.5px; }
-  /* จอแคบให้ตัวกรอง/ปุ่มไหลลงบรรทัดใหม่ได้ — ห้าม nowrap ไม่งั้นปุ่มขวาหลุดจอ */
-  .header-actions { gap: 6px; row-gap: 8px; flex-wrap: wrap; }
+  /* จอแคบ: ยุบกล่อง actions ให้ลูกๆ ไหลต่อแถวเดียวกับหัวข้อแล้วค่อยห่อ —
+     ได้ 2 แถวแน่นๆ คือ [หัวข้อ …… ตัวกรององค์กร] / [ปุ่มทั้งหมดชิดขวา]
+     แทนที่จะเป็นกล่องก้อนเดียวตกลงมาทั้งยวง 3 แถวโหวงๆ */
+  .header-actions { display: contents; }
+  .org-filter .filter-select { max-width: 52vw; }
   .header-actions .btn { padding: 7px 12px; font-size: 13px; }
   /* ปุ่มรองเหลือแค่ไอคอน — ให้ชื่อหน้า+ปุ่มหลักอยู่บรรทัดเดียวจบ */
   .btn.mob-icon .btn-label { display: none; }
