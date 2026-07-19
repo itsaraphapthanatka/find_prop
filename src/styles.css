@@ -137,6 +137,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   background-repeat: no-repeat; background-position: right 10px center;
 }
 .filter-select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(113, 50, 245, 0.12); }
+/* หมุดแผนที่ตามประเภททรัพย์ (สร้างใน MapPage) — ล้างกรอบขาว default ของ divIcon */
+.type-pin { background: none; border: none; filter: drop-shadow(0 3px 4px rgba(15, 15, 35, 0.35)); }
+
 /* ป้าย "องค์กร" + dropdown เป็นก้อนเดียว ไม่แยกวงกันเวลาจอแคบ */
 .org-filter { display: inline-flex; align-items: center; gap: 7px; flex: none; min-width: 0; }
 .org-filter .filter-label { min-width: auto; }

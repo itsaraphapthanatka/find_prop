@@ -11,15 +11,60 @@ import PropertyDetail from '../components/PropertyDetail'
 import { IconClose, IconLocate, IconPin } from '../components/icons'
 import { getPosition } from '../lib/native'
 
-// ไอคอนหมุดเริ่มต้นของ Leaflet ต้องชี้ URL รูปเองเมื่อใช้ผ่าน bundler
-const pinIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-})
+// ── หมุดตามประเภททรัพย์: สีประจำประเภท (ไม่ซ้ำกัน) + ไอคอนสื่อประเภทในหัวหมุด ──
+// ใช้ทั้งสีและรูปคู่กันเสมอ เพื่อให้แยกประเภทออกแม้มองสีต่างกันไม่ชัด
+// ประเภทที่ไม่รู้จัก/ว่าง → บ้านสีเทา (อย่าลืมเติมที่นี่ถ้ามีประเภทใหม่ใน labels.ts)
+const PIN_STYLE: Record<string, { color: string; glyph: string }> = {
+  'โรงงาน': {
+    color: '#2563eb', // น้ำเงิน
+    glyph: '<path d="M2 21V9.5l6 3.2V9.5l6 3.2V9.5l6 3.2V21H2z"/><path d="M17 3h4v8h-4z"/>',
+  },
+  'โชว์รูม': {
+    color: '#db2777', // ชมพูบานเย็น
+    glyph: '<path d="M3.5 8 5 3h14l1.5 5c0 1.5-1.2 2.7-2.7 2.7-1.2 0-2.2-.7-2.6-1.8-.4 1.1-1.4 1.8-2.6 1.8s-2.2-.7-2.6-1.8c-.4 1.1-1.4 1.8-2.6 1.8C4.7 10.7 3.5 9.5 3.5 8z"/><path d="M5 12.5h14V21h-4.5v-5h-5v5H5z"/>',
+  },
+  'โกดัง': {
+    color: '#d97706', // ส้มอำพัน
+    glyph: '<path d="M3 21V9l9-5 9 5v12h-5v-7H8v7H3z"/>',
+  },
+  'ออฟฟิศ': {
+    color: '#0d9488', // เขียวหัวเป็ด
+    glyph: '<path fill-rule="evenodd" d="M5 21V4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5V21h-4v-4h-6v4H5zm3-14h3v3H8V7zm5 0h3v3h-3V7zm-5 5h3v3H8v-3zm5 0h3v3h-3v-3z"/>',
+  },
+  'ครัวกลาง': {
+    color: '#dc2626', // แดง
+    glyph: '<path d="M3.5 10h17v1.5c0 3-1.7 5.6-4.5 6.9v1.1c0 .8-.7 1.5-1.5 1.5h-5c-.8 0-1.5-.7-1.5-1.5v-1.1C5.2 17.1 3.5 14.5 3.5 11.5V10z"/><path d="M8 8c0-1.8 1-1.8 1-3.3M12 8c0-1.8 1-1.8 1-3.3M16 8c0-1.8 1-1.8 1-3.3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>',
+  },
+}
+const PIN_FALLBACK = {
+  color: '#64748b', // เทา
+  glyph: '<path d="M4 21v-9l8-7 8 7v9h-5.5v-5.5h-5V21H4z"/>',
+}
+
+const pinSvg = (color: string, glyph: string) => `
+<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
+  <path d="M17 1.5C9 1.5 2.5 8 2.5 15.8 2.5 23.2 10 33.2 17 42.5 24 33.2 31.5 23.2 31.5 15.8 31.5 8 25 1.5 17 1.5Z" fill="${color}" stroke="#ffffff" stroke-width="2.2"/>
+  <g transform="translate(9 7.5) scale(0.667)" fill="#ffffff">${glyph}</g>
+</svg>`
+
+// สร้างไอคอนครั้งเดียวต่อประเภทแล้วใช้ซ้ำ — หมุดหลักร้อยตัวไม่ต้องสร้าง DOM string ใหม่ทุก render
+const pinCache = new Map<string, L.DivIcon>()
+function pinFor(type: string | null | undefined): L.DivIcon {
+  const key = type && PIN_STYLE[type] ? type : ''
+  let icon = pinCache.get(key)
+  if (!icon) {
+    const { color, glyph } = PIN_STYLE[key] ?? PIN_FALLBACK
+    icon = L.divIcon({
+      className: 'type-pin',
+      html: pinSvg(color, glyph),
+      iconSize: [34, 44],
+      iconAnchor: [17, 42],
+      popupAnchor: [0, -38],
+    })
+    pinCache.set(key, icon)
+  }
+  return icon
+}
 
 // หมุดชั่วคราว (สีม่วงตาม design system) สำหรับตำแหน่งทรัพย์ใหม่
 const draftIcon = L.divIcon({
@@ -179,7 +224,7 @@ export default function MapPage() {
               }}
             />
             {withCoords.map((p) => (
-              <Marker key={p.id} position={[p.lat, p.lng]} icon={pinIcon}>
+              <Marker key={p.id} position={[p.lat, p.lng]} icon={pinFor(p.property_type)}>
                 <Popup>
                   <div className="map-popup">
                     <div className="title">{p.code}</div>
