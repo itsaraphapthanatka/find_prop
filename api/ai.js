@@ -6,6 +6,20 @@
 const MAX_BODY_CHARS = 120_000
 
 export default async function handler(req, res) {
+  // ── CORS: ให้แอปมือถือ (Capacitor) และ dev server เรียกข้ามโดเมนได้ ──
+  // เว็บจริงเรียก same-origin อยู่แล้วจึงไม่ต้องอยู่ในรายการ / ความปลอดภัยจริงอยู่ที่
+  // การตรวจ Supabase token ด้านล่าง — CORS แค่บอกเบราว์เซอร์ว่า origin ไหนคุยได้
+  const ALLOWED_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost:5173']
+  const origin = req.headers.origin
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Vary', 'Origin')
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    res.setHeader('Access-Control-Max-Age', '86400')
+  }
+  if (req.method === 'OPTIONS') return res.status(204).end()
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

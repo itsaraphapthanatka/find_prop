@@ -8,6 +8,10 @@ export interface ChatMessage {
   content: string
 }
 
+// ฐาน URL ของ API — บนเว็บปล่อยว่าง (เรียก /api/ai โดเมนเดียวกัน) แต่ในแอป Capacitor
+// หน้าเว็บรันจาก https://localhost จึงต้องชี้กลับไปเว็บ prod ผ่าน VITE_API_BASE
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+
 /** เรียก LLM ผ่าน serverless proxy (/api/ai) — ต้องล็อกอินอยู่
     บริการ AI สะดุดเป็นช่วงๆ กับ prompt ยาว จึง retry ให้เองหนึ่งครั้ง */
 export async function aiChat(messages: ChatMessage[], temperature = 0.2): Promise<string> {
@@ -19,7 +23,7 @@ export async function aiChat(messages: ChatMessage[], temperature = 0.2): Promis
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 1500))
     try {
-      const res = await fetch('/api/ai', {
+      const res = await fetch(`${API_BASE}/api/ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ messages, temperature }),
