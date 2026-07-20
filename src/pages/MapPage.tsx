@@ -144,6 +144,7 @@ export default function MapPage() {
       key: k,
       label: k || 'อื่นๆ',
       color: (PIN_STYLE[k] ?? PIN_FALLBACK).color,
+      glyph: (PIN_STYLE[k] ?? PIN_FALLBACK).glyph,
       count: counts.get(k) ?? 0,
     }))
   }, [base])
@@ -236,7 +237,10 @@ export default function MapPage() {
                 title={fType === t.key ? 'แตะอีกครั้งเพื่อแสดงทุกประเภท' : `ดูเฉพาะ${t.label}`}
                 onClick={() => setFType((v) => (v === t.key ? null : t.key))}
               >
-                <span className="legend-dot" style={{ background: t.color }} />
+                <span className="legend-dot" style={{ background: t.color }}>
+                  {/* ไอคอนชุดเดียวกับบนหมุด — glyph เป็นค่าคงที่ในไฟล์นี้ ไม่ใช่ข้อมูลผู้ใช้ */}
+                  <svg viewBox="0 0 24 24" fill="#ffffff" dangerouslySetInnerHTML={{ __html: t.glyph }} />
+                </span>
                 {t.label}
                 <span className="legend-count">{t.count}</span>
               </button>

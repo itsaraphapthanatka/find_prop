@@ -148,14 +148,19 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 }
 /* scope ใต้ .map-legend เสมอ — .legend-dot เฉยๆ ชนกับ legend ของกราฟหน้าสรุป */
 .map-legend .legend-chip {
-  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
   background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 999px;
-  padding: 5px 10px 5px 8px; font-size: 12.5px; font-weight: 600; color: var(--ink);
+  padding: 3px 9px 3px 4px; font-size: 12px; font-weight: 600; color: var(--ink);
   cursor: pointer; box-shadow: 0 1px 4px rgba(15, 15, 35, 0.14);
 }
 .map-legend .legend-chip.active { border-color: var(--purple); box-shadow: 0 0 0 2.5px rgba(113, 50, 245, 0.22); }
-.map-legend .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-.map-legend .legend-count { color: var(--muted); font-weight: 500; }
+/* วงกลมสี + ไอคอนประเภท (ชุดเดียวกับบนหมุด) */
+.map-legend .legend-dot {
+  width: 19px; height: 19px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.map-legend .legend-dot svg { width: 12px; height: 12px; display: block; }
+.map-legend .legend-count { color: var(--muted); font-weight: 500; font-size: 11px; }
 @media (max-width: 720px) {
   /* จอแคบ: แถวเดียวปัดซ้ายขวาได้ ไม่บังแผนที่หลายชั้น */
   .map-legend {
@@ -930,7 +935,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   /* ── View header ── */
   .view-header { padding: 10px 14px; flex-wrap: wrap; row-gap: 9px; gap: 8px; justify-content: flex-end; }
   .view-header h1 { font-size: 16.5px; white-space: nowrap; margin-right: auto; }
-  .view-header .btn { padding: 7px 13px; font-size: 13.5px; }
+  .view-header .btn { padding: 6px 11px; font-size: 13px; }
   /* จอแคบ: ยุบกล่อง actions ให้ลูกๆ ไหลต่อแถวเดียวกับหัวข้อแล้วค่อยห่อ —
      ได้ 2 แถวแน่นๆ คือ [หัวข้อ …… ตัวกรององค์กร] / [ปุ่มทั้งหมดชิดขวา]
      แทนที่จะเป็นกล่องก้อนเดียวตกลงมาทั้งยวง 3 แถวโหวงๆ */
