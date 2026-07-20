@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HOB — คู่มือการใช้งาน</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #fbfaf7; --ink: #17141f; --muted: #6f6a7c;
+    --brand: #7132f5; --brand-deep: #5741d8; --brand-soft: #f2effc;
+    --hair: #e6e2d8; --hair-dark: #cfcabd; --card: #ffffff;
+    --sans: 'IBM Plex Sans Thai', 'Noto Sans Thai', 'Sukhumvit Set', sans-serif;
+    --mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans); background: var(--paper); color: var(--ink);
+    line-height: 1.65; font-size: 16px;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 47px, rgba(113,50,245,.025) 47px, rgba(113,50,245,.025) 48px);
+  }
+  .page { max-width: 860px; margin: 0 auto; padding: 0 28px 80px; }
+
+  /* หัวเอกสาร */
+  .doc-head { border-top: 6px solid var(--brand); padding-top: 34px; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 12px; letter-spacing: .04em; color: var(--muted); text-transform: uppercase; }
+  .meta-row .dot { color: var(--brand); }
+  .brand-mark { font-size: clamp(52px, 10vw, 92px); font-weight: 700; letter-spacing: -.03em; line-height: 1.05; margin: 12px 0 2px; }
+  .brand-mark .ob { color: var(--brand); }
+  .kicker { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--brand); }
+  .doc-sub { font-size: clamp(16px, 2.4vw, 19px); font-weight: 500; max-width: 42em; margin-top: 4px; }
+  .doc-sub small { display: block; font-weight: 400; color: var(--muted); font-size: .82em; margin-top: 6px; }
+  .rule-double { border: 0; border-top: 1px solid var(--hair-dark); border-bottom: 3px solid var(--ink); height: 5px; margin: 26px 0 0; }
+
+  /* สารบัญ */
+  .toc { margin: 32px 0 6px; }
+  .toc h2 { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .toc ol { list-style: none; columns: 2; column-gap: 34px; }
+  @media (max-width: 560px) { .toc ol { columns: 1; } }
+  .toc li { break-inside: avoid; }
+  .toc a { display: flex; align-items: baseline; gap: 12px; padding: 6px 2px; color: inherit; text-decoration: none; border-bottom: 1px dotted var(--hair-dark); font-weight: 500; font-size: 14.5px; }
+  .toc a:hover { color: var(--brand); border-bottom-color: var(--brand); }
+  .toc a .n { font-family: var(--mono); font-size: 12px; color: var(--brand); font-weight: 600; }
+
+  /* หมวด */
+  .sec { padding: 30px 0 6px; border-top: 1px solid var(--hair-dark); margin-top: 26px; }
+  .sec:first-of-type { border-top: 0; }
+  .sec > h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 12px; }
+  .sec > h2 .num { font-family: var(--mono); font-size: 15px; font-weight: 600; color: #fff; background: var(--brand); width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .sec > p.lead { color: var(--muted); font-size: 14.5px; margin: 8px 0 2px; }
+
+  /* ขั้นตอนแบบมีเลข */
+  ol.steps { list-style: none; counter-reset: step; margin: 14px 0 6px; }
+  ol.steps > li { counter-increment: step; position: relative; padding: 4px 0 14px 44px; }
+  ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 28px; height: 28px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-deep); font-family: var(--mono); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  ol.steps > li:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 32px; bottom: 4px; width: 2px; background: var(--hair); }
+  ol.steps b { font-weight: 600; }
+
+  /* บล็อกวิธีเลือก (การ์ด) */
+  .methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0 6px; }
+  @media (max-width: 680px) { .methods { grid-template-columns: 1fr; } }
+  .method { background: var(--card); border: 1px solid var(--hair-dark); border-radius: 10px; padding: 14px 16px; }
+  .method .tag { font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; color: var(--brand); }
+  .method h3 { font-size: 16px; margin: 3px 0 6px; }
+  .method p { font-size: 13.5px; color: var(--muted); }
+
+  ul.plain { list-style: none; margin: 8px 0; }
+  ul.plain li { padding: 4px 0 4px 20px; position: relative; font-size: 15px; }
+  ul.plain li::before { content: ''; position: absolute; left: 2px; top: 13px; width: 10px; height: 2px; background: var(--brand); }
+  .say { font-family: var(--mono); font-size: .86em; background: var(--brand-soft); border-radius: 5px; padding: 1px 7px; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--brand-soft); border-radius: 4px; padding: 1px 6px; color: var(--brand-deep); }
+
+  /* callout เคล็ดลับ */
+  .tip { display: flex; gap: 10px; background: var(--brand-soft); border-left: 3px solid var(--brand); border-radius: 0 8px 8px 0; padding: 11px 14px; margin: 12px 0; font-size: 14px; }
+  .tip b { font-weight: 600; }
+
+  /* ตาราง (เมนู / แก้ปัญหา) */
+  table.grid { width: 100%; border-collapse: collapse; font-size: 14.5px; background: var(--card); margin: 12px 0; }
+  table.grid td, table.grid th { border: 1px solid var(--hair-dark); padding: 9px 13px; text-align: left; vertical-align: top; }
+  table.grid th { background: var(--brand-soft); font-weight: 600; font-size: 13px; }
+  table.grid td:first-child { font-weight: 600; white-space: nowrap; }
+
+  .role-band { background: var(--ink); color: #fff; border-radius: 10px; padding: 8px 16px; margin: 34px 0 4px; font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+
+  .doc-foot { margin-top: 52px; padding-top: 14px; border-top: 1px solid var(--hair-dark); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; font-family: var(--mono); font-size: 11.5px; color: var(--muted); letter-spacing: .05em; }
+  .doc-foot .hob { color: var(--brand); font-weight: 600; }
+
+  @media print {
+    body { background: #fff; font-size: 12.5px; }
+    .page { max-width: none; padding: 0; }
+    .sec, .methods, .tip, table.grid, ol.steps > li { break-inside: avoid; }
+    .brand-mark { font-size: 52px; }
+    .toc a { border-bottom: none; }
+    @page { margin: 15mm 14mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-head">
+    <div class="meta-row">
+      <span>คู่มือการใช้งาน</span><span class="dot">●</span>
+      <span>สำหรับทีมนายหน้า</span><span class="dot">●</span>
+      <span>อัปเดต 20 ก.ค. 2026</span>
+    </div>
+    <div class="brand-mark">H<span class="ob">OB</span></div>
+    <div class="kicker">คู่มือการใช้งาน</div>
+    <p class="doc-sub">
+      ระบบจัดการทรัพย์ให้เช่า/ขาย — ทำงานประจำวันทีละขั้น
+      <small>เปิดหน้านี้ได้ที่ hob-alpha.vercel.app/guide.html · พิมพ์เป็น PDF แจกทีมได้</small>
+    </p>
+    <hr class="rule-double" />
+  </header>
+
+  <nav class="toc">
+    <h2>สารบัญ</h2>
+    <ol>
+      <li><a href="#start"><span class="n">00</span> เริ่มต้น / เข้าสู่ระบบ</a></li>
+      <li><a href="#g1"><span class="n">01</span> เพิ่มทรัพย์ใหม่ (3 วิธี)</a></li>
+      <li><a href="#g2"><span class="n">02</span> ค้นหาและกรองทรัพย์</a></li>
+      <li><a href="#g3"><span class="n">03</span> ดูทรัพย์บนแผนที่</a></li>
+      <li><a href="#g4"><span class="n">04</span> แผนพาลูกค้าดูทรัพย์</a></li>
+      <li><a href="#g5"><span class="n">05</span> เอกสารเปรียบเทียบ + PDF</a></li>
+      <li><a href="#g6"><span class="n">06</span> ผู้ช่วย AI</a></li>
+      <li><a href="#g7"><span class="n">07</span> ภาพรวมพอร์ต (สรุป)</a></li>
+      <li><a href="#admin"><span class="n">08</span> สำหรับแอดมินทีม</a></li>
+      <li><a href="#mobile"><span class="n">09</span> แอปมือถือ</a></li>
+      <li><a href="#help"><span class="n">10</span> แก้ปัญหาเบื้องต้น</a></li>
+    </ol>
+  </nav>
+
+  <!-- เริ่มต้น -->
+  <section class="sec" id="start">
+    <h2><span class="num">◎</span> เริ่มต้นใช้งาน</h2>
+    <ol class="steps">
+      <li>เปิดแอป HOB หรือเว็บ <code>hob-alpha.vercel.app</code> แล้วกด <b>เข้าสู่ระบบ</b></li>
+      <li>ใส่อีเมลและรหัสผ่านที่แอดมินทีมสร้างให้ → กด <b>เข้าสู่ระบบ</b></li>
+      <li>ยังไม่มีบัญชี? ติดต่อแอดมินทีมให้เพิ่มคุณ (สมัครเองไม่ได้ — กันคนนอก)</li>
+    </ol>
+    <p class="lead">เมนูหลักอยู่แถบล่างของจอ:</p>
+    <table class="grid">
+      <tr><th>เมนู</th><th>ใช้ทำอะไร</th></tr>
+      <tr><td>แผนที่</td><td>ดูทรัพย์ทั้งหมดบนแผนที่</td></tr>
+      <tr><td>ฟอร์ม</td><td>เพิ่มทรัพย์ใหม่</td></tr>
+      <tr><td>รายการ</td><td>ค้นหา / กรอง / ดูรายการทรัพย์</td></tr>
+      <tr><td>สรุป</td><td>ภาพรวมพอร์ต + AI วิเคราะห์</td></tr>
+      <tr><td>แผนเยี่ยม</td><td>จัดรูทพาลูกค้าดูทรัพย์</td></tr>
+    </table>
+    <div class="tip">✨ <span>ปุ่มลอยมุมขวาล่างทุกหน้า = <b>ผู้ช่วย AI</b> ถามหรือสั่งงานได้ตลอด</span></div>
+  </section>
+
+  <!-- 1 เพิ่มทรัพย์ -->
+  <section class="sec" id="g1">
+    <h2><span class="num">01</span> เพิ่มทรัพย์ใหม่</h2>
+    <p class="lead">เลือกวิธีที่เหมาะกับสถานการณ์:</p>
+    <div class="methods">
+      <div class="method"><div class="tag">วิธี A</div><h3>พิมพ์กรอกฟอร์ม</h3><p>ครบทุกฟิลด์ เหมาะตอนนั่งโต๊ะ</p></div>
+      <div class="method"><div class="tag">วิธี B · เร็วสุด</div><h3>พูดให้ AI กรอก 🎤</h3><p>เล่ารวดเดียวหน้างาน AI แกะให้</p></div>
+      <div class="method"><div class="tag">วิธี C</div><h3>นำเข้า Excel/CSV</h3><p>ย้ายข้อมูลเก่าทีเดียวทั้งไฟล์</p></div>
+    </div>
+    <ol class="steps">
+      <li><b>วิธี A:</b> กด <b>ฟอร์ม</b> (หรือ <b>+ เพิ่มทรัพย์</b>) → กรอกวันที่ รหัส ประเภท เช่า/ขาย ทำเล ราคา — ช่องมี * คือบังคับ → <b>บันทึก</b></li>
+      <li><b>วิธี B:</b> กดปุ่ม <b>พูด</b> แล้วเล่ารวดเดียว เช่น <span class="say">"โกดังบางพลี ห้าร้อยตร.ม. ค่าเช่าแปดหมื่นห้า สูงแปดเมตร"</span> → AI กรอกให้ → <b>ตรวจก่อนบันทึกทุกครั้ง</b></li>
+      <li><b>วิธี C:</b> เข้าหน้า <b>นำเข้าข้อมูล</b> → อัปโหลดไฟล์ → ระบบจับคู่คอลัมน์ให้ (แก้เองได้) → นำเข้า (รหัสซ้ำเลือกข้าม/อัปเดตทับ)</li>
+      <li><b>แนบรูป:</b> บนแอปกด <b>ถ่ายรูปด้วยกล้อง</b> · บนคอมกดกรอบรูปเลือกไฟล์</li>
+      <li><b>ปักตำแหน่ง:</b> แตะแผนที่เล็กในฟอร์ม หรือปักจากหน้าแผนที่</li>
+    </ol>
+    <div class="tip">💡 <span>ปุ่มพูดแสดงบน Chrome (คอม/Android) ถ้าไม่เห็นปุ่ม = อุปกรณ์นั้นไม่รองรับ ให้พิมพ์แทน · พูดตัวเลขไทยได้ "แปดหมื่นห้า" → 85,000</span></div>
+  </section>
+
+  <!-- 2 ค้นหา -->
+  <section class="sec" id="g2">
+    <h2><span class="num">02</span> ค้นหาและกรองทรัพย์</h2>
+    <ol class="steps">
+      <li>กด <b>รายการ</b></li>
+      <li>พิมพ์ในช่องค้นหา — ค้นได้จากรหัส ทำเล ประเภท ฯลฯ</li>
+      <li>กรองเพิ่ม: ประเภท · เช่า/ขาย · จังหวัด · ช่วงราคา</li>
+      <li>แตะการ์ด/แถวเพื่อดูรายละเอียดเต็ม + ปุ่มลัด <b>โทร / SMS / LINE / Google Maps</b></li>
+    </ol>
+  </section>
+
+  <!-- 3 แผนที่ -->
+  <section class="sec" id="g3">
+    <h2><span class="num">03</span> ดูทรัพย์บนแผนที่</h2>
+    <ul class="plain">
+      <li><b>สีหมุด = ประเภททรัพย์</b> ดูคำอธิบายสีที่แถบล่างแผนที่ (legend)</li>
+      <li>แตะชิพประเภทที่ legend เพื่อ <b>ดูเฉพาะประเภทนั้น</b> · แตะ <b>ทั้งหมด</b> เพื่อกลับ</li>
+      <li>ปุ่ม <b>⊙ ตำแหน่งฉัน</b> (มุมล่างขวา) กระโดดไปจุดที่คุณอยู่</li>
+      <li>เพิ่มทรัพย์จากแผนที่: <b>วางหมุดเพิ่มทรัพย์</b> → แตะตำแหน่ง → กรอกฟอร์มต่อ</li>
+    </ul>
+  </section>
+
+  <!-- 4 แผนเยี่ยม -->
+  <section class="sec" id="g4">
+    <h2><span class="num">04</span> แผนพาลูกค้าดูทรัพย์</h2>
+    <ol class="steps">
+      <li>กด <b>แผนเยี่ยม</b> → <b>สร้างแผน</b></li>
+      <li>ใส่ชื่อลูกค้า/ความต้องการ เลือกทรัพย์เป็นจุดแวะ จัดลำดับก่อน-หลังได้</li>
+      <li>กด <b>เปิดเส้นทางใน Google Maps</b> — นำทางครบทุกจุดจากตำแหน่งปัจจุบัน</li>
+      <li><b>ลูกค้าเปลี่ยนใจกลางทาง?</b> พิมพ์/พูดความต้องการใหม่ → AI แนะนำทรัพย์ที่ตรงกว่า + ชี้จุดเดิมที่ไม่ตรง → กดเพิ่มเข้ารูทได้ทันที</li>
+    </ol>
+    <div class="tip">🔔 <span>บนแอปมือถือ เช้าก่อนวันนัดจะมี <b>แจ้งเตือน</b> เด้งเตือนแผนของพรุ่งนี้ให้อัตโนมัติ</span></div>
+  </section>
+
+  <!-- 5 เปรียบเทียบ -->
+  <section class="sec" id="g5">
+    <h2><span class="num">05</span> เอกสารเปรียบเทียบเสนอลูกค้า + PDF</h2>
+    <ol class="steps">
+      <li>เข้าหน้า <b>เปรียบเทียบ</b> (จากหน้ารายการ หรือสั่ง AI ว่า "เปิดหน้าเปรียบเทียบ")</li>
+      <li>พิมพ์รหัสทรัพย์เพื่อเพิ่มเข้าเทียบ <b>2–4 รายการ</b></li>
+      <li>ใส่ชื่อลูกค้า/ความต้องการ → AI เขียนบทวิเคราะห์ จุดเด่น/ข้อควรพิจารณา/คำแนะนำ ให้</li>
+      <li>กด <b>พิมพ์ / บันทึก PDF</b> → เอกสารหัวกระดาษ HOB แนวนอน — บนแอปเลือก <b>"บันทึกเป็น PDF"</b> ส่ง LINE ให้ลูกค้าได้เลย</li>
+    </ol>
+  </section>
+
+  <!-- 6 AI -->
+  <section class="sec" id="g6">
+    <h2><span class="num">06</span> ผู้ช่วย AI (ปุ่ม ✨ ทุกหน้า)</h2>
+    <ul class="plain">
+      <li><b>ถามเป็นภาษาพูด</b> เช่น <span class="say">"โกดังแถวบางพลีงบไม่เกินแสนมีไหม"</span> → ตอบจากข้อมูลจริง พร้อมการ์ดกดดูต่อ (ไม่มีก็บอกตรงๆ ไม่มโน)</li>
+      <li><b>สั่งงานผ่านแชท</b> เช่น "สร้างแผนเยี่ยมชมให้ลูกค้า A" — ทุกคำสั่งมีปุ่มยืนยันก่อนทำจริง</li>
+      <li>กด <b>ไมค์</b> พูดถามได้ + เปิดโหมด <b>อ่านออกเสียง</b> ตอนขับรถ</li>
+    </ul>
+  </section>
+
+  <!-- 7 สรุป -->
+  <section class="sec" id="g7">
+    <h2><span class="num">07</span> ภาพรวมพอร์ต (สรุป)</h2>
+    <ul class="plain">
+      <li>มูลค่าเช่า/ขายรวม, ทรัพย์ใหม่เดือนนี้, นัดที่ใกล้ถึง</li>
+      <li>แตะกราฟสัดส่วนประเภท/ทำเล → เปิดหน้ารายการพร้อมกรองให้</li>
+      <li><b>สุขภาพข้อมูล:</b> ชี้ทรัพย์ที่ยังไม่มีรูป/พิกัด/ราคา/เบอร์ หรือค้างเก่าเกิน 90 วัน → กดเข้าไปเติม</li>
+      <li><b>AI วิเคราะห์พอร์ตรายวัน:</b> จุดแข็ง, ความต้องการที่ยังไม่มีของ, ทรัพย์ที่ควรเร่งนำเสนอ</li>
+    </ul>
+  </section>
+
+  <div class="role-band">สำหรับแอดมินทีม</div>
+  <section class="sec" id="admin" style="border-top:0;margin-top:8px">
+    <h2><span class="num">08</span> จัดการทีม</h2>
+    <ol class="steps">
+      <li>กดเมนู <b>ทีม</b> → <b>เพิ่มสมาชิก</b> ใส่อีเมล → สมาชิกใหม่ล็อกอินด้วยอีเมลนั้นได้เลย</li>
+      <li>ดูรายชื่อ/บทบาท และเปลี่ยนชื่อองค์กรได้ที่หน้านี้</li>
+      <li><b>ประวัติการใช้งาน:</b> เห็นเฉพาะแอดมิน — ใครเพิ่ม/แก้/ลบทรัพย์ สร้างแผน นำเข้าไฟล์ ใช้ AI เมื่อไหร่ (บันทึกถาวร แก้ย้อนหลังไม่ได้)</li>
+    </ol>
+  </section>
+
+  <!-- 9 มือถือ -->
+  <section class="sec" id="mobile">
+    <h2><span class="num">09</span> แอปมือถือ</h2>
+    <ul class="plain">
+      <li><b>ติดตั้ง (Android):</b> เปิดลิงก์ APK ที่แอดมินส่ง → ติดตั้ง → ครั้งแรกอนุญาต "ติดตั้งจากแหล่งที่ไม่รู้จัก" · หรือ PWA: Chrome → เมนู → เพิ่มไปหน้าจอหลัก</li>
+      <li><b>อัปเดต:</b> ส่วนใหญ่แอปอัปเดตเองเมื่อเปิดครั้งถัดไป — ถ้ามีแถบ "เวอร์ชันใหม่พร้อมติดตั้ง" เด้ง ให้แตะ <b>ดาวน์โหลด</b> แล้วติดตั้งทับ</li>
+      <li><b>สิทธิ์ที่แอปขอ:</b> กล้อง (ถ่ายรูป) · ตำแหน่ง (ปุ่มตำแหน่งฉัน) · แจ้งเตือน (เตือนแผนเยี่ยม) — กดอนุญาตเมื่อใช้ครั้งแรก</li>
+    </ul>
+  </section>
+
+  <!-- 10 แก้ปัญหา -->
+  <section class="sec" id="help">
+    <h2><span class="num">10</span> แก้ปัญหาเบื้องต้น</h2>
+    <table class="grid">
+      <tr><th>อาการ</th><th>วิธีแก้</th></tr>
+      <tr><td>ล็อกอินไม่ได้</td><td>เช็คอีเมล/รหัสให้ตรง — ยังไม่ได้ให้แอดมินรีเซ็ตให้</td></tr>
+      <tr><td>ไม่เห็นปุ่มพูด</td><td>อุปกรณ์/เบราว์เซอร์ไม่รองรับ ให้พิมพ์แทน (Chrome รองรับดีสุด)</td></tr>
+      <tr><td>ปุ่มตำแหน่ง/กล้องไม่ทำงาน</td><td>ยังไม่อนุญาตสิทธิ์ — เปิดสิทธิ์ให้แอปในตั้งค่าเครื่อง</td></tr>
+      <tr><td>ข้อมูลไม่อัปเดต</td><td>ดึงรีเฟรช หรือปิด-เปิดแอปใหม่</td></tr>
+      <tr><td>AI ตอบช้า/ไม่ตอบ</td><td>เช็คอินเทอร์เน็ตแล้วลองใหม่</td></tr>
+    </table>
+    <div class="tip">🆘 <span>ติดปัญหาที่แก้เองไม่ได้ → ติดต่อแอดมินทีม หรือทีมงาน HOB</span></div>
+  </section>
+
+  <footer class="doc-foot">
+    <span><span class="hob">HOB</span> · คู่มือการใช้งาน v1.0</span>
+    <span>/guide.html · คู่กับ docs/GUIDE.md</span>
+    <span>ดูฟีเจอร์ทั้งหมด: /features.html</span>
+  </footer>
+
+</div>
+</body>
+</html>
