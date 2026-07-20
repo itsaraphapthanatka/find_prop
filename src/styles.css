@@ -1083,12 +1083,21 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .btn.ghost:hover { color: var(--purple); background: var(--purple-subtle); }
 
 .ld-hero {
-  text-align: center; padding: clamp(48px, 9vw, 96px) 20px clamp(38px, 6vw, 64px);
+  /* รูปพื้นหลังฮีโร่ — สลับเป็นรูปอื่นได้ที่บรรทัดนี้จุดเดียว (ไฟล์ใน public/) */
+  --hero-bg: url("/hero.jpg");
+  position: relative; text-align: center;
+  padding: clamp(56px, 9vw, 104px) 20px clamp(48px, 7vw, 80px);
+  /* ชั้นบนสุด = glow แบรนด์, ถัดมา = scrim ขาวให้ตัวหนังสือเข้มอ่านออก (เข้มด้านบนที่มีข้อความ),
+     ล่างสุด = รูปถ่าย cover */
   background:
-    radial-gradient(600px 280px at 80% -10%, rgba(113, 50, 245, 0.10), transparent 70%),
-    radial-gradient(500px 260px at 12% 8%, rgba(113, 50, 245, 0.07), transparent 70%),
-    linear-gradient(180deg, #faf8ff, var(--bg));
+    radial-gradient(600px 280px at 80% -10%, rgba(113, 50, 245, 0.16), transparent 70%),
+    radial-gradient(500px 260px at 12% 8%, rgba(113, 50, 245, 0.12), transparent 70%),
+    linear-gradient(180deg, rgba(250, 248, 255, 0.88) 0%, rgba(250, 248, 255, 0.78) 50%, rgba(247, 247, 249, 0.66) 100%),
+    var(--hero-bg) center 28% / cover no-repeat;
+  /* halo ขาวอ่อนหลังตัวอักษร (สืบทอดถึงลูก) — ช่วยให้อ่านชัดบนช่วงรูปที่มีรายละเอียด */
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
 }
+.ld-hero > * { position: relative; z-index: 1; }
 .ld-eyebrow {
   display: inline-block; font-size: 13px; font-weight: 600; color: var(--purple);
   background: var(--purple-subtle); border-radius: 999px; padding: 5px 14px; margin-bottom: 18px;
