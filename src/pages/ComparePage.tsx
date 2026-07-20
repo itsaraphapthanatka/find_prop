@@ -7,6 +7,7 @@ import { formatNumber } from '../labels'
 import Combo from '../components/Combo'
 import VoiceButton from '../components/VoiceButton'
 import { IconClose, IconHouse, IconPrint, IconSparkles } from '../components/icons'
+import { printPage } from '../lib/native'
 
 /** บทวิเคราะห์จาก AI ต่อชอร์ตลิสต์หนึ่งชุด */
 interface CompareResult {
@@ -117,7 +118,7 @@ ${details}
       <div className="view-header">
         <h1>เปรียบเทียบทรัพย์ {picked.length > 0 && <span className="count-badge">{picked.length}</span>}</h1>
         {picked.length >= 2 && (
-          <button className="btn" onClick={() => window.print()}><IconPrint size={16} /> พิมพ์ / บันทึก PDF</button>
+          <button className="btn" onClick={() => void printPage()}><IconPrint size={16} /> พิมพ์ / บันทึก PDF</button>
         )}
       </div>
 

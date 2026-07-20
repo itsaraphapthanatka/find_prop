@@ -1,6 +1,9 @@
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { Geolocation } from '@capacitor/geolocation'
+
+// ปลั๊กอิน local ฝั่ง android/ (WebPrintPlugin.java) — พิมพ์หน้าปัจจุบันผ่านระบบพิมพ์เครื่อง
+const WebPrint = registerPlugin<{ print(): Promise<void> }>('WebPrint')
 
 /** true เมื่อรันเป็นแอปมือถือ (Capacitor) — ใช้สลับพฤติกรรม native/เว็บ */
 export const isNativeApp = Capacitor.isNativePlatform()
@@ -46,6 +49,21 @@ export async function getPosition(): Promise<PositionResult> {
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     )
   })
+}
+
+/** สั่งพิมพ์หน้าปัจจุบัน — เว็บใช้ dialog ของเบราว์เซอร์
+    ในแอปเรียกระบบพิมพ์ Android (เลือกเครื่องพิมพ์หรือ "บันทึกเป็น PDF" ได้)
+    เพราะ window.print() ใน WebView เป็น no-op เงียบๆ */
+export async function printPage() {
+  if (isNativeApp) {
+    try {
+      await WebPrint.print()
+      return
+    } catch {
+      // ปลั๊กอินยังไม่มีในแอปตัวเก่า (ลงก่อน build นี้) — ปล่อยไหลไป window.print เผื่อไว้
+    }
+  }
+  window.print()
 }
 
 /** เปิดกล้องถ่ายรูป (มีผลเฉพาะในแอป) — คืน File พร้อมส่งเข้า flow อัปโหลดรูปเดิม

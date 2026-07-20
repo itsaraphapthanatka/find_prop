@@ -884,14 +884,17 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 
 /* ── โหมดพิมพ์: เหลือเฉพาะแผ่นชอร์ตลิสต์ ───── */
 @media print {
-  .topbar, .sidebar, .view-header, .compare-controls, .empty-state { display: none !important; }
+  @page { size: A4; margin: 12mm; }
+  .topbar, .sidebar, .view-header, .compare-controls, .empty-state, .fab, .locate-btn { display: none !important; }
   .app-shell, .main, .content { display: block; height: auto; overflow: visible; }
-  body { background: #fff; }
+  body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .team-wrap.compare-wrap { max-width: none; padding: 0; margin: 0; }
   .compare-sheet { border: none; box-shadow: none; border-radius: 0; padding: 0; margin: 0; }
   .compare-scroll { overflow: visible; }
   .compare-table th, .compare-table td { min-width: 0; }
   .compare-table .spec-col { position: static; }
+  /* กันแถวตาราง/หัวเอกสารโดนตัดกลางหน้ากระดาษ */
+  .compare-table tr, .sheet-head { break-inside: avoid; }
 }
 
 /* ══════════════════════════════════════════════════════
