@@ -1,7 +1,7 @@
 # HOB บนมือถือ (Capacitor)
 
 เว็บกับแอปใช้โค้ดชุดเดียวกัน — Capacitor ห่อหน้าเว็บ (dist/) ลงแอป native
-เฟส 1 = Android เท่านั้น (iOS รอเฟสถัดไป ต้องใช้ Xcode + Apple Developer $99/ปี)
+รองรับทั้ง **Android** (`android/`) และ **iOS** (`ios/`) จากโค้ดเบสเดียว
 
 ## ติดตั้งแอปครั้งแรก (ลงมือเองครั้งเดียว)
 
@@ -78,10 +78,41 @@ bundle ได้ ด่านความปลอดภัยจริงคื
 curl "https://hob-alpha.vercel.app/api/push-cron?test=1" -H "Authorization: Bearer <CRON_SECRET>"
 ```
 
+## iOS (โปรเจกต์ `ios/`)
+
+รันบน **iOS Simulator** ได้แล้ว (พิสูจน์: หน้า login ขึ้นครบ) — build/รันเองในเครื่อง:
+
+```
+npm run build && npx cap sync ios
+npx cap open ios          # เปิด Xcode → เลือก simulator → กด ▶
+# หรือสั่งตรง:
+xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
+  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+```
+
+พร้อมแล้วบน iOS: ปุ่มพิมพ์/บันทึก PDF (Swift `WebPrintPlugin` ใน `AppDelegate.swift`,
+แนวนอน), กล้อง, GPS, live-update ส่วนเว็บ, สิทธิ์กล้อง/ตำแหน่งใน `Info.plist`
+
+### ⚠️ ข้อจำกัด iOS ที่ต่างจาก Android แบบสำคัญ
+
+- **ลงเครื่องจริง / TestFlight / App Store ต้องมี Apple Developer Program ($99/ปี)** —
+  ต่างจาก Android ที่แจกไฟล์ .apk ให้ติดตั้งตรงได้ **iOS ไม่มีการ sideload**
+  ดังนั้น**ระบบดาวน์โหลด APK ในแอป + GitHub Releases ใช้กับ iOS ไม่ได้**
+  (โค้ดกันไว้แล้ว — แถบ "ดาวน์โหลด APK" เด้งเฉพาะ Android)
+- **แต่ live-update ส่วนเว็บยังทำงานบน iOS** — แก้หน้า/สไตล์/logic แล้ว push
+  แอป iOS ก็ตามเว็บเองเหมือน Android (ไม่ต้องผ่าน review) ที่ต้องผ่าน App Store
+  คือเฉพาะการเปลี่ยนโค้ด native เท่านั้น
+- **Push บน iOS ยังไม่ทำงาน** จนกว่าจะมี Apple Developer account แล้ว: สร้าง APNs Auth Key
+  → อัปขึ้น Firebase (Cloud Messaging → Apple app config) → เปิด capability
+  Push Notifications ใน Xcode (โค้ดฝั่ง JS/ปลั๊กอินพร้อมแล้ว)
+
 ## แผนเฟส 3 — ขึ้น Store
 
 - Google Play ($25 ครั้งเดียว) → App Store ($99/ปี — ควรมี push ก่อนยื่น
   กันโดนปัดตกเกณฑ์ 4.2 "เว็บห่อเฉยๆ")
+- iOS ขึ้น store ต้อง build แบบเซ็น (Apple Developer) ผ่าน Xcode → Archive →
+  Distribute หรือตั้ง CI แบบ macOS runner + fastlane (ทำเมื่อมีบัญชี Apple แล้ว)
 
 ## ทางเลือก: build ในเครื่อง (ยังไม่จำเป็น)
 

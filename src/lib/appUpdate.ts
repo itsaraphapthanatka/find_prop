@@ -1,6 +1,6 @@
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { App as NativeApp } from '@capacitor/app'
-import { API_BASE } from './native'
+import { API_BASE, platform } from './native'
 
 // live-update แบบ self-hosted: ทุก deploy เว็บจะแนบ dist ทั้งก้อนเป็น zip + manifest
 // (scripts/update-zip.mjs) — แอปเช็ค /app-update.json ตอนเปิด ถ้าเป็นคนละ commit
@@ -66,6 +66,8 @@ function newerVersion(a: string, b: string): boolean {
 }
 
 async function checkApk(manifest: Manifest) {
+  // iOS ลง .apk ไม่ได้ (อัปเดตผ่าน App Store/TestFlight) — เด้งแถบดาวน์โหลดเฉพาะ Android
+  if (platform !== 'android') return
   if (!manifest.apkVersion || !manifest.apkUrl) return
   // เวอร์ชันของ APK ที่ "ติดตั้งอยู่จริง" ต้องถามจากระบบ ห้ามใช้ค่า compile-time
   // (bundle ที่ live-update มาจะถูก build จากโค้ดใหม่กว่า APK เสมอ)

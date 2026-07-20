@@ -8,6 +8,10 @@ const WebPrint = registerPlugin<{ print(): Promise<void> }>('WebPrint')
 /** true เมื่อรันเป็นแอปมือถือ (Capacitor) — ใช้สลับพฤติกรรม native/เว็บ */
 export const isNativeApp = Capacitor.isNativePlatform()
 
+/** 'android' | 'ios' | 'web' — ใช้แยกพฤติกรรมเฉพาะแพลตฟอร์ม
+    (เช่น แถบดาวน์โหลด APK เด้งเฉพาะ Android — iOS อัปเดตผ่าน App Store/TestFlight) */
+export const platform = Capacitor.getPlatform()
+
 /** ฐาน URL ของเว็บ prod สำหรับเรียก API / เช็คอัปเดตจากในแอป
     ⚠️ ในแอปห้ามปล่อยว่างเด็ดขาด: bundle ที่ถูก live-update มาจากเว็บถูก build บน Vercel
     ซึ่งไม่มีค่า VITE_API_BASE — ถ้าไม่มี fallback แอปจะหยุดเช็คอัปเดตถาวร (ค้างกับ

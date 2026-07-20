@@ -1,0 +1,75 @@
+PODS:
+  - Alamofire (5.10.2)
+  - BigInt (5.2.0)
+  - Capacitor (7.6.8):
+    - CapacitorCordova
+  - CapacitorApp (7.1.2):
+    - Capacitor
+  - CapacitorCamera (7.0.5):
+    - Capacitor
+  - CapacitorCordova (7.6.8)
+  - CapacitorGeolocation (7.1.8):
+    - Capacitor
+    - IONGeolocationLib (= 1.0.1)
+  - CapacitorPushNotifications (7.0.7):
+    - Capacitor
+  - CapgoCapacitorUpdater (7.50.2):
+    - Alamofire (= 5.10.2)
+    - BigInt (= 5.2.0)
+    - Capacitor
+    - Version (= 0.8.0)
+    - ZIPFoundation (~> 0.9)
+  - IONGeolocationLib (1.0.1)
+  - Version (0.8.0)
+  - ZIPFoundation (0.9.20)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
+  - "CapacitorPushNotifications (from `../../node_modules/@capacitor/push-notifications`)"
+  - "CapgoCapacitorUpdater (from `../../node_modules/@capgo/capacitor-updater`)"
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+    - BigInt
+    - IONGeolocationLib
+    - Version
+    - ZIPFoundation
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorCamera:
+    :path: "../../node_modules/@capacitor/camera"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorGeolocation:
+    :path: "../../node_modules/@capacitor/geolocation"
+  CapacitorPushNotifications:
+    :path: "../../node_modules/@capacitor/push-notifications"
+  CapgoCapacitorUpdater:
+    :path: "../../node_modules/@capgo/capacitor-updater"
+
+SPEC CHECKSUMS:
+  Alamofire: 7193b3b92c74a07f85569e1a6c4f4237291e7496
+  BigInt: f668a80089607f521586bbe29513d708491ef2f7
+  Capacitor: ff6bf01336ac353098378828aff465095a89e459
+  CapacitorApp: f01a913211780e0718dae9750442c3e23f96e106
+  CapacitorCamera: 9e952270be355797f769aa835bb7643a96c871fe
+  CapacitorCordova: e61ee8c40101b8cd011d0224261606a290c082cf
+  CapacitorGeolocation: ab54d708e2fcf99a7bafe0219eaa6f7a932f001a
+  CapacitorPushNotifications: 0527809a9619ed775439d5ab2c2d996122b48319
+  CapgoCapacitorUpdater: 25c611c2815c2ed5bf50646a21b236615c9709cf
+  IONGeolocationLib: 20f9d0248a0b5264511fb57a37e25dd2badf797a
+  Version: de5907f2c5d0f3cf21708db7801d1d5401139486
+  ZIPFoundation: dfd3d681c4053ff7e2f7350bc4e53b5dba3f5351
+
+PODFILE CHECKSUM: d1e3a0655d329d10170b774e68412b29c31a5c11
+
+COCOAPODS: 1.16.2
