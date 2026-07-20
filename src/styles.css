@@ -140,6 +140,33 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 /* หมุดแผนที่ตามประเภททรัพย์ (สร้างใน MapPage) — ล้างกรอบขาว default ของ divIcon */
 .type-pin { background: none; border: none; filter: drop-shadow(0 3px 4px rgba(15, 15, 35, 0.35)); }
 
+/* legend สีประเภททรัพย์ ลอยมุมล่างซ้ายของแผนที่ (เหนือแถบเครดิต OSM) */
+.map-legend {
+  position: absolute; left: 10px; bottom: 26px; z-index: 500;
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  max-width: min(560px, calc(100% - 90px));
+}
+/* scope ใต้ .map-legend เสมอ — .legend-dot เฉยๆ ชนกับ legend ของกราฟหน้าสรุป */
+.map-legend .legend-chip {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 10px 5px 8px; font-size: 12.5px; font-weight: 600; color: var(--ink);
+  cursor: pointer; box-shadow: 0 1px 4px rgba(15, 15, 35, 0.14);
+}
+.map-legend .legend-chip.active { border-color: var(--purple); box-shadow: 0 0 0 2.5px rgba(113, 50, 245, 0.22); }
+.map-legend .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.map-legend .legend-count { color: var(--muted); font-weight: 500; }
+@media (max-width: 720px) {
+  /* จอแคบ: แถวเดียวปัดซ้ายขวาได้ ไม่บังแผนที่หลายชั้น */
+  .map-legend {
+    left: 8px; right: 8px; bottom: 24px; max-width: none;
+    flex-wrap: nowrap; overflow-x: auto; padding: 2px 2px 4px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .map-legend::-webkit-scrollbar { display: none; }
+  .map-legend .legend-chip { flex: none; }
+}
+
 /* ป้าย "องค์กร" + dropdown เป็นก้อนเดียว ไม่แยกวงกันเวลาจอแคบ */
 .org-filter { display: inline-flex; align-items: center; gap: 7px; flex: none; min-width: 0; }
 .org-filter .filter-label { min-width: auto; }

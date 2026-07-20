@@ -124,12 +124,33 @@ export default function MapPage() {
   const focusId = params.get('focus')
 
   const orgFilter = useOrgFilter(items)
-  const withCoords = useMemo(
+  // กรองจากชิพ legend ('' = กลุ่มอื่นๆ, null = แสดงทุกประเภท)
+  const [fType, setFType] = useState<string | null>(null)
+  const base = useMemo(
     () => items.filter((p): p is Property & { lat: number; lng: number } =>
       p.lat != null && p.lng != null && orgFilter.matches(p.org_id)),
     // matches เปลี่ยนตามค่าที่เลือกใน dropdown (fOrg)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [items, orgFilter.fOrg, orgFilter.superOverview],
+  )
+  // ชิพ legend ล่างแผนที่: เฉพาะประเภทที่มีหมุดจริง + จำนวน (เรียงตาม PIN_STYLE, อื่นๆ ท้ายสุด)
+  const legend = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const p of base) {
+      const key = p.property_type && PIN_STYLE[p.property_type] ? p.property_type : ''
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return [...Object.keys(PIN_STYLE), ''].filter((k) => counts.has(k)).map((k) => ({
+      key: k,
+      label: k || 'อื่นๆ',
+      color: (PIN_STYLE[k] ?? PIN_FALLBACK).color,
+      count: counts.get(k) ?? 0,
+    }))
+  }, [base])
+  const withCoords = useMemo(
+    () => base.filter((p) =>
+      fType == null || (p.property_type && PIN_STYLE[p.property_type] ? p.property_type : '') === fType),
+    [base, fType],
   )
   const points = useMemo(
     () => withCoords.map((p) => [p.lat, p.lng] as [number, number]),
@@ -203,6 +224,24 @@ export default function MapPage() {
           >
             <IconLocate size={20} className={locating ? 'locating' : undefined} />
           </button>
+        )}
+        {/* legend สีตามประเภททรัพย์ — แตะเพื่อดูเฉพาะประเภทนั้น แตะซ้ำกลับมาทั้งหมด */}
+        {!loading && legend.length > 0 && (
+          <div className="map-legend">
+            {legend.map((t) => (
+              <button
+                key={t.key || 'other'}
+                type="button"
+                className={`legend-chip ${fType === t.key ? 'active' : ''}`}
+                title={fType === t.key ? 'แตะอีกครั้งเพื่อแสดงทุกประเภท' : `ดูเฉพาะ${t.label}`}
+                onClick={() => setFType((v) => (v === t.key ? null : t.key))}
+              >
+                <span className="legend-dot" style={{ background: t.color }} />
+                {t.label}
+                <span className="legend-count">{t.count}</span>
+              </button>
+            ))}
+          </div>
         )}
         {!loading && (
           <MapContainer
