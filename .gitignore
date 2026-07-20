@@ -3,3 +3,6 @@ dist
 .env
 .env.local
 *.local
+
+# ไฟล์ตั้งค่า/แคชของ IDE (Android Studio, IntelliJ) — ของเฉพาะเครื่อง ห้ามเข้า repo
+.idea/
