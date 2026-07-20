@@ -160,6 +160,12 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   display: inline-flex; align-items: center; justify-content: center;
 }
 .map-legend .legend-dot svg { width: 12px; height: 12px; display: block; }
+/* ชิพ "ทั้งหมด" — จุดสี่สีย่อส่วนแทนไอคอนประเภท */
+.map-legend .legend-dot-all {
+  background: #fff; border: 1px solid var(--line);
+  display: grid; grid-template-columns: 6px 6px; gap: 2px; place-content: center;
+}
+.map-legend .legend-dot-all span { width: 6px; height: 6px; border-radius: 50%; }
 .map-legend .legend-count { color: var(--muted); font-weight: 500; font-size: 11px; }
 @media (max-width: 720px) {
   /* จอแคบ: แถวเดียวปัดซ้ายขวาได้ ไม่บังแผนที่หลายชั้น */

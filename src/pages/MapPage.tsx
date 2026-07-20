@@ -229,6 +229,23 @@ export default function MapPage() {
         {/* legend สีตามประเภททรัพย์ — แตะเพื่อดูเฉพาะประเภทนั้น แตะซ้ำกลับมาทั้งหมด */}
         {!loading && legend.length > 0 && (
           <div className="map-legend">
+            {legend.length > 1 && (
+              <button
+                type="button"
+                className={`legend-chip ${fType == null ? 'active' : ''}`}
+                title="แสดงทุกประเภท"
+                onClick={() => setFType(null)}
+              >
+                <span className="legend-dot legend-dot-all">
+                  <span style={{ background: '#2563eb' }} />
+                  <span style={{ background: '#d97706' }} />
+                  <span style={{ background: '#db2777' }} />
+                  <span style={{ background: '#0d9488' }} />
+                </span>
+                ทั้งหมด
+                <span className="legend-count">{base.length}</span>
+              </button>
+            )}
             {legend.map((t) => (
               <button
                 key={t.key || 'other'}
