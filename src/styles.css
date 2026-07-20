@@ -884,7 +884,8 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 
 /* ── โหมดพิมพ์: เหลือเฉพาะแผ่นชอร์ตลิสต์ ───── */
 @media print {
-  @page { size: A4; margin: 12mm; }
+  /* แนวนอน — ตารางเปรียบเทียบหลายคอลัมน์ได้พื้นที่กว้างเต็มที่ */
+  @page { size: A4 landscape; margin: 12mm; }
   .topbar, .sidebar, .view-header, .compare-controls, .empty-state, .fab, .locate-btn { display: none !important; }
   .app-shell, .main, .content { display: block; height: auto; overflow: visible; }
   body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
