@@ -40,6 +40,14 @@ export default function App() {
     window.addEventListener('hob-apk-update', onApk)
     return () => window.removeEventListener('hob-apk-update', onApk)
   }, [])
+  // ลงทะเบียนรับแจ้งเตือนแผนเยี่ยมชมหลังล็อกอิน (ทำงานเฉพาะในแอป — ดู lib/push.ts)
+  const userId = session?.user.id ?? null
+  const userOrg = profile?.org_id ?? null
+  useEffect(() => {
+    if (!userId || !profile) return
+    void import('./lib/push').then((m) => m.initPush(userId, userOrg)).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, userOrg])
   const navigate = useNavigate()
   const location = useLocation()
 

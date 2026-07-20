@@ -57,16 +57,26 @@ bundle ได้ ด่านความปลอดภัยจริงคื
   ระบบพิมพ์ของ Android ผ่านปลั๊กอิน local `WebPrintPlugin.java`
   (window.print() ใช้ใน WebView ไม่ได้ — ฝั่งเว็บเรียกผ่าน `printPage()` ใน src/lib/native.ts)
 
-## Push แจ้งเตือน — รอตั้งค่า Firebase ก่อน (ครั้งเดียว ~10 นาที)
+## Push แจ้งเตือนแผนเยี่ยมชม (ติดตั้งแล้ว — v1.3)
 
-ต้องทำด้วยบัญชี Google ของเจ้าของโปรเจกต์:
+ทุกเช้า 07:00 น. ระบบยิงแจ้งเตือน "พรุ่งนี้มีแผนเยี่ยมชม" ให้สมาชิกองค์กรที่มีแผนวันพรุ่งนี้
+(แตะแจ้งเตือน → เปิดหน้าแผนเยี่ยมชม) — ชิ้นส่วน: แอปเก็บ FCM token ลงตาราง
+`device_tokens` หลังล็อกอิน (`src/lib/push.ts` + `supabase/push.sql`) แล้ว Vercel Cron
+เรียก `api/push-cron.js` เป็นคนส่งผ่าน Firebase
 
-1. เปิด https://console.firebase.google.com → **Add project** (ชื่ออะไรก็ได้ เช่น `hob`,
-   ปิด Google Analytics ได้)
-2. ในโปรเจกต์ → ไอคอน Android (**Add app**) → package name: `com.hobproperty.app`
-3. ดาวน์โหลด **google-services.json** มาวางที่ `android/app/google-services.json`
-4. บอก Claude ว่า "ทำ push ต่อ" — ที่เหลือ (ปลั๊กอิน, ตาราง device_tokens,
-   ระบบส่งแจ้งเตือนแผนเยี่ยมชม) จะถูกติดตั้งให้อัตโนมัติ
+ตั้งค่าฝั่งเซิร์ฟเวอร์ (ครั้งเดียว) — Vercel → Settings → Environment Variables:
+
+| ตัวแปร | เอามาจาก |
+|---|---|
+| `FCM_SERVICE_ACCOUNT` | Firebase → ⚙️ Project settings → Service accounts → **Generate new private key** → คัดลอกเนื้อไฟล์ .json ทั้งก้อน |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → `service_role` (secret) |
+| `CRON_SECRET` | สตริงสุ่มยาวๆ ตั้งเอง (Vercel แนบให้ cron อัตโนมัติ) |
+
+ทดสอบยิงทันที (หลังตั้ง env + มีเครื่องล็อกอิน+อนุญาตแจ้งเตือนแล้ว):
+
+```
+curl "https://hob-alpha.vercel.app/api/push-cron?test=1" -H "Authorization: Bearer <CRON_SECRET>"
+```
 
 ## แผนเฟส 3 — ขึ้น Store
 
