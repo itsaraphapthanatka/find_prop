@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# contents: write — สำหรับอัป APK ขึ้น GitHub Release (ลิงก์ดาวน์โหลดถาวร)
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -61,3 +65,17 @@ jobs:
           name: hob-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+
+      # ลิงก์ถาวรสำหรับมือถือ: https://github.com/itsaraphapthanatka/find_prop/releases/download/app-latest/hob.apk
+      # (Artifacts ปกติต้องล็อกอิน GitHub — Release asset ของ repo public เปิดโหลดได้ตรงๆ
+      #  และแอปใช้ลิงก์นี้เด้งแถบ "อัปเดตแอป" เมื่อ apkVersion ใน app-update.json ใหม่กว่าตัวเอง)
+      - name: Publish APK to rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk hob.apk
+          gh release create app-latest \
+            --title "HOB Android APK (ตัวล่าสุดจาก main)" \
+            --notes "ติดตั้งด้วยมือแค่ครั้งแรก — หลังจากนั้นแอปจะเด้งแจ้งเองเมื่อมีเวอร์ชันใหม่" \
+            2>/dev/null || true
+          gh release upload app-latest hob.apk --clobber

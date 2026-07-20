@@ -8,14 +8,25 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // บั๊มเวอร์ชันเมื่อ native เปลี่ยน — CapacitorUpdater (resetWhenUpdate) จะล้าง
-        // bundle ที่เคยโหลดค้างไว้ แล้วกลับมาใช้โค้ดใน APK ตัวใหม่เสมอ
-        versionCode 2
-        versionName "1.1"
+        // bundle ที่เคยโหลดค้างไว้ และแอปตัวเก่าจะเด้งแถบชวนดาวน์โหลดเวอร์ชันนี้
+        // (scripts/update-zip.mjs อ่าน versionName บรรทัดล่างนี้ไปใส่ app-update.json)
+        versionCode 3
+        versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // กุญแจ debug กลางจาก repo (android/app/debug.keystore) — กุญแจ debug ไม่ใช่ความลับ
+    // แต่ต้อง "ตัวเดียวกันทุกที่" ไม่งั้น APK จาก CI คนละรอบติดตั้งทับกันไม่ได้
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
         }
     }
     buildTypes {

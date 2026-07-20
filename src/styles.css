@@ -222,6 +222,14 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 /* ป้ายชื่อองค์กร — เห็นเฉพาะมุมมอง super admin ใช้แยกทรัพย์ของลูกค้าแต่ละราย */
 .tag.org { background: #eef1f6; color: #5b6472; }
 
+/* ── แถบแจ้งอัปเดตแอป (มี APK ใหม่บน GitHub Releases) ── */
+.apk-update-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--purple-subtle, #f1e9ff); color: var(--ink);
+  border-bottom: 1px solid #dcCbf7; padding: 8px 16px; font-size: 13.5px;
+}
+.apk-update-bar .btn:first-of-type { margin-left: auto; }
+
 /* ── สวมสิทธิ์องค์กร (super impersonation) ── */
 .impersonate-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;

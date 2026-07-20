@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
 import MapPage from './pages/MapPage'
@@ -33,6 +33,13 @@ function NavText({ full, short }: { full: string; short?: string }) {
 export default function App() {
   const { session, profile, org, loading, signOut, refreshProfile } = useAuth()
   const [search, setSearch] = useState('')
+  // แจ้งเตือนจาก lib/appUpdate เมื่อมี APK เวอร์ชันใหม่ให้ดาวน์โหลด (เฉพาะในแอป)
+  const [apkUpdate, setApkUpdate] = useState<{ version: string; url: string } | null>(null)
+  useEffect(() => {
+    const onApk = (e: Event) => setApkUpdate((e as CustomEvent<{ version: string; url: string }>).detail)
+    window.addEventListener('hob-apk-update', onApk)
+    return () => window.removeEventListener('hob-apk-update', onApk)
+  }, [])
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -81,6 +88,17 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {apkUpdate && (
+        <div className="apk-update-bar">
+          <span>
+            📲 แอปเวอร์ชันใหม่ <b>v{apkUpdate.version}</b> พร้อมติดตั้ง
+          </span>
+          <button className="btn sm primary" onClick={() => window.open(apkUpdate.url, '_blank')}>
+            ดาวน์โหลด
+          </button>
+          <button className="btn sm" onClick={() => setApkUpdate(null)}>ไว้ก่อน</button>
+        </div>
+      )}
       {impersonating && (
         <div className="impersonate-bar">
           <IconShield size={15} />
