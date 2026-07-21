@@ -1,4 +1,13 @@
 {
+  "redirects": [
+    { "source": "/Guide.html", "destination": "/guide.html", "permanent": false },
+    { "source": "/GUIDE.html", "destination": "/guide.html", "permanent": false },
+    { "source": "/Flow.html", "destination": "/flow.html", "permanent": false },
+    { "source": "/FLOW.html", "destination": "/flow.html", "permanent": false },
+    { "source": "/Flow-internal.html", "destination": "/flow-internal.html", "permanent": false },
+    { "source": "/Features.html", "destination": "/features.html", "permanent": false },
+    { "source": "/FEATURES.html", "destination": "/features.html", "permanent": false }
+  ],
   "functions": {
     "api/ai.js": {
       "maxDuration": 60
