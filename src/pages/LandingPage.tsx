@@ -15,9 +15,9 @@ import {
 // ── ช่องทางติดต่อ/ทีมขาย — แก้ตรงนี้จุดเดียว ──────────────────
 const CONTACT = {
   phone: '081-234-5678', // TODO: ใส่เบอร์จริง
-  lineId: '@hobplatform', // TODO: ใส่ LINE ID จริง
-  lineUrl: 'https://line.me/R/ti/p/@hobplatform', // TODO: ลิงก์ LINE OA จริง
-  email: 'sales@hob-platform.com', // TODO: ใส่อีเมลจริง
+  lineId: '@hupplatform', // TODO: ใส่ LINE ID จริง (ยังเป็น placeholder)
+  lineUrl: 'https://line.me/R/ti/p/@hupplatform', // TODO: ลิงก์ LINE OA จริง
+  email: 'sales@hup-platform.com', // TODO: ใส่อีเมลจริง
 }
 
 // สกรีนช็อตจริงของแอป (อยู่ใน public/) — ครอปแถบบนที่มีชื่อผู้ใช้ออกแล้ว
@@ -151,7 +151,7 @@ function MapMock() {
     <div className="mock mock-browser mock-hero">
       <div className="mock-bar">
         <span className="mock-dot" /><span className="mock-dot" /><span className="mock-dot" />
-        <div className="mock-url">hob-alpha.vercel.app</div>
+        <div className="mock-url">hup.app</div>
       </div>
       <img className="mock-img" src="/app-map.jpg" alt="หน้าแผนที่รวมทรัพย์ของ HUP" loading="eager" />
       <PhoneShot src="/app-mobile.jpg" alt="แอป HUP บนมือถือ — รายการทรัพย์" />
@@ -163,7 +163,7 @@ function MapMock() {
 function DashboardMock() {
   return (
     <div className="ld-showcase-stage">
-      <BrowserShot src="/app-dashboard.jpg" url="hob-alpha.vercel.app/#/dashboard" alt="หน้าสรุปภาพรวม (Dashboard) ของ HUP" eager />
+      <BrowserShot src="/app-dashboard.jpg" url="hup.app/#/dashboard" alt="หน้าสรุปภาพรวม (Dashboard) ของ HUP" eager />
       <PhoneShot src="/app-mobile-dash.jpg" alt="Dashboard บนมือถือ" />
     </div>
   )
@@ -245,7 +245,7 @@ export default function LandingPage() {
         <div className="ld-gallery">
           {GALLERY.map((g) => (
             <figure key={g.src}>
-              <BrowserShot src={g.src} url="hob-alpha.vercel.app" alt={g.title} />
+              <BrowserShot src={g.src} url="hup.app" alt={g.title} />
               <figcaption>{g.title}<small>{g.sub}</small></figcaption>
             </figure>
           ))}
