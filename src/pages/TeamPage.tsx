@@ -4,6 +4,9 @@ import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { useAuth, type Profile } from '../lib/auth'
 
+// โปรไฟล์ + ฟิลด์การมองเห็นทรัพย์ (คอลัมน์ see_all_properties เพิ่มจาก property-visibility.sql)
+type MemberRow = Profile & { see_all_properties?: boolean }
+
 // client แยกสำหรับสมัครบัญชีลูกทีม — ไม่เก็บ session เพื่อไม่ให้ทับ session ของแอดมิน
 const inviteClient = createClient(
   (import.meta.env.VITE_SUPABASE_URL as string) ?? 'https://placeholder.supabase.co',
@@ -13,7 +16,7 @@ const inviteClient = createClient(
 
 export default function TeamPage() {
   const { profile: me, org, refreshProfile } = useAuth()
-  const [members, setMembers] = useState<Profile[]>([])
+  const [members, setMembers] = useState<MemberRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [orgName, setOrgName] = useState(org?.name ?? '')
@@ -42,7 +45,7 @@ export default function TeamPage() {
       .eq('org_id', orgId)
       .order('created_at', { ascending: true })
     if (error) setError(error.message)
-    else setMembers((data ?? []) as Profile[])
+    else setMembers((data ?? []) as MemberRow[])
     setLoading(false)
   }
 
@@ -81,7 +84,7 @@ export default function TeamPage() {
     await reload()
   }
 
-  async function setField(p: Profile, patch: Partial<Profile>) {
+  async function setField(p: MemberRow, patch: Partial<MemberRow>) {
     const { error } = await supabase.from('profiles').update(patch).eq('id', p.id)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
     else await reload()
@@ -175,6 +178,9 @@ export default function TeamPage() {
 
         <section className="form-card">
           <h3>สมาชิกทั้งหมด</h3>
+          <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.7 }}>
+            การมองเห็นทรัพย์: “เห็นทั้งทีม” = เห็นทรัพย์ทุกชิ้นขององค์กร · “เฉพาะของตัวเอง” = เห็นเฉพาะทรัพย์ที่ตัวเองลง (แอดมินเห็นทั้งองค์กรเสมอ)
+          </p>
           {loading && <div className="loading">กำลังโหลด…</div>}
           {!loading && (
             <div className="table-scroll">
@@ -185,11 +191,14 @@ export default function TeamPage() {
                     <th>อีเมล</th>
                     <th>บทบาท</th>
                     <th>สถานะ</th>
+                    <th>การมองเห็นทรัพย์</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map((m) => (
+                  {members.map((m) => {
+                    const seeAll = m.see_all_properties ?? true
+                    return (
                     <tr key={m.id}>
                       <td data-label="ชื่อ" className="td-main">{m.full_name || '—'}{m.id === me?.id && <span className="role-badge" style={{ marginLeft: 6 }}>คุณ</span>}</td>
                       <td data-label="อีเมล">{m.email}</td>
@@ -202,6 +211,23 @@ export default function TeamPage() {
                         <span className={`status-pill ${m.active ? 'on' : ''}`}>
                           {m.active ? 'ใช้งานได้' : 'รออนุมัติ/ปิด'}
                         </span>
+                      </td>
+                      <td data-label="การมองเห็นทรัพย์">
+                        {m.role === 'admin' ? (
+                          <span className="status-pill on">ทั้งองค์กร</span>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span className={`status-pill ${seeAll ? 'on' : ''}`}>
+                              {seeAll ? 'เห็นทั้งทีม' : 'เฉพาะของตัวเอง'}
+                            </span>
+                            <button
+                              className="btn sm"
+                              onClick={() => void setField(m, { see_all_properties: !seeAll })}
+                            >
+                              {seeAll ? 'จำกัดเฉพาะตัวเอง' : 'ให้เห็นทั้งทีม'}
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="row-btns">
                         {m.id !== me?.id && (
@@ -222,7 +248,8 @@ export default function TeamPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
