@@ -71,15 +71,24 @@
   .card p{margin:0; color:var(--muted); font-size:13.5px}
   .card .em{color:var(--brand); font-weight:600}
   .dot{width:9px;height:9px;border-radius:3px;flex:none}
-  .journey{margin-top:16px}
-  .journey .jh{font-weight:600; margin:0 0 8px; display:flex; align-items:center; gap:8px}
-  .journey .jh .tag{font-size:11px; color:#fff; padding:1px 8px; border-radius:999px}
+  /* ── flowchart แนวตั้ง (สไตล์ pipeline: พิลล์ + ▼ + ป้ายเงื่อนไข) ── */
+  .flowgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(228px,1fr)); gap:16px; margin-top:12px; align-items:start}
+  .fcard{background:var(--bg); border:1px solid var(--line); border-radius:16px; padding:18px 14px 20px}
+  .fcard .ft{font-weight:700; font-size:14px; text-align:center; margin:0 0 14px; display:flex; align-items:center; justify-content:center; gap:7px; flex-wrap:wrap}
+  .fcard .ft .who2{font-size:10.5px; font-weight:600; color:#fff; padding:1px 8px; border-radius:999px}
+  .vflow{display:flex; flex-direction:column; align-items:center}
+  .vnode{background:#eef1fe; border:1.6px solid #3a46a0; color:#20286e; font-weight:600; padding:7px 16px; border-radius:999px; font-size:12.5px; text-align:center; line-height:1.25; max-width:100%}
+  .vnode.start{background:var(--soft2); border-color:var(--brand); color:var(--brand)}
+  .vnode.end{background:#e8f6ee; border-color:var(--ok); color:#146c3a}
+  .vlbl{color:var(--muted); font-size:11px; text-align:center; margin:6px 4px 3px; line-height:1.35; max-width:210px}
+  .varr{color:#b7bcd8; font-size:12px; margin:1px 0; line-height:1}
   footer{margin-top:46px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; text-align:center}
   @media print{
     body{background:#fff; font-size:12px}
     header.hero{background:var(--brand)!important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
-    .role,.card,.chain,.gates,table,.step::after{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .role,.card,.chain,.gates,table,.step::after,.fcard,.vnode{-webkit-print-color-adjust:exact; print-color-adjust:exact}
     section{break-inside:avoid}
+    .fcard{break-inside:avoid}
     .wrap{padding-bottom:0}
   }
   @media (max-width:680px){
@@ -189,37 +198,60 @@
   <!-- 4. KEY JOURNEYS -->
   <section>
     <h2><span class="num">4</span> Flow การทำงานหลัก</h2>
-    <p class="lead">เส้นทางที่ใช้งานจริงบ่อยที่สุด</p>
+    <p class="lead">เส้นทางที่ใช้งานจริงบ่อยที่สุด — เริ่ม (ม่วง) → จบ (เขียว)</p>
+    <div class="flowgrid">
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--admin)">แอดมิน</span> เปิดใช้ทีมใหม่</p>
-      <div class="chain">
-        <div class="step"><span class="k">1</span><span class="t">สมัครบัญชี</span><span class="d">อีเมล + รหัสผ่าน</span></div>
-        <div class="step"><span class="k">2</span><span class="t">สร้างองค์กร</span><span class="d">กลายเป็นแอดมิน</span></div>
-        <div class="step"><span class="k">3</span><span class="t">เพิ่มลูกทีม</span><span class="d">ตั้งรหัสตั้งต้นให้</span></div>
-        <div class="step"><span class="k">4</span><span class="t">ลูกทีมล็อกอิน</span><span class="d">ใช้งานได้ทันที</span></div>
+      <div class="fcard">
+        <div class="ft"><span class="who2" style="background:var(--admin)">แอดมิน</span> เปิดใช้ทีมใหม่</div>
+        <div class="vflow">
+          <div class="vnode start">สมัครบัญชี</div>
+          <div class="vlbl">อีเมล + รหัสผ่าน</div>
+          <div class="varr">▼</div>
+          <div class="vnode">สร้างองค์กร</div>
+          <div class="vlbl">กลายเป็นแอดมินทันที</div>
+          <div class="varr">▼</div>
+          <div class="vnode">เพิ่มลูกทีม</div>
+          <div class="vlbl">ตั้งรหัสตั้งต้นให้</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">ลูกทีมล็อกอิน</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--member)">ลูกทีม/แอดมิน</span> ลงทรัพย์ &amp; ใช้งานประจำวัน</p>
-      <div class="chain">
-        <div class="step"><span class="k">1</span><span class="t">กด "เพิ่มทรัพย์"</span><span class="d">กรอกฟอร์ม/ถ่ายรูป/ปักพิกัด</span></div>
-        <div class="step"><span class="k">2</span><span class="t">บันทึก</span><span class="d">ระบบผูกองค์กร + ผู้ลงให้เอง</span></div>
-        <div class="step"><span class="k">3</span><span class="t">ค้นหา/กรอง</span><span class="d">รายการ · แผนที่</span></div>
-        <div class="step"><span class="k">4</span><span class="t">เปรียบเทียบ</span><span class="d">พิมพ์ส่งลูกค้า</span></div>
-        <div class="step"><span class="k">5</span><span class="t">แผนเยี่ยมชม</span><span class="d">จัดรูทพาดู</span></div>
+      <div class="fcard">
+        <div class="ft"><span class="who2" style="background:var(--member)">ลูกทีม/แอดมิน</span> ใช้งานประจำวัน</div>
+        <div class="vflow">
+          <div class="vnode start">เพิ่มทรัพย์</div>
+          <div class="vlbl">กรอก/ถ่ายรูป/ปักพิกัด</div>
+          <div class="varr">▼</div>
+          <div class="vnode">บันทึก</div>
+          <div class="vlbl">ผูกองค์กร + ผู้ลงอัตโนมัติ</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ค้นหา/กรอง</div>
+          <div class="vlbl">รายการ · แผนที่</div>
+          <div class="varr">▼</div>
+          <div class="vnode">เปรียบเทียบ</div>
+          <div class="vlbl">พิมพ์ส่งลูกค้า</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">แผนเยี่ยมชม</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--admin)">แอดมิน</span> จัดการทีม</p>
-      <div class="chain">
-        <div class="step"><span class="k">1</span><span class="t">หน้าทีม</span><span class="d">รายชื่อสมาชิก</span></div>
-        <div class="step"><span class="k">2</span><span class="t">เพิ่ม/ปิดบัญชี</span><span class="d">ตั้งเป็นแอดมิน/ลูกทีม</span></div>
-        <div class="step"><span class="k">3</span><span class="t">ตั้งการมองเห็น</span><span class="d">เห็นทั้งทีม / เฉพาะของตัวเอง</span></div>
-        <div class="step"><span class="k">4</span><span class="t">ดูประวัติ</span><span class="d">ตรวจกิจกรรมองค์กร</span></div>
+      <div class="fcard">
+        <div class="ft"><span class="who2" style="background:var(--admin)">แอดมิน</span> จัดการทีม</div>
+        <div class="vflow">
+          <div class="vnode start">หน้าทีม</div>
+          <div class="vlbl">รายชื่อสมาชิก</div>
+          <div class="varr">▼</div>
+          <div class="vnode">เพิ่ม/ปิดบัญชี</div>
+          <div class="vlbl">ตั้งแอดมิน/ลูกทีม</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ตั้งการมองเห็น</div>
+          <div class="vlbl">เห็นทั้งทีม/เฉพาะตัวเอง</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">ดูประวัติ</div>
+        </div>
       </div>
+
     </div>
   </section>
 
@@ -255,96 +287,160 @@
   <section>
     <h2><span class="num">6</span> Flow แต่ละหน้า</h2>
     <p class="lead">ขั้นตอนการใช้งานภายในแต่ละหน้าจอ</p>
+    <div class="flowgrid">
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--brand)">รายการทรัพย์</span></p>
-      <div class="chain">
-        <div class="step"><span class="t">เปิดหน้า</span><span class="d">เห็นทรัพย์ทั้งหมด</span></div>
-        <div class="step"><span class="t">กรอง/ค้นหา</span><span class="d">ประเภท·เช่า-ขาย·จังหวัด·ราคา</span></div>
-        <div class="step"><span class="t">เลือกทรัพย์</span><span class="d">คลิกการ์ด</span></div>
-        <div class="step"><span class="t">ดูรายละเอียด</span><span class="d">แผงข้อมูลเต็ม</span></div>
-        <div class="step"><span class="t">ลงมือ</span><span class="d">โทร·แผนที่·แก้·ลบ</span></div>
+      <div class="fcard">
+        <div class="ft">รายการทรัพย์</div>
+        <div class="vflow">
+          <div class="vnode start">เปิดหน้า</div>
+          <div class="vlbl">เห็นทรัพย์ทั้งหมด</div>
+          <div class="varr">▼</div>
+          <div class="vnode">กรอง/ค้นหา</div>
+          <div class="vlbl">ประเภท·เช่า-ขาย·จังหวัด·ราคา</div>
+          <div class="varr">▼</div>
+          <div class="vnode">เลือกทรัพย์</div>
+          <div class="vlbl">คลิกการ์ด</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ดูรายละเอียด</div>
+          <div class="vlbl">แผงข้อมูลเต็ม</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">ลงมือ</div>
+          <div class="vlbl">โทร·แผนที่·แก้·ลบ</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--brand)">แผนที่</span></p>
-      <div class="chain">
-        <div class="step"><span class="t">เปิดแผนที่</span><span class="d">หมุดทรัพย์ทั้งหมด</span></div>
-        <div class="step"><span class="t">หมุดแยกสี</span><span class="d">ตามประเภททรัพย์</span></div>
-        <div class="step"><span class="t">กรองประเภท</span><span class="d">แสดง/ซ่อนบางประเภท</span></div>
-        <div class="step"><span class="t">คลิกหมุด</span><span class="d">ดูข้อมูลทรัพย์</span></div>
-        <div class="step"><span class="t">ตำแหน่งฉัน</span><span class="d">ดูทรัพย์ใกล้ตัว</span></div>
+      <div class="fcard">
+        <div class="ft">แผนที่</div>
+        <div class="vflow">
+          <div class="vnode start">เปิดแผนที่</div>
+          <div class="vlbl">หมุดทรัพย์ทั้งหมด</div>
+          <div class="varr">▼</div>
+          <div class="vnode">หมุดแยกสี</div>
+          <div class="vlbl">ตามประเภททรัพย์</div>
+          <div class="varr">▼</div>
+          <div class="vnode">กรองประเภท</div>
+          <div class="vlbl">แสดง/ซ่อนบางประเภท</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">คลิกหมุด</div>
+          <div class="vlbl">ดูข้อมูล · ไปตำแหน่งฉัน</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--brand)">ฟอร์มทรัพย์</span></p>
-      <div class="chain">
-        <div class="step"><span class="t">เปิดฟอร์ม</span><span class="d">เพิ่ม/แก้</span></div>
-        <div class="step"><span class="t">กรอกข้อมูล</span><span class="d">รหัส·ทำเล·ราคา·สเปก</span></div>
-        <div class="step"><span class="t">รูป/พิกัด</span><span class="d">อัปโหลด·ปัก GPS</span></div>
-        <div class="step"><span class="t">AI ช่วยกรอก</span><span class="d">วางข้อความ→แยกฟิลด์</span></div>
-        <div class="step"><span class="t">บันทึก</span><span class="d">กลับรายการ</span></div>
+      <div class="fcard">
+        <div class="ft">ฟอร์มทรัพย์</div>
+        <div class="vflow">
+          <div class="vnode start">เปิดฟอร์ม</div>
+          <div class="vlbl">เพิ่ม/แก้</div>
+          <div class="varr">▼</div>
+          <div class="vnode">กรอกข้อมูล</div>
+          <div class="vlbl">รหัส·ทำเล·ราคา·สเปก</div>
+          <div class="varr">▼</div>
+          <div class="vnode">รูป/พิกัด</div>
+          <div class="vlbl">อัปโหลด·ปัก GPS</div>
+          <div class="varr">▼</div>
+          <div class="vnode">AI ช่วยกรอก</div>
+          <div class="vlbl">วางข้อความ→แยกฟิลด์</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">บันทึก</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--brand)">สรุปภาพรวม</span></p>
-      <div class="chain">
-        <div class="step"><span class="t">เปิดหน้า</span><span class="d">ภาพรวมองค์กร</span></div>
-        <div class="step"><span class="t">นัดใกล้ถึง</span><span class="d">กดเปิดนำทาง</span></div>
-        <div class="step"><span class="t">ดูกราฟ</span><span class="d">ประเภท·เช่า-ขาย·ทำเล·ราคา</span></div>
-        <div class="step"><span class="t">สุขภาพข้อมูล</span><span class="d">ทรัพย์ไหนกรอกไม่ครบ</span></div>
+      <div class="fcard">
+        <div class="ft">สรุปภาพรวม</div>
+        <div class="vflow">
+          <div class="vnode start">เปิดหน้า</div>
+          <div class="vlbl">ภาพรวมองค์กร</div>
+          <div class="varr">▼</div>
+          <div class="vnode">นัดใกล้ถึง</div>
+          <div class="vlbl">กดเปิดนำทาง</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ดูกราฟ</div>
+          <div class="vlbl">ประเภท·เช่า-ขาย·ทำเล·ราคา</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">สุขภาพข้อมูล</div>
+          <div class="vlbl">ทรัพย์ไหนกรอกไม่ครบ</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--brand)">แผนเยี่ยมชม</span></p>
-      <div class="chain">
-        <div class="step"><span class="t">สร้างแผน</span><span class="d">ชื่อ + ความต้องการลูกค้า</span></div>
-        <div class="step"><span class="t">เพิ่มทรัพย์</span><span class="d">ค้นด้วยรหัส→เข้ารูท</span></div>
-        <div class="step"><span class="t">จัดลำดับ</span><span class="d">เลื่อนขึ้น/ลง</span></div>
-        <div class="step"><span class="t">ตั้งวันนัด</span><span class="d">แจ้งเตือนวันเยี่ยมชม</span></div>
+      <div class="fcard">
+        <div class="ft">แผนเยี่ยมชม</div>
+        <div class="vflow">
+          <div class="vnode start">สร้างแผน</div>
+          <div class="vlbl">ชื่อ + ความต้องการลูกค้า</div>
+          <div class="varr">▼</div>
+          <div class="vnode">เพิ่มทรัพย์</div>
+          <div class="vlbl">ค้นด้วยรหัส→เข้ารูท</div>
+          <div class="varr">▼</div>
+          <div class="vnode">จัดลำดับ</div>
+          <div class="vlbl">เลื่อนขึ้น/ลง</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">ตั้งวันนัด</div>
+          <div class="vlbl">แจ้งเตือนวันเยี่ยมชม</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--brand)">เปรียบเทียบ</span></p>
-      <div class="chain">
-        <div class="step"><span class="t">เลือกทรัพย์</span><span class="d">เข้าชอร์ตลิสต์</span></div>
-        <div class="step"><span class="t">ใส่ข้อมูลลูกค้า</span><span class="d">ชื่อ + ความต้องการ</span></div>
-        <div class="step"><span class="t">ตารางเทียบ</span><span class="d">ทีละสเปก</span></div>
-        <div class="step"><span class="t">พิมพ์/PDF</span><span class="d">ส่งลูกค้า (แนวนอน)</span></div>
+      <div class="fcard">
+        <div class="ft">เปรียบเทียบ</div>
+        <div class="vflow">
+          <div class="vnode start">เลือกทรัพย์</div>
+          <div class="vlbl">เข้าชอร์ตลิสต์</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ใส่ข้อมูลลูกค้า</div>
+          <div class="vlbl">ชื่อ + ความต้องการ</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ตารางเทียบ</div>
+          <div class="vlbl">ทีละสเปก</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">พิมพ์/PDF</div>
+          <div class="vlbl">ส่งลูกค้า (แนวนอน)</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--brand)">นำเข้าข้อมูล</span></p>
-      <div class="chain">
-        <div class="step"><span class="t">1. เลือกไฟล์</span><span class="d">Excel/CSV</span></div>
-        <div class="step"><span class="t">2. จับคู่คอลัมน์</span><span class="d">→ ฟิลด์ในระบบ</span></div>
-        <div class="step"><span class="t">3. ตรวจ+นำเข้า</span><span class="d">ข้ามแถว/อัปเดตทับ</span></div>
-        <div class="step"><span class="t">ดูผล</span><span class="d">ไปที่รายการทรัพย์</span></div>
+      <div class="fcard">
+        <div class="ft">นำเข้าข้อมูล</div>
+        <div class="vflow">
+          <div class="vnode start">เลือกไฟล์</div>
+          <div class="vlbl">Excel / CSV</div>
+          <div class="varr">▼</div>
+          <div class="vnode">จับคู่คอลัมน์</div>
+          <div class="vlbl">→ ฟิลด์ในระบบ</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ตรวจ+นำเข้า</div>
+          <div class="vlbl">ข้ามแถว/อัปเดตทับ</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">ดูผล</div>
+          <div class="vlbl">ไปที่รายการทรัพย์</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--admin)">ทีม</span> เฉพาะแอดมิน</p>
-      <div class="chain">
-        <div class="step"><span class="t">เปิดหน้าทีม</span><span class="d">รายชื่อสมาชิก</span></div>
-        <div class="step"><span class="t">เพิ่มลูกทีม</span><span class="d">อีเมล + รหัสตั้งต้น</span></div>
-        <div class="step"><span class="t">ตั้งบทบาท</span><span class="d">แอดมิน/ลูกทีม · เปิด-ปิด</span></div>
-        <div class="step"><span class="t">ตั้งการมองเห็น</span><span class="d">เห็นทั้งทีม/เฉพาะตัวเอง</span></div>
+      <div class="fcard">
+        <div class="ft"><span class="who2" style="background:var(--admin)">แอดมิน</span> ทีม</div>
+        <div class="vflow">
+          <div class="vnode start">เปิดหน้าทีม</div>
+          <div class="vlbl">รายชื่อสมาชิก</div>
+          <div class="varr">▼</div>
+          <div class="vnode">เพิ่มลูกทีม</div>
+          <div class="vlbl">อีเมล + รหัสตั้งต้น</div>
+          <div class="varr">▼</div>
+          <div class="vnode">ตั้งบทบาท</div>
+          <div class="vlbl">แอดมิน/ลูกทีม · เปิด-ปิด</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">ตั้งการมองเห็น</div>
+          <div class="vlbl">เห็นทั้งทีม/เฉพาะตัวเอง</div>
+        </div>
       </div>
-    </div>
 
-    <div class="journey">
-      <p class="jh"><span class="tag" style="background:var(--admin)">ประวัติการใช้งาน</span> เฉพาะแอดมิน</p>
-      <div class="chain">
-        <div class="step"><span class="t">เปิดประวัติ</span><span class="d">จากหน้าทีม</span></div>
-        <div class="step"><span class="t">ดูกิจกรรม</span><span class="d">ใคร · ทำอะไร · เมื่อไหร่</span></div>
+      <div class="fcard">
+        <div class="ft"><span class="who2" style="background:var(--admin)">แอดมิน</span> ประวัติการใช้งาน</div>
+        <div class="vflow">
+          <div class="vnode start">เปิดประวัติ</div>
+          <div class="vlbl">จากหน้าทีม</div>
+          <div class="varr">▼</div>
+          <div class="vnode end">ดูกิจกรรม</div>
+          <div class="vlbl">ใคร · ทำอะไร · เมื่อไหร่</div>
+        </div>
       </div>
+
     </div>
   </section>
 
