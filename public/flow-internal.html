@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HUP — Flow การทำงาน (ฉบับผู้ใช้งาน)</title>
+<title>HUP — Flow การทำงานของระบบ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -11,7 +11,7 @@
   :root{
     --brand:#7132f5; --brand-2:#9a6bff; --ink:#1c1730; --muted:#6b6785;
     --line:#e9e5f5; --bg:#ffffff; --soft:#faf9ff; --soft2:#f4f1fd;
-    --admin:#0d9488; --member:#d97706;
+    --super:#7132f5; --admin:#0d9488; --member:#d97706;
     --ok:#16a34a; --danger:#dc2626;
   }
   *{box-sizing:border-box}
@@ -22,6 +22,7 @@
     line-height:1.6; font-size:15px;
   }
   .wrap{max-width:960px; margin:0 auto; padding:0 20px 80px}
+  /* ---- header ---- */
   header.hero{
     background:linear-gradient(135deg,#7132f5,#5a1fd0); color:#fff;
     padding:44px 20px 40px; margin-bottom:28px;
@@ -33,23 +34,33 @@
   .hero h1{font-size:30px; margin:18px 0 6px; font-weight:700; line-height:1.25}
   .hero p{margin:0; opacity:.9; max-width:640px}
   .hero .meta{margin-top:16px; font-size:13px; opacity:.8}
+  /* ---- sections ---- */
   section{margin-top:34px}
-  h2{font-size:20px; font-weight:700; margin:0 0 4px; display:flex; align-items:center; gap:10px}
-  h2 .num{width:28px;height:28px;border-radius:8px;background:var(--brand);color:#fff;font-size:14px;display:grid;place-items:center;flex:none}
+  h2{
+    font-size:20px; font-weight:700; margin:0 0 4px;
+    display:flex; align-items:center; gap:10px;
+  }
+  h2 .num{
+    width:28px;height:28px;border-radius:8px;background:var(--brand);color:#fff;
+    font-size:14px;display:grid;place-items:center;flex:none;
+  }
   .lead{color:var(--muted); margin:2px 0 18px}
-  .roles{display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
+  /* ---- role cards ---- */
+  .roles{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
   .role{background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:16px; border-top:4px solid var(--c)}
-  .role.admin{--c:var(--admin)} .role.member{--c:var(--member)}
+  .role.super{--c:var(--super)} .role.admin{--c:var(--admin)} .role.member{--c:var(--member)}
   .role .badge{display:inline-block; font-size:12px; font-weight:600; color:#fff; background:var(--c); padding:2px 10px; border-radius:999px}
   .role h3{margin:10px 0 6px; font-size:16px}
   .role ul{margin:8px 0 0; padding-left:18px; color:var(--muted); font-size:13.5px}
   .role li{margin:3px 0}
+  /* ---- flow chain ---- */
   .chain{display:flex; flex-wrap:wrap; align-items:stretch; gap:0; background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:16px}
   .step{flex:1 1 130px; min-width:120px; position:relative; padding:12px 14px; display:flex; flex-direction:column; gap:3px}
   .step:not(:last-child)::after{content:"→"; position:absolute; right:-7px; top:50%; transform:translateY(-50%); color:var(--brand-2); font-weight:700; z-index:1}
   .step .k{font-size:12px; color:var(--brand); font-weight:600}
   .step .t{font-weight:600; font-size:14px}
   .step .d{font-size:12.5px; color:var(--muted)}
+  /* ---- gate list ---- */
   .gates{background:var(--bg); border:1px solid var(--line); border-radius:14px; overflow:hidden}
   .gate{display:flex; gap:14px; padding:14px 16px; border-bottom:1px solid var(--line); align-items:flex-start}
   .gate:last-child{border-bottom:0}
@@ -58,23 +69,27 @@
   .gate .arrow{color:var(--brand-2); font-weight:700}
   .gate .res{color:var(--muted); font-size:14px}
   .gate .res b{color:var(--ink)}
+  /* ---- table ---- */
   table{width:100%; border-collapse:collapse; background:var(--bg); border:1px solid var(--line); border-radius:14px; overflow:hidden}
   th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:top}
   th{background:var(--soft2); font-weight:600; font-size:13px}
   tr:last-child td{border-bottom:0}
   td .path{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--brand); background:var(--soft2); padding:1px 7px; border-radius:6px}
   .who{display:inline-block; font-size:11.5px; font-weight:600; padding:1px 8px; border-radius:999px; color:#fff; white-space:nowrap}
-  .who.all{background:#64748b} .who.admin{background:var(--admin)}
+  .who.all{background:#64748b} .who.super{background:var(--super)} .who.admin{background:var(--admin)}
+  /* ---- info cards ---- */
   .cards{display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
   .card{background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:16px}
   .card h3{margin:0 0 6px; font-size:15px; display:flex; align-items:center; gap:8px}
   .card p{margin:0; color:var(--muted); font-size:13.5px}
   .card .em{color:var(--brand); font-weight:600}
   .dot{width:9px;height:9px;border-radius:3px;flex:none}
+  /* ---- journey block ---- */
   .journey{margin-top:16px}
   .journey .jh{font-weight:600; margin:0 0 8px; display:flex; align-items:center; gap:8px}
   .journey .jh .tag{font-size:11px; color:#fff; padding:1px 8px; border-radius:999px}
   footer{margin-top:46px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; text-align:center}
+  /* ---- print ---- */
   @media print{
     body{background:#fff; font-size:12px}
     header.hero{background:var(--brand)!important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
@@ -98,7 +113,7 @@
     </div>
     <h1>Flow การทำงานของระบบ</h1>
     <p>ภาพรวมบทบาทผู้ใช้ เส้นทางการเข้าใช้งาน หน้าจอทั้งหมด และขั้นตอนการทำงานหลักของแพลตฟอร์มบริหารทรัพย์ให้เช่า/ขาย</p>
-    <div class="meta">แพลตฟอร์ม HUP · เอกสารสรุประบบ · ฉบับผู้ใช้งานองค์กร · ปรับปรุง 21 ก.ค. 2569</div>
+    <div class="meta">แพลตฟอร์ม HUP · เอกสารสรุประบบ · ปรับปรุง 21 ก.ค. 2569</div>
   </div>
 </header>
 
@@ -106,9 +121,19 @@
 
   <!-- 1. ROLES -->
   <section>
-    <h2><span class="num">1</span> บทบาทผู้ใช้ (2 ระดับ)</h2>
+    <h2><span class="num">1</span> บทบาทผู้ใช้ (3 ระดับ)</h2>
     <p class="lead">สิทธิ์ของแต่ละคนถูกคุมด้วยระบบความปลอดภัยระดับฐานข้อมูล — เห็นและแก้ได้เฉพาะตามบทบาท</p>
     <div class="roles">
+      <div class="role super">
+        <span class="badge">SUPER ADMIN</span>
+        <h3>ผู้ดูแลแพลตฟอร์ม</h3>
+        <ul>
+          <li>เห็นทุกองค์กรในระบบ</li>
+          <li>กำหนดแพ็กเกจ / วันหมดอายุ / ระงับองค์กร</li>
+          <li>"สวมสิทธิ์" เข้าไปทำงานแทนองค์กรใดก็ได้</li>
+          <li>ไม่สังกัดองค์กร · ไม่ติดล็อกหมดอายุ</li>
+        </ul>
+      </div>
       <div class="role admin">
         <span class="badge">แอดมินองค์กร</span>
         <h3>เจ้าของ/หัวหน้าทีม</h3>
@@ -156,7 +181,7 @@
       <div class="gate">
         <div class="cond">องค์กรถูกระงับ/หมดอายุ</div>
         <div class="arrow">→</div>
-        <div class="res">หน้า <b>ถูกระงับ</b> — ติดต่อผู้ดูแลระบบเพื่อต่ออายุ/ปลดระงับ</div>
+        <div class="res">หน้า <b>ถูกระงับ</b> — ต่ออายุ/ปลดระงับโดย Super Admin ก่อน <small>(Super ไม่ติดล็อกนี้)</small></div>
       </div>
       <div class="gate">
         <div class="cond">ปกติ ✓</div>
@@ -181,7 +206,8 @@
         <tr><td><b>เปรียบเทียบ</b></td><td><span class="path">/compare</span></td><td><span class="who all">ทุกคน</span></td><td>เทียบทรัพย์หลายรายการ · พิมพ์เอกสารส่งลูกค้า (แนวนอน)</td></tr>
         <tr><td><b>นำเข้าข้อมูล</b></td><td><span class="path">/import</span></td><td><span class="who all">ทุกคน</span></td><td>นำเข้าจาก Excel/CSV ทีละหลายรายการ</td></tr>
         <tr><td><b>ทีม</b></td><td><span class="path">/team</span></td><td><span class="who admin">แอดมิน</span></td><td>แก้ชื่อองค์กร · เพิ่มลูกทีม · ตั้งบทบาท/เปิด-ปิด · ตั้งการมองเห็นทรัพย์รายคน</td></tr>
-        <tr><td><b>ประวัติการใช้งาน</b></td><td><span class="path">/logs</span></td><td><span class="who admin">แอดมิน</span></td><td>ดูว่าใครทำอะไรในองค์กร</td></tr>
+        <tr><td><b>ประวัติการใช้งาน</b></td><td><span class="path">/logs</span></td><td><span class="who admin">แอดมิน</span></td><td>ใครทำอะไรในองค์กร (Super เห็นทุกองค์กร)</td></tr>
+        <tr><td><b>Super Admin</b></td><td><span class="path">/super</span></td><td><span class="who super">Super</span></td><td>ทุกองค์กร · แพ็กเกจ/วันหมดอายุ/ระงับ · สวมสิทธิ์</td></tr>
       </tbody>
     </table>
   </section>
@@ -221,6 +247,17 @@
         <div class="step"><span class="k">4</span><span class="t">ดูประวัติ</span><span class="d">ตรวจกิจกรรมองค์กร</span></div>
       </div>
     </div>
+
+    <div class="journey">
+      <p class="jh"><span class="tag" style="background:var(--super)">Super Admin</span> บริหารแพลตฟอร์ม</p>
+      <div class="chain">
+        <div class="step"><span class="k">1</span><span class="t">หน้า Super</span><span class="d">เห็นทุกองค์กร</span></div>
+        <div class="step"><span class="k">2</span><span class="t">ตั้งแพ็กเกจ</span><span class="d">free/pro/enterprise + วันหมดอายุ</span></div>
+        <div class="step"><span class="k">3</span><span class="t">ระงับ/เปิด</span><span class="d">คุมการเข้าถึงทั้งองค์กร</span></div>
+        <div class="step"><span class="k">4</span><span class="t">สวมสิทธิ์</span><span class="d">คลิกชื่อองค์กร → ทำงานแทน</span></div>
+        <div class="step"><span class="k">5</span><span class="t">ออกจากสิทธิ์</span><span class="d">แถบเหลืองด้านบน</span></div>
+      </div>
+    </div>
   </section>
 
   <!-- 5. BEHIND THE SCENES -->
@@ -230,7 +267,7 @@
     <div class="cards">
       <div class="card">
         <h3><span class="dot" style="background:var(--brand)"></span> แยกข้อมูลรายองค์กร</h3>
-        <p>ทุกองค์กรเห็นเฉพาะข้อมูลตัวเอง คุมด้วยความปลอดภัยระดับฐานข้อมูล (RLS) — <span class="em">ข้ามองค์กรกันไม่เห็น</span></p>
+        <p>ทุกองค์กรเห็นเฉพาะข้อมูลตัวเอง คุมด้วยความปลอดภัยระดับฐานข้อมูล (RLS) — <span class="em">ข้ามองค์กรกันไม่เห็น</span> ยกเว้น Super</p>
       </div>
       <div class="card">
         <h3><span class="dot" style="background:var(--member)"></span> การมองเห็นทรัพย์รายคน</h3>
@@ -238,7 +275,7 @@
       </div>
       <div class="card">
         <h3><span class="dot" style="background:var(--admin)"></span> แพ็กเกจ &amp; อายุการใช้งาน</h3>
-        <p>องค์กรจะใช้งานได้เมื่อ <span class="em">ยังไม่ถูกระงับ + ยังไม่หมดอายุ</span> · ต่ออายุผ่านผู้ดูแลระบบ</p>
+        <p>องค์กรจะใช้งานได้เมื่อ <span class="em">ยังไม่ถูกระงับ + ยังไม่หมดอายุ</span> · Super คุมได้จากหน้าเดียว</p>
       </div>
       <div class="card">
         <h3><span class="dot" style="background:#0ea5e9"></span> ผู้ช่วย AI</h3>
@@ -247,6 +284,10 @@
       <div class="card">
         <h3><span class="dot" style="background:#16a34a"></span> แอปมือถือ</h3>
         <p>Android/iOS (ครอบเว็บด้วย Capacitor) — <span class="em">กล้อง · GPS · แจ้งเตือน</span> · อัปเดตเนื้อหาอัตโนมัติ ไม่ต้องลงใหม่ทุกครั้ง</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#db2777"></span> สวมสิทธิ์ (Impersonate)</h3>
+        <p>Super คลิกชื่อองค์กร → ทำงานเสมือนเป็นสมาชิกองค์กรนั้นจริง · มีแถบเหลืองเตือน + ปุ่มออกตลอดเวลา</p>
       </div>
     </div>
   </section>
