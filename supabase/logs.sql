@@ -31,9 +31,19 @@ create policy "logs insert" on public.activity_logs
     or public.is_super()
   );
 
+-- log แถวนี้ถูกสร้างโดยบัญชี super หรือไม่ (security definer เพื่อข้าม RLS ของ profiles)
+create or replace function public.actor_is_super(p_uid uuid) returns boolean
+language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.profiles where id = p_uid and is_super);
+$$;
+
 drop policy if exists "logs read" on public.activity_logs;
 create policy "logs read" on public.activity_logs
   for select using (
-    (org_id = public.current_org() and public.is_admin())
+    (
+      org_id = public.current_org()
+      and public.is_admin()
+      and not public.actor_is_super(user_id)   -- แอดมินองค์กรไม่เห็นการกระทำของ super (เช่นตอนสวมสิทธิ์)
+    )
     or public.is_super()
   );
