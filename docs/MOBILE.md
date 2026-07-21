@@ -1,4 +1,4 @@
-# HOB บนมือถือ (Capacitor)
+# HUP บนมือถือ (Capacitor)
 
 เว็บกับแอปใช้โค้ดชุดเดียวกัน — Capacitor ห่อหน้าเว็บ (dist/) ลงแอป native
 รองรับทั้ง **Android** (`android/`) และ **iOS** (`ios/`) จากโค้ดเบสเดียว

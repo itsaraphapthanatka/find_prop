@@ -19,12 +19,12 @@ public class WebPrintPlugin extends Plugin {
     public void print(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             PrintManager printManager = (PrintManager) getActivity().getSystemService(Context.PRINT_SERVICE);
-            PrintDocumentAdapter adapter = getBridge().getWebView().createPrintDocumentAdapter("HOB");
+            PrintDocumentAdapter adapter = getBridge().getWebView().createPrintDocumentAdapter("HUP");
             // ค่าเริ่มต้น A4 แนวนอน (ตารางเปรียบเทียบกว้าง) — ผู้ใช้เปลี่ยนเองใน dialog ได้
             PrintAttributes attrs = new PrintAttributes.Builder()
                     .setMediaSize(PrintAttributes.MediaSize.ISO_A4.asLandscape())
                     .build();
-            printManager.print("HOB เอกสารเปรียบเทียบ", adapter, attrs);
+            printManager.print("HUP เอกสารเปรียบเทียบ", adapter, attrs);
             call.resolve();
         });
     }

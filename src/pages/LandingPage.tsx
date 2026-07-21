@@ -123,7 +123,7 @@ function Brand() {
         <rect width="32" height="32" rx="7" fill="#7132f5" />
         <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
       </svg>
-      <span>H<span className="brand-accent">OB</span></span>
+      <span>H<span className="brand-accent">UP</span></span>
     </div>
   )
 }
@@ -213,7 +213,7 @@ function DashboardMock() {
       </div>
       <div className="appchat">
         <div className="appchat-head">
-          <span className="sp"><IconSparkles size={13} /></span> ผู้ช่วย HOB
+          <span className="sp"><IconSparkles size={13} /></span> ผู้ช่วย HUP
         </div>
         <div className="bubble me">โกดังแถวบางพลี งบไม่เกินแสนมีไหม</div>
         <div className="bubble ai">เจอ <b>3 รายการ</b> ตรงเงื่อนไข — WH-BP-114 เช่า 85,000 ฿ ใกล้สุด แตะดูรายละเอียดได้เลย</div>
@@ -375,7 +375,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="ld-footer">
-        <span>© {new Date().getFullYear()} HOB — แพลตฟอร์มบริหารทรัพย์</span>
+        <span>© {new Date().getFullYear()} HUP — แพลตฟอร์มบริหารทรัพย์</span>
         <button className="linklike" onClick={() => navigate('/login')}>ลูกค้าปัจจุบัน: เข้าสู่ระบบ</button>
       </footer>
     </div>

@@ -23,7 +23,7 @@ public class WebPrintPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             let info = UIPrintInfo(dictionary: nil)
             info.outputType = .general
-            info.jobName = "HOB เอกสารเปรียบเทียบ"
+            info.jobName = "HUP เอกสารเปรียบเทียบ"
             info.orientation = .landscape // ค่าเริ่มต้นแนวนอน (ตารางเปรียบเทียบกว้าง)
             let controller = UIPrintInteractionController.shared
             controller.printInfo = info

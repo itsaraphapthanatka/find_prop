@@ -26,8 +26,8 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'HOB — ฐานข้อมูลทรัพย์ให้เช่า/ขาย',
-        short_name: 'HOB',
+        name: 'HUP — ฐานข้อมูลทรัพย์ให้เช่า/ขาย',
+        short_name: 'HUP',
         description: 'ฐานข้อมูลอสังหาริมทรัพย์ให้เช่า/ขาย — โกดัง โรงงาน โชว์รูม ออฟฟิศ',
         lang: 'th',
         display: 'standalone',

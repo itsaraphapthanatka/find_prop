@@ -4,7 +4,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 // (ระหว่างทดสอบภายในยังเปลี่ยนได้ แค่ต้องถอนแอปเก่าออกก่อนลงใหม่)
 const config: CapacitorConfig = {
   appId: 'com.hobproperty.app',
-  appName: 'HOB',
+  appName: 'HUP',
   webDir: 'dist',
   android: {
     // Android 15 (targetSdk 35) บังคับวาดเต็มขอบจอ (edge-to-edge) ทำให้ header/nav

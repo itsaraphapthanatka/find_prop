@@ -175,7 +175,7 @@ ${details}
                   <rect width="32" height="32" rx="7" fill="#7132f5" />
                   <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
                 </svg>
-                <span>H<span className="brand-accent">OB</span></span>
+                <span>H<span className="brand-accent">UP</span></span>
               </div>
               <div className="sheet-title">
                 <h2>ชอร์ตลิสต์เปรียบเทียบทรัพย์</h2>
@@ -250,7 +250,7 @@ ${details}
             )}
 
             <footer className="sheet-foot">
-              เอกสารนี้จัดทำจากข้อมูลในระบบ HOB เพื่อประกอบการตัดสินใจเบื้องต้น
+              เอกสารนี้จัดทำจากข้อมูลในระบบ HUP เพื่อประกอบการตัดสินใจเบื้องต้น
               ข้อมูลอาจเปลี่ยนแปลงได้ กรุณาตรวจสอบหน้างานอีกครั้ง
             </footer>
           </div>
