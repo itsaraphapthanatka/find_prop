@@ -74,10 +74,12 @@ export default function SuperAdminPage() {
   async function save(o: OrgOverview) {
     const e = editOf(o)
     setSavingId(o.id)
-    const { error } = await supabase
-      .from('organizations')
-      .update({ plan: e.plan, sub_expires_at: e.sub_expires_at || null })
-      .eq('id', o.id)
+    // ผ่าน RPC (SECURITY DEFINER) แทน update ตรงตาราง — ทนต่อ policy ถูกทับในอนาคต
+    const { error } = await supabase.rpc('super_set_plan', {
+      p_org: o.id,
+      p_plan: e.plan,
+      p_expires: e.sub_expires_at || null,
+    })
     setSavingId(null)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
     else {
@@ -89,10 +91,10 @@ export default function SuperAdminPage() {
   async function toggleStatus(o: OrgOverview) {
     const next = o.sub_status === 'active' ? 'suspended' : 'active'
     if (next === 'suspended' && !window.confirm(`ระงับองค์กร "${o.name}"? สมาชิกทั้งหมดจะใช้งานไม่ได้ทันที`)) return
-    const { error } = await supabase
-      .from('organizations')
-      .update({ sub_status: next })
-      .eq('id', o.id)
+    const { error } = await supabase.rpc('super_set_status', {
+      p_org: o.id,
+      p_status: next,
+    })
     if (error) alert(`เปลี่ยนสถานะไม่สำเร็จ: ${error.message}`)
     else await reload()
   }

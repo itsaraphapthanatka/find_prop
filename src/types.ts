@@ -53,9 +53,16 @@ export interface Property {
   org_id?: string | null
   /** ชื่อองค์กรเจ้าของแถว (จับคู่ตอนอ่าน) — ใช้แสดงเฉพาะมุมมอง super admin */
   org_name?: string | null
+  /** ผู้ลงทรัพย์ (auth.users.id) — DB เติมให้อัตโนมัติตอนสร้าง (default auth.uid()) */
+  created_by?: string | null
+  /** ชื่อผู้ลงทรัพย์ (จับคู่ตอนอ่านผ่าน org_member_names) — read-only สำหรับแสดงผล */
+  created_by_name?: string | null
 }
 
-export type PropertyInput = Omit<Property, 'id' | 'created_at' | 'org_id' | 'org_name'>
+export type PropertyInput = Omit<
+  Property,
+  'id' | 'created_at' | 'org_id' | 'org_name' | 'created_by' | 'created_by_name'
+>
 
 /** จุดแวะในรูทเยี่ยมชม (อ้างถึงทรัพย์ด้วย id) */
 export interface VisitStop {

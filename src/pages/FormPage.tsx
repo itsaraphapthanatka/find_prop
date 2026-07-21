@@ -243,7 +243,7 @@ export default function FormPage() {
       .then(({ data, error }) => {
         if (error) alert(`โหลดข้อมูลไม่สำเร็จ: ${error.message}`)
         else if (data) {
-          const { id: _id, created_at: _c, org_id, org_name: _o, ...rest } = data as Property
+          const { id: _id, created_at: _c, org_id, org_name: _o, created_by: _cb, created_by_name: _cbn, ...rest } = data as Property
           setForm({ ...emptyForm, ...rest })
           if (org_id) setFormOrg(org_id)
         }

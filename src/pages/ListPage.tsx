@@ -231,6 +231,7 @@ export default function ListPage({ search }: { search: string }) {
                 {p.province ? `, ${p.province}` : ''}
               </div>
               {priceLabel(p) && <div className="price">{priceLabel(p)}</div>}
+              {p.created_by_name && <div className="sub">ลงโดย {p.created_by_name}</div>}
             </div>
             <div className="row-actions" onClick={(e) => e.stopPropagation()}>
               {p.phone && (
