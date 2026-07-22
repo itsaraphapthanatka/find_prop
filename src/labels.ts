@@ -2,7 +2,7 @@ import type { PropertyInput } from './types'
 
 /** ป้ายชื่อฟิลด์ภาษาไทย (ตามแอป AppSheet ต้นแบบ) */
 export const LABELS: Record<keyof PropertyInput, string> = {
-  code: 'ลำดับที่',
+  code: 'รหัสทรัพย์',
   record_date: 'วันที่',
   photo_url: 'รูป',
   photos: 'รูปภาพ',
