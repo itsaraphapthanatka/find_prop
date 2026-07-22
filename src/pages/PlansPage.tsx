@@ -310,6 +310,25 @@ ${catalog}
                     }}
                     options={items.filter((p) => !sel.stops.some((s) => s.property_id === p.id)).map((p) => p.code)}
                     placeholder="+ เพิ่มทรัพย์เข้ารูท (พิมพ์รหัสค้นหา)"
+                    renderOption={(code) => {
+                      const p = byCode.get(code)
+                      return (
+                        <span className="combo-opt">
+                          <span className="combo-opt-thumb">
+                            {p?.photo_url ? <img src={p.photo_url} alt={code} /> : <IconHouse />}
+                          </span>
+                          <span className="combo-opt-text">
+                            <span className="combo-opt-code">{code}</span>
+                            {p && (
+                              <span className="combo-opt-sub">
+                                {[p.property_type, [p.district, p.province].filter(Boolean).join(', ')]
+                                  .filter(Boolean).join(' · ')}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                      )
+                    }}
                   />
                 </div>
                 {routeUrl(sel) && (

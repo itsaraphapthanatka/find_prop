@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 interface ComboProps {
   value: string | null
@@ -6,11 +6,13 @@ interface ComboProps {
   options: string[]
   placeholder?: string
   required?: boolean
+  /** เรนเดอร์เนื้อหาตัวเลือกเอง (เช่น ใส่รูป) — ไม่ใส่ = แสดงเป็นข้อความปกติ */
+  renderOption?: (v: string) => ReactNode
 }
 
 /** Dropdown แบบ "เลือกหรือพิมพ์เพิ่ม" (เทียบ Add or search ของ AppSheet) */
 export default function Combo({
-  value, onChange, options, placeholder = 'เลือก…', required,
+  value, onChange, options, placeholder = 'เลือก…', required, renderOption,
 }: ComboProps) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
@@ -66,7 +68,7 @@ export default function Combo({
               className={`combo-item ${o === value ? 'sel' : ''}`}
               onMouseDown={() => pick(o)}
             >
-              {o}
+              {renderOption ? renderOption(o) : o}
             </button>
           ))}
           {showAdd && (
