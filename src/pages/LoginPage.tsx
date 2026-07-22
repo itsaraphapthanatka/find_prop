@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { isInstalledApp } from '../lib/native'
@@ -203,6 +203,75 @@ export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOu
           <a href="#" onClick={(e) => { e.preventDefault(); onSignOut() }}>ออกจากระบบ</a>
         </p>
       </form>
+    </div>
+  )
+}
+
+export function JoinOrgScreen({
+  token, onDecline, onSignOut,
+}: { token: string; onDecline: () => void; onSignOut: () => void }) {
+  const { refreshProfile } = useAuth()
+  const [info, setInfo] = useState<{ org_name: string; email: string; status: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    void supabase.rpc('invite_info', { p_token: token }).then(({ data }) => {
+      const row = (data as { org_name: string; email: string; status: string }[] | null)?.[0]
+      setInfo(row ?? null)
+      setLoading(false)
+    })
+  }, [token])
+
+  async function accept() {
+    setBusy(true)
+    setErr(null)
+    const { data, error } = await supabase.rpc('accept_invite', { p_token: token })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    const r = data as string
+    if (r === 'ok') {
+      try { localStorage.removeItem('hop_invite') } catch { /* ข้าม */ }
+      await refreshProfile()
+      return
+    }
+    setErr(
+      r === 'email_mismatch' ? `ต้องล็อกอินด้วยอีเมลที่ถูกเชิญ (${info?.email ?? ''})`
+        : r === 'org_full' ? 'องค์กรนี้เต็มแล้ว (แพ็กเกจ Free) — ให้แอดมินอัปเกรด Pro'
+          : r === 'already_in_org' ? 'บัญชีนี้อยู่ในองค์กรอื่นอยู่แล้ว'
+            : 'คำเชิญนี้ใช้ไม่ได้แล้ว',
+    )
+  }
+
+  const valid = info && info.status === 'pending'
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <Brand />
+        {loading ? (
+          <p className="sub" style={{ marginTop: 14 }}>กำลังโหลดคำเชิญ…</p>
+        ) : valid ? (
+          <p className="sub" style={{ marginTop: 14 }}>
+            คุณได้รับเชิญเข้าร่วมองค์กร <b>{info!.org_name}</b> ในฐานะลูกทีม
+            <br />
+            กดยอมรับเพื่อเริ่มใช้งาน (ต้องล็อกอินด้วยอีเมล <b>{info!.email}</b>)
+          </p>
+        ) : (
+          <p className="sub" style={{ marginTop: 14 }}>คำเชิญนี้ใช้ไม่ได้แล้ว (ถูกยกเลิกหรือรับไปแล้ว)</p>
+        )}
+        {err && <div className="auth-error">{err}</div>}
+        {valid && (
+          <button className="btn primary auth-submit" onClick={() => void accept()} disabled={busy}>
+            {busy ? 'กำลังเข้าร่วม…' : `เข้าร่วม ${info!.org_name}`}
+          </button>
+        )}
+        <p className="auth-note">
+          <a href="#" onClick={(e) => { e.preventDefault(); onDecline() }}>สร้างองค์กรของตัวเองแทน</a>
+          {' · '}
+          <a href="#" onClick={(e) => { e.preventDefault(); onSignOut() }}>ออกจากระบบ</a>
+        </p>
+      </div>
     </div>
   )
 }

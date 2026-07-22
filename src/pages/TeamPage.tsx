@@ -17,11 +17,12 @@ export default function TeamPage() {
   const [orgName, setOrgName] = useState(org?.name ?? '')
   const [savingOrg, setSavingOrg] = useState(false)
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [adding, setAdding] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteErr, setInviteErr] = useState<string | null>(null)
+  const [lastInvite, setLastInvite] = useState<{ email: string; link: string } | null>(null)
+  const [invites, setInvites] = useState<{ id: string; email: string; token: string; created_at: string }[]>([])
+  const [copiedTok, setCopiedTok] = useState<string | null>(null)
   // สถานะชวนเพื่อน (referral) — โหลดจาก RPC referral_status
   const [refStat, setRefStat] = useState<
     { code: string; referred_count: number; rewards_granted: number; expires_at: string | null } | null
@@ -63,6 +64,11 @@ export default function TeamPage() {
     })
   }, [])
 
+  useEffect(() => {
+    void loadInvites()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId])
+
   // ลิงก์ชวนเพื่อนต้องชี้ไป "เว็บ" เสมอ (ในแอป origin เป็น capacitor://localhost)
   const shareBase = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
   const refLink = refStat ? `${shareBase}/#/login?ref=${refStat.code}` : ''
@@ -89,39 +95,47 @@ export default function TeamPage() {
     }
   }
 
-  async function addMember(e: React.FormEvent) {
-    e.preventDefault()
-    setAdding(true)
-    setNotice(null)
-    setError(null)
-    // สร้างลูกทีมผ่าน API ฝั่งเซิร์ฟเวอร์ (service role, ยืนยันอีเมลเลย → ไม่ส่งเมล ไม่ติด rate limit)
-    const { data: s } = await supabase.auth.getSession()
-    try {
-      const res = await fetch(`${API_BASE}/api/create-member`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${s.session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({ email: email.trim(), password, full_name: name.trim() }),
-      })
-      const out = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(`เพิ่มลูกทีมไม่สำเร็จ: ${out.error || res.statusText}`)
-        setAdding(false)
-        return
-      }
-      setNotice(`เพิ่ม ${email.trim()} เข้า ${org?.name ?? 'องค์กร'} แล้ว — ใช้ล็อกอินได้ทันที`)
-    } catch (err) {
-      setError(`เพิ่มลูกทีมไม่สำเร็จ: ${err instanceof Error ? err.message : String(err)}`)
-      setAdding(false)
+  async function loadInvites() {
+    if (!orgId) {
+      setInvites([])
       return
     }
-    setName('')
-    setEmail('')
-    setPassword('')
-    setAdding(false)
-    await reload()
+    const { data } = await supabase
+      .from('team_invites')
+      .select('id, email, token, created_at')
+      .eq('org_id', orgId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    setInvites((data ?? []) as { id: string; email: string; token: string; created_at: string }[])
+  }
+
+  async function createInvite(e: React.FormEvent) {
+    e.preventDefault()
+    setInviting(true)
+    setInviteErr(null)
+    const { data, error } = await supabase.rpc('create_team_invite', { p_email: inviteEmail.trim() })
+    setInviting(false)
+    if (error) {
+      setInviteErr(`สร้างคำเชิญไม่สำเร็จ: ${error.message}`)
+      return
+    }
+    setLastInvite({ email: inviteEmail.trim(), link: `${shareBase}/#/login?invite=${data as string}` })
+    setInviteEmail('')
+    await loadInvites()
+  }
+
+  async function revokeInvite(id: string) {
+    const { error } = await supabase.from('team_invites').update({ status: 'revoked' }).eq('id', id)
+    if (error) alert(`ยกเลิกคำเชิญไม่สำเร็จ: ${error.message}`)
+    else await loadInvites()
+  }
+
+  async function copyInvite(link: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiedTok(key)
+      setTimeout(() => setCopiedTok(null), 1800)
+    } catch { /* คัดลอกไม่ได้ — ผู้ใช้เลือกเองได้ */ }
   }
 
   async function setField(p: MemberRow, patch: Partial<MemberRow>) {
@@ -210,7 +224,10 @@ export default function TeamPage() {
         )}
 
         <section className="form-card" data-tour="team-add">
-          <h3>เพิ่มลูกทีมใหม่</h3>
+          <h3>เชิญลูกทีม</h3>
+          <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75, lineHeight: 1.5 }}>
+            กรอกอีเมลลูกทีม → สร้างลิงก์เชิญ → ส่งลิงก์ให้เขา (LINE/อีเมล) · เปิดลิงก์แล้วสมัคร/ล็อกอิน<b>ด้วยอีเมลนั้น</b> จะเข้าองค์กรเป็นลูกทีมอัตโนมัติ (ตั้งรหัสผ่านเอง/ใช้ Google)
+          </p>
           {atMemberLimit && (
             <div style={{
               background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 10,
@@ -219,40 +236,61 @@ export default function TeamPage() {
               🔒 แพ็กเกจ Free มีลูกทีมได้สูงสุด {FREE_MAX_MEMBERS} คน — อัปเกรด Pro หรือชวนเพื่อน 2 คน (การ์ดด้านบน) เพื่อเพิ่มได้ไม่จำกัด
             </div>
           )}
-          {notice && <div className="auth-notice">{notice}</div>}
-          {error && <div className="auth-error">{error}</div>}
-          <form onSubmit={(e) => void addMember(e)}>
-            <div className="form-grid-2">
-              <div className="form-field">
-                <label>ชื่อ <span className="req">*</span></label>
-                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} />
+          {inviteErr && <div className="auth-error">{inviteErr}</div>}
+          <form onSubmit={(e) => void createInvite(e)}>
+            <div className="org-row">
+              <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
+                <label>อีเมลลูกทีม <span className="req">*</span></label>
+                <input type="email" required value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
               </div>
-              <div className="form-field">
-                <label>อีเมล <span className="req">*</span></label>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
-            </div>
-            <div className="form-field">
-              <label>รหัสผ่านตั้งต้น <span className="req">*</span></label>
-              <input
-                type="text"
-                required
-                minLength={6}
-                placeholder="อย่างน้อย 6 ตัวอักษร — ส่งให้ลูกทีมใช้ล็อกอิน"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div className="form-actions" style={{ paddingBottom: 6 }}>
-              <button className="btn primary" type="submit" disabled={adding || atMemberLimit}>
-                {adding ? 'กำลังเพิ่ม…' : '+ เพิ่มลูกทีม'}
+              <button className="btn primary" type="submit" disabled={inviting || atMemberLimit}>
+                {inviting ? 'กำลังสร้าง…' : 'สร้างลิงก์เชิญ'}
               </button>
             </div>
           </form>
+
+          {lastInvite && (
+            <div className="auth-notice" style={{ marginTop: 12 }}>
+              ลิงก์เชิญสำหรับ <b>{lastInvite.email}</b> — คัดลอกส่งให้ได้เลย:
+              <div className="org-row" style={{ marginTop: 8 }}>
+                <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
+                  <input type="text" readOnly value={lastInvite.link} onFocus={(e) => e.currentTarget.select()} />
+                </div>
+                <button type="button" className="btn" onClick={() => void copyInvite(lastInvite.link, 'last')}>
+                  {copiedTok === 'last' ? 'คัดลอกแล้ว ✓' : 'คัดลอก'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {invites.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>คำเชิญที่รอตอบรับ ({invites.length})</div>
+              {invites.map((iv) => {
+                const link = `${shareBase}/#/login?invite=${iv.token}`
+                return (
+                  <div
+                    key={iv.id}
+                    style={{
+                      display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+                      padding: '8px 0', borderTop: '1px solid var(--line-soft)',
+                    }}
+                  >
+                    <span style={{ flex: 1, minWidth: 140 }}>{iv.email}</span>
+                    <button type="button" className="btn sm" onClick={() => void copyInvite(link, iv.token)}>
+                      {copiedTok === iv.token ? 'คัดลอกแล้ว ✓' : 'คัดลอกลิงก์'}
+                    </button>
+                    <button type="button" className="btn sm" onClick={() => void revokeInvite(iv.id)}>ยกเลิก</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </section>
 
         <section className="form-card">
           <h3>สมาชิกทั้งหมด</h3>
+          {error && <div className="auth-error">{error}</div>}
           <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.7 }}>
             การมองเห็นทรัพย์: “เห็นทั้งทีม” = เห็นทรัพย์ทุกชิ้นขององค์กร · “เฉพาะของตัวเอง” = เห็นเฉพาะทรัพย์ที่ตัวเองลง (แอดมินเห็นทั้งองค์กรเสมอ)
           </p>

@@ -12,7 +12,7 @@ import LogsPage from './pages/LogsPage'
 
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
-import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
+import LoginPage, { CreateOrgScreen, JoinOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
 import ReviewPanel from './components/ReviewPanel'
@@ -39,6 +39,7 @@ function NavText({ full, short }: { full: string; short?: string }) {
 export default function App() {
   const { session, profile, org, loading, signOut, refreshProfile } = useAuth()
   const [search, setSearch] = useState('')
+  const [ignoreInvite, setIgnoreInvite] = useState(false)
   // แจ้งเตือนจาก lib/appUpdate เมื่อมี APK เวอร์ชันใหม่ให้ดาวน์โหลด (เฉพาะในแอป)
   const [apkUpdate, setApkUpdate] = useState<{ version: string; url: string } | null>(null)
   useEffect(() => {
@@ -67,6 +68,10 @@ export default function App() {
     const ref = searchParams.get('ref')
     if (ref) {
       try { localStorage.setItem('hop_ref', ref) } catch { /* ไม่มี localStorage ก็ข้าม */ }
+    }
+    const invite = searchParams.get('invite')
+    if (invite) {
+      try { localStorage.setItem('hop_invite', invite) } catch { /* ข้าม */ }
     }
   }, [searchParams])
 
@@ -99,8 +104,24 @@ export default function App() {
 
   const isSuper = Boolean(profile?.is_super)
 
-  // ยังไม่มีองค์กร → ตั้งองค์กรใหม่ (super admin ข้ามได้ เพื่อเข้าหน้าบริหารระบบ)
+  // ยังไม่มีองค์กร: ถ้ามาจากลิงก์เชิญ → หน้ายอมรับคำเชิญ · ไม่งั้น → ตั้งองค์กรใหม่ (super ข้ามได้)
   if (profile && !profile.org_id && !isSuper) {
+    let inviteTok: string | null = null
+    if (!ignoreInvite) {
+      try { inviteTok = localStorage.getItem('hop_invite') } catch { inviteTok = null }
+    }
+    if (inviteTok) {
+      return (
+        <JoinOrgScreen
+          token={inviteTok}
+          onDecline={() => {
+            try { localStorage.removeItem('hop_invite') } catch { /* ข้าม */ }
+            setIgnoreInvite(true)
+          }}
+          onSignOut={() => void signOut()}
+        />
+      )
+    }
     return <CreateOrgScreen email={session.user.email} onSignOut={() => void signOut()} />
   }
   // มีองค์กรแต่ถูกปิดใช้งานรายบุคคล → รอแอดมินเปิดให้
