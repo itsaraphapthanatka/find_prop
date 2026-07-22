@@ -5,6 +5,7 @@ export const LABELS: Record<keyof PropertyInput, string> = {
   code: 'ลำดับที่',
   record_date: 'วันที่',
   photo_url: 'รูป',
+  photos: 'รูปภาพ',
   pic: 'PIC',
   lessor_status: 'สถานะ_ผู้ให้เช่า',
   lessor_company: 'ชื่อบริษัท_ผู้ให้เช่า',

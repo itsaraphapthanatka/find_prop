@@ -3,6 +3,8 @@ export interface Property {
   code: string
   record_date: string | null
   photo_url: string | null
+  /** แกลเลอรีรูป (สูงสุด 10) — photos[0] = รูปปก = photo_url */
+  photos: string[] | null
   pic: string | null
   lessor_status: string | null
   lessor_company: string | null

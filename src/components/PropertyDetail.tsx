@@ -36,6 +36,7 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
   const { profile } = useAuth()
   // ป้ายองค์กรเฉพาะ super โหมดภาพรวม — ตอนสวมสิทธิ์มุมมองเหมือนสมาชิกจริง
   const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
+  const pics = p.photos?.length ? p.photos : p.photo_url ? [p.photo_url] : []
   return (
     <>
       <div className="detail-overlay" onClick={onClose} />
@@ -48,7 +49,11 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <button className="icon-btn" onClick={onClose} title="ปิด"><IconClose /></button>
         </div>
         <div className="detail-body">
-          {p.photo_url && <img className="detail-photo" src={p.photo_url} alt={p.code} />}
+          {pics.length > 0 && (
+            <div className="detail-gallery">
+              {pics.map((src, i) => <img key={i} src={src} alt={`${p.code} ${i + 1}`} />)}
+            </div>
+          )}
 
           <Field label={LABELS.record_date} value={formatDate(p.record_date)} />
           <Field label={LABELS.pic} value={p.pic} />

@@ -281,6 +281,22 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 }
 .detail-body { flex: 1; overflow: auto; padding: 16px 20px; }
 .detail-photo { width: 100%; border-radius: var(--radius); margin-bottom: 14px; max-height: 260px; object-fit: cover; }
+.detail-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.detail-gallery img { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; }
+.detail-gallery img:first-child { grid-column: 1 / -1; height: 240px; }
+/* ── ฟอร์ม: แกลเลอรีรูปหลายรูป ── */
+.photo-count { color: var(--muted); font-size: 12px; font-weight: 400; }
+.photo-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.photo-item { position: relative; width: 100px; height: 100px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-cover { position: absolute; left: 5px; top: 5px; background: var(--purple); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 6px; }
+.photo-setcover { position: absolute; left: 5px; bottom: 5px; border: none; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 6px; cursor: pointer; }
+.photo-setcover:hover { background: var(--purple); }
+.photo-x { position: absolute; right: 5px; top: 5px; width: 22px; height: 22px; border: none; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.photo-x:hover { background: #dc2626; }
+.photo-add { width: 100px; height: 100px; border-radius: 10px; border: 1.5px dashed var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; color: var(--muted); font-size: 12px; background: var(--purple-subtle); }
+.photo-add:hover { border-color: var(--purple); color: var(--purple); }
+.photo-hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
 .field { margin-bottom: 12px; }
 .field .label { font-size: 12px; color: var(--muted); }
 .field .value { margin-top: 2px; white-space: pre-wrap; word-break: break-word; }

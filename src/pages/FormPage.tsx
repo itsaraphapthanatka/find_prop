@@ -15,6 +15,7 @@ const emptyForm: PropertyInput = {
   code: '',
   record_date: new Date().toISOString().slice(0, 10),
   photo_url: null,
+  photos: [],
   pic: null,
   lessor_status: null,
   lessor_company: null,
@@ -253,20 +254,47 @@ export default function FormPage() {
   const set = <K extends keyof PropertyInput>(key: K, value: PropertyInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
 
-  async function handlePhoto(file: File) {
+  const MAX_PHOTOS = 10
+
+  // อัปโหลดหลายรูป — ต่อท้ายแกลเลอรี (ไม่เกิน MAX_PHOTOS) · รูปแรก = รูปปก = photo_url
+  async function addPhotos(files: File[]) {
     if (!supabaseConfigured) {
       alert('ยังไม่ได้ตั้งค่า Supabase จึงอัปโหลดรูปไม่ได้')
       return
     }
+    const current = form.photos ?? []
+    const room = MAX_PHOTOS - current.length
+    if (room <= 0) {
+      alert(`ใส่รูปได้สูงสุด ${MAX_PHOTOS} รูป`)
+      return
+    }
+    const pick = files.slice(0, room)
+    if (files.length > room) alert(`ใส่ได้อีก ${room} รูปเท่านั้น (สูงสุด ${MAX_PHOTOS}) — เพิ่มให้เท่าที่ใส่ได้`)
     setUploading(true)
-    const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]+/g, '_')}`
-    const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, file)
-    if (error) alert(`อัปโหลดรูปไม่สำเร็จ: ${error.message}`)
-    else {
-      const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path)
-      set('photo_url', data.publicUrl)
+    const urls: string[] = []
+    for (let i = 0; i < pick.length; i++) {
+      const f = pick[i]
+      const path = `${Date.now()}-${i}-${f.name.replace(/[^a-zA-Z0-9.]+/g, '_')}`
+      const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, f)
+      if (error) { alert(`อัปโหลดรูปไม่สำเร็จ: ${error.message}`); continue }
+      urls.push(supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl)
+    }
+    if (urls.length) {
+      const next = [...current, ...urls]
+      setForm((f) => ({ ...f, photos: next, photo_url: next[0] }))
     }
     setUploading(false)
+  }
+
+  function removePhoto(url: string) {
+    const next = (form.photos ?? []).filter((u) => u !== url)
+    setForm((f) => ({ ...f, photos: next, photo_url: next[0] ?? null }))
+  }
+
+  // ย้ายรูปที่เลือกมาเป็นรูปแรก (รูปปก)
+  function setCover(url: string) {
+    const next = [url, ...(form.photos ?? []).filter((u) => u !== url)]
+    setForm((f) => ({ ...f, photos: next, photo_url: next[0] }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -360,31 +388,49 @@ export default function FormPage() {
             <TextField name="code" required {...fp} />
           </div>
           <div className="form-field">
-            <label>{LABELS.photo_url}</label>
-            <label className="photo-drop">
-              {form.photo_url
-                ? <img src={form.photo_url} alt="รูปทรัพย์" />
-                : uploading ? 'กำลังอัปโหลด…' : '📷 คลิกเพื่อเลือกรูป'}
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => e.target.files?.[0] && void handlePhoto(e.target.files[0])}
-              />
-            </label>
-            {isNativeApp && (
+            <label>{LABELS.photo_url} <span className="photo-count">{(form.photos ?? []).length}/{MAX_PHOTOS}</span></label>
+            <div className="photo-grid">
+              {(form.photos ?? []).map((url, idx) => (
+                <div className="photo-item" key={url}>
+                  <img src={url} alt={`รูป ${idx + 1}`} />
+                  {idx === 0
+                    ? <span className="photo-cover">ปก</span>
+                    : <button type="button" className="photo-setcover" onClick={() => setCover(url)}>ตั้งเป็นปก</button>}
+                  <button type="button" className="photo-x" title="ลบรูปนี้" onClick={() => removePhoto(url)}>✕</button>
+                </div>
+              ))}
+              {(form.photos ?? []).length < MAX_PHOTOS && (
+                <label className="photo-add">
+                  {uploading
+                    ? <span>กำลังอัปโหลด…</span>
+                    : <><IconCamera size={20} /><span>เพิ่มรูป</span></>}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files?.length) void addPhotos(Array.from(e.target.files))
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+            {isNativeApp && (form.photos ?? []).length < MAX_PHOTOS && (
               <button
                 type="button"
                 className="btn photo-camera-btn"
                 disabled={uploading}
                 onClick={async () => {
                   const file = await takePhoto()
-                  if (file) void handlePhoto(file)
+                  if (file) void addPhotos([file])
                 }}
               >
                 <IconCamera size={16} /> ถ่ายรูปด้วยกล้อง
               </button>
             )}
+            <p className="photo-hint">รูปที่มีป้าย "ปก" จะโชว์ในรายการ/แผนที่ · กด "ตั้งเป็นปก" เพื่อเปลี่ยน · สูงสุด {MAX_PHOTOS} รูป</p>
           </div>
           <TextField name="pic" {...fp} />
         </Section>
