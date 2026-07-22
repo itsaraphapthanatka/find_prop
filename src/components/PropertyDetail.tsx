@@ -2,6 +2,7 @@ import type { Property } from '../types'
 import { LABELS, formatDate, formatNumber } from '../labels'
 import { useAuth } from '../lib/auth'
 import { IconClose, IconPhone, IconSms } from './icons'
+import LocationPicker from './LocationPicker'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === '' || value === '—') return null
@@ -122,6 +123,11 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <ChipList label={LABELS.usages} values={p.usages} />
 
           <div className="section-title">ตำแหน่ง</div>
+          {p.lat != null && p.lng != null && (
+            <div style={{ margin: '4px 0 12px' }}>
+              <LocationPicker lat={p.lat} lng={p.lng} />
+            </div>
+          )}
           <Field
             label="เลขพิกัด"
             value={p.lat != null && p.lng != null ? `${p.lat}, ${p.lng}` : null}

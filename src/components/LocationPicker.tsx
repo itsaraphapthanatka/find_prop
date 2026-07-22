@@ -43,21 +43,22 @@ export default function LocationPicker({
 }: {
   lat: number | null
   lng: number | null
-  onPick: (lat: number, lng: number) => void
+  /** ใส่ = แก้ไขได้ (แตะปักหมุด) · ไม่ใส่ = ดูอย่างเดียว (เช่น หน้ารายละเอียด) */
+  onPick?: (lat: number, lng: number) => void
 }) {
   const has = lat != null && lng != null
   return (
     <MapContainer
       center={has ? [lat as number, lng as number] : DEFAULT_CENTER}
       zoom={has ? 15 : 10}
-      scrollWheelZoom
+      scrollWheelZoom={!!onPick}
       className="pick-map"
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution="&copy; OpenStreetMap contributors"
       />
-      <ClickCapture onPick={onPick} />
+      {onPick && <ClickCapture onPick={onPick} />}
       <Controller lat={lat} lng={lng} />
       {has && <Marker position={[lat as number, lng as number]} icon={pickPin} />}
     </MapContainer>
