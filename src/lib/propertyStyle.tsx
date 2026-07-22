@@ -51,6 +51,24 @@ export function TypeTag({ type }: { type?: string | null }) {
   )
 }
 
+// สีป้าย "เช่า/ขาย" (listing_type) — คนละแกนกับประเภททรัพย์
+export const LISTING_COLOR: Record<string, string> = {
+  'เช่า': '#149e61',      // เขียว = เช่า (ต่อเนื่อง)
+  'ขาย': '#2563eb',       // น้ำเงิน = ขาย (ขายขาด)
+  'เช่า/ขาย': '#7c3aed',  // ม่วง = ได้ทั้งเช่าและขาย
+}
+
+/** ป้ายเช่า/ขาย: พื้นสีอ่อน + ตัวอักษรสีประจำค่า (ค่าไม่รู้จัก/ว่าง → ป้ายเริ่มต้น) */
+export function ListingTag({ type }: { type?: string | null }) {
+  if (!type) return null
+  const c = LISTING_COLOR[type]
+  return (
+    <span className="tag" style={c ? { background: `${c}22`, color: c } : undefined}>
+      {type}
+    </span>
+  )
+}
+
 /** ไอคอนประเภท: กล่องสีประจำประเภท + glyph สีขาว (สไตล์เดียวกับหัวหมุดแผนที่) */
 export function TypeIcon({ type, size = 22 }: { type?: string | null; size?: number }) {
   const { color, glyph } = (type && PROPERTY_STYLE[type]) || TYPE_FALLBACK
