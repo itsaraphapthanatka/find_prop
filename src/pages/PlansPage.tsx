@@ -357,6 +357,9 @@ ${catalog}
                         const added = inStops(sel, m.code)
                         return (
                           <div key={m.code} className="ai-match">
+                            <div className="stop-thumb">
+                              {p?.photo_url ? <img src={p.photo_url} alt={m.code} /> : <IconHouse />}
+                            </div>
                             <div className="ai-match-info">
                               <div className="stop-title">
                                 {m.code}
@@ -384,6 +387,9 @@ ${catalog}
                         const still = inStops(sel, m.code)
                         return (
                           <div key={m.code} className="ai-match">
+                            <div className="stop-thumb">
+                              {p?.photo_url ? <img src={p.photo_url} alt={m.code} /> : <IconHouse />}
+                            </div>
                             <div className="ai-match-info">
                               <div className="stop-title">{m.code}</div>
                               <div className="stop-sub">{m.reason}</div>
