@@ -53,5 +53,16 @@
 	<string>ใช้บันทึกรูปทรัพย์ลงคลังภาพ</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ใช้ตำแหน่งปัจจุบันเพื่อค้นหาและปักหมุดทรัพย์บนแผนที่</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.hobproperty.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.hobproperty.app</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

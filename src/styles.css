@@ -554,6 +554,29 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .auth-submit { width: 100%; padding: 10px; font-size: 15px; }
 .auth-note { color: var(--muted); font-size: 12.5px; text-align: center; margin: 14px 0 0; }
 
+/* แท็บสลับ เข้าสู่ระบบ / สมัครสมาชิก */
+.auth-tabs {
+  display: flex; gap: 4px; background: var(--line-soft); border-radius: 12px;
+  padding: 4px; margin-bottom: 16px;
+}
+.auth-tabs button {
+  flex: 1; border: none; background: transparent; border-radius: 9px; cursor: pointer;
+  padding: 8px 10px; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--muted);
+}
+.auth-tabs button.on { background: #fff; color: var(--purple); box-shadow: var(--shadow); }
+
+/* เส้นคั่น "หรือ" */
+.auth-or { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: var(--muted); font-size: 12.5px; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ปุ่มเข้าสู่ระบบด้วย Google */
+.auth-google {
+  width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 10px; font-size: 14.5px; font-weight: 600;
+  background: #fff; border: 1px solid var(--line); color: var(--ink);
+}
+.auth-google:hover:not(:disabled) { background: var(--line-soft); }
+
 /* user chip บน topbar */
 .user-chip {
   display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);

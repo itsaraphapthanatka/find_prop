@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
 import { setLogActor } from './activityLog'
+import { isNativeApp } from './native'
 
 export interface Profile {
   id: string
@@ -38,6 +39,12 @@ interface AuthState {
   org: Organization | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<string | null>
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+  ) => Promise<{ error: string | null; needConfirm: boolean }>
+  signInWithGoogle: () => Promise<string | null>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -88,12 +95,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLogActor(null)
       }
     })
-    return () => sub.subscription.unsubscribe()
+
+    // แอปมือถือ: รับ deep link ที่ Google เด้งกลับ (com.hobproperty.app://auth-callback?code=…)
+    // แล้วแลก code เป็น session เอง — เว็บทำให้อัตโนมัติผ่าน detectSessionInUrl
+    let removeUrlListener: (() => void) | undefined
+    if (isNativeApp) {
+      void import('@capacitor/app').then(({ App }) => {
+        void App.addListener('appUrlOpen', async ({ url }) => {
+          if (!url.includes('auth-callback')) return
+          try {
+            const { Browser } = await import('@capacitor/browser')
+            await Browser.close()
+          } catch { /* บางเครื่องปิด in-app browser เองแล้ว */ }
+          try {
+            const code = new URL(url).searchParams.get('code')
+            if (code) await supabase.auth.exchangeCodeForSession(code)
+          } catch { /* ลิงก์ไม่มี code ที่ใช้ได้ */ }
+        }).then((handle) => {
+          removeUrlListener = () => void handle.remove()
+        })
+      })
+    }
+
+    return () => {
+      sub.subscription.unsubscribe()
+      removeUrlListener?.()
+    }
   }, [])
 
   async function signIn(email: string, password: string): Promise<string | null> {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return error ? error.message : null
+  }
+
+  async function signUp(
+    email: string,
+    password: string,
+    fullName: string,
+  ): Promise<{ error: string | null; needConfirm: boolean }> {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } }, // → raw_user_meta_data.full_name → trigger สร้าง profile
+    })
+    if (error) return { error: error.message, needConfirm: false }
+    // อีเมลถูกใช้แล้ว: Supabase คืน user ที่ identities ว่าง (กันการเดาว่ามีบัญชีอยู่)
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      return { error: 'อีเมลนี้ถูกใช้แล้ว — ลองเข้าสู่ระบบแทน', needConfirm: false }
+    }
+    // ไม่มี session กลับมา = Supabase ตั้งค่าให้ยืนยันอีเมลก่อนใช้งาน
+    return { error: null, needConfirm: !data.session }
+  }
+
+  async function signInWithGoogle(): Promise<string | null> {
+    const redirectTo = isNativeApp ? 'com.hobproperty.app://auth-callback' : window.location.origin
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo, skipBrowserRedirect: isNativeApp },
+    })
+    if (error) return error.message
+    // แอป: เปิดหน้า Google ใน in-app browser เอง (เว็บ Supabase เด้งหน้าให้อัตโนมัติ)
+    if (isNativeApp && data?.url) {
+      const { Browser } = await import('@capacitor/browser')
+      await Browser.open({ url: data.url })
+    }
+    return null
   }
 
   async function signOut() {
@@ -106,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, org, loading, signIn, signOut, refreshProfile }}
+      value={{ session, profile, org, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>
