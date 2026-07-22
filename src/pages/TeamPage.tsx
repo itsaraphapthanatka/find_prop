@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth, type Profile } from '../lib/auth'
 import { API_BASE } from '../lib/native'
+import { FREE_MAX_MEMBERS, usePlanAccess } from '../lib/plan'
 
 // โปรไฟล์ + ฟิลด์การมองเห็นทรัพย์ (คอลัมน์ see_all_properties เพิ่มจาก property-visibility.sql)
 type MemberRow = Profile & { see_all_properties?: boolean }
 
 export default function TeamPage() {
   const { profile: me, org, refreshProfile } = useAuth()
+  const access = usePlanAccess()
   const [members, setMembers] = useState<MemberRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +68,8 @@ export default function TeamPage() {
   const refLink = refStat ? `${shareBase}/#/login?ref=${refStat.code}` : ''
   // อีกกี่คนถึงได้รางวัลรอบถัดไป (ครบทุก 2 คน)
   const toNext = refStat ? 2 - (refStat.referred_count % 2) : 2
+  // แพ็กเกจ Free จำกัดลูกทีม (นับรวมทุกคนในองค์กร)
+  const atMemberLimit = !access.pro && members.length >= FREE_MAX_MEMBERS
 
   async function copyRefLink() {
     try {
@@ -207,6 +211,14 @@ export default function TeamPage() {
 
         <section className="form-card" data-tour="team-add">
           <h3>เพิ่มลูกทีมใหม่</h3>
+          {atMemberLimit && (
+            <div style={{
+              background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 10,
+              padding: '8px 12px', fontSize: 13, marginBottom: 12, lineHeight: 1.5,
+            }}>
+              🔒 แพ็กเกจ Free มีลูกทีมได้สูงสุด {FREE_MAX_MEMBERS} คน — อัปเกรด Pro หรือชวนเพื่อน 2 คน (การ์ดด้านบน) เพื่อเพิ่มได้ไม่จำกัด
+            </div>
+          )}
           {notice && <div className="auth-notice">{notice}</div>}
           {error && <div className="auth-error">{error}</div>}
           <form onSubmit={(e) => void addMember(e)}>
@@ -232,7 +244,7 @@ export default function TeamPage() {
               />
             </div>
             <div className="form-actions" style={{ paddingBottom: 6 }}>
-              <button className="btn primary" type="submit" disabled={adding}>
+              <button className="btn primary" type="submit" disabled={adding || atMemberLimit}>
                 {adding ? 'กำลังเพิ่ม…' : '+ เพิ่มลูกทีม'}
               </button>
             </div>

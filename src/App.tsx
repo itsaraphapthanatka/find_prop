@@ -17,6 +17,8 @@ import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
 import ReviewPanel from './components/ReviewPanel'
 import TourOverlay from './components/TourOverlay'
+import UpgradeNotice from './components/UpgradeNotice'
+import { planAccess } from './lib/plan'
 import { buildTourSteps, startTour } from './lib/tour'
 import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
@@ -117,6 +119,8 @@ export default function App() {
 
   const isAdmin = profile.role === 'admin'
   const impersonating = Boolean(isSuper && profile.impersonate_org_id)
+  // สิทธิ์ตามแพ็กเกจ — super (โหมดภาพรวม) = เต็ม · สวมสิทธิ์/ปกติ = ตามแพ็กเกจองค์กร
+  const access = planAccess(isSuper && !impersonating ? 'enterprise' : org?.plan)
 
   async function exitImpersonation() {
     await supabase.rpc('super_impersonate', { p_org: null })
@@ -187,19 +191,23 @@ export default function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<ListPage search={search} />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard" element={access.dashboard ? <DashboardPage /> : <UpgradeNotice feature="สรุปภาพรวม" />} />
             <Route path="/map" element={<MapPage />} />
             {/* key ตาม path — สลับ new/edit หรือแก้คนละทรัพย์ ให้ FormPage remount ล้างฟอร์มใหม่ */}
             <Route path="/new" element={<FormPage key={location.pathname} />} />
             <Route path="/edit/:id" element={<FormPage key={location.pathname} />} />
-            <Route path="/plans" element={<PlansPage />} />
+            <Route path="/plans" element={access.visitPlans ? <PlansPage /> : <UpgradeNotice feature="แผนเยี่ยมชม" />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route
               path="/import"
               element={
-                <Suspense fallback={<div className="loading">กำลังโหลด…</div>}>
-                  <ImportPage />
-                </Suspense>
+                access.importCsv ? (
+                  <Suspense fallback={<div className="loading">กำลังโหลด…</div>}>
+                    <ImportPage />
+                  </Suspense>
+                ) : (
+                  <UpgradeNotice feature="นำเข้า Excel/CSV" />
+                )
               }
             />
             <Route

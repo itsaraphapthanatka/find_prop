@@ -36,13 +36,38 @@ export default async function handler(req, res) {
   if (!supaUrl || !anonKey || !token) {
     return res.status(401).json({ error: 'ต้องเข้าสู่ระบบก่อนใช้งาน AI' })
   }
+  const svcAuth = { apikey: anonKey, Authorization: `Bearer ${token}` }
+  let uid
   try {
-    const userRes = await fetch(`${supaUrl}/auth/v1/user`, {
-      headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
-    })
+    const userRes = await fetch(`${supaUrl}/auth/v1/user`, { headers: svcAuth })
     if (!userRes.ok) return res.status(401).json({ error: 'เซสชันไม่ถูกต้อง — กรุณาเข้าสู่ระบบใหม่' })
+    uid = (await userRes.json())?.id
   } catch {
     return res.status(502).json({ error: 'ตรวจสอบเซสชันไม่สำเร็จ' })
+  }
+
+  // ── AI เป็นฟีเจอร์ Pro — เช็กแพ็กเกจองค์กรของผู้เรียก (super โหมดภาพรวมผ่านเสมอ) ──
+  try {
+    const pRes = await fetch(
+      `${supaUrl}/rest/v1/profiles?id=eq.${uid}&select=is_super,org_id,impersonate_org_id`,
+      { headers: svcAuth },
+    )
+    const prof = ((await pRes.json().catch(() => [])) || [])[0]
+    const superOverview = prof?.is_super === true && !prof?.impersonate_org_id
+    if (!superOverview) {
+      const orgId = (prof?.is_super ? prof?.impersonate_org_id : null) || prof?.org_id
+      let pro = false
+      if (orgId) {
+        const oRes = await fetch(`${supaUrl}/rest/v1/organizations?id=eq.${orgId}&select=plan`, { headers: svcAuth })
+        const org = ((await oRes.json().catch(() => [])) || [])[0]
+        pro = org?.plan === 'pro' || org?.plan === 'enterprise'
+      }
+      if (!pro) {
+        return res.status(403).json({ error: 'ฟีเจอร์ AI เปิดใช้เฉพาะแพ็กเกจ Pro — อัปเกรดเพื่อใช้งาน' })
+      }
+    }
+  } catch {
+    return res.status(502).json({ error: 'ตรวจสอบแพ็กเกจไม่สำเร็จ' })
   }
 
   // ── ตรวจรูปแบบคำขอ ──

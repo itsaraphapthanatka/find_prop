@@ -6,6 +6,7 @@ import { LABELS, OPTIONS } from '../labels'
 import Combo, { MultiSelect } from '../components/Combo'
 import LocationPicker from '../components/LocationPicker'
 import VoiceButton from '../components/VoiceButton'
+import { usePlanAccess } from '../lib/plan'
 import { aiExtractProperty } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
 import { useAuth } from '../lib/auth'
@@ -226,6 +227,7 @@ export default function FormPage() {
   // ── บันทึกด่วนด้วยเสียง/ข้อความ → ให้ AI กรอกฟอร์ม ──
   const [dictation, setDictation] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
+  const access = usePlanAccess()
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiFilled, setAiFilled] = useState<(keyof PropertyInput)[] | null>(null)
 
@@ -369,6 +371,7 @@ export default function FormPage() {
             <p className="ai-hint">คุณกำลังบันทึกในนามองค์กรลูกค้า (ส่วนนี้เห็นเฉพาะ super admin)</p>
           </section>
         )}
+        {access.ai && (
         <section className="form-card ai-card">
           <h3><IconSparkles size={16} /> บันทึกด่วนด้วยเสียงหรือข้อความ</h3>
           <p className="ai-hint">
@@ -407,6 +410,7 @@ export default function FormPage() {
             </div>
           )}
         </section>
+        )}
 
         <Section title="ประเภทและทำเล">
           <ButtonsField name="property_type" options={OPTIONS.property_type} required {...fp}

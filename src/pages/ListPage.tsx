@@ -8,6 +8,7 @@ import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
 import { IconCompare, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
 import { ListingTag, TypeTag } from '../lib/propertyStyle'
+import { FREE_MAX_PROPERTIES, usePlanAccess } from '../lib/plan'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -24,6 +25,17 @@ export default function ListPage({ search }: { search: string }) {
   const [selected, setSelected] = useState<Property | null>(null)
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const access = usePlanAccess()
+
+  function addProperty() {
+    if (!access.pro && items.length >= FREE_MAX_PROPERTIES) {
+      alert(
+        `แพ็กเกจ Free เพิ่มทรัพย์ได้สูงสุด ${FREE_MAX_PROPERTIES} รายการ\n\nอัปเกรดเป็น Pro หรือชวนเพื่อน 2 คน รับ Pro ฟรี 30 วัน (เมนู "ทีม")`,
+      )
+      return
+    }
+    navigate('/new')
+  }
   // ป้าย/ตัวกรององค์กรมีเฉพาะ super "โหมดภาพรวม" (เห็นหลายองค์กรปนกัน) —
   // ตอนสวมสิทธิ์ให้มุมมองเหมือนสมาชิกองค์กรจริงทุกประการ
   const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
@@ -119,7 +131,7 @@ export default function ListPage({ search }: { search: string }) {
           <button className="btn mob-icon" onClick={() => navigate('/compare')} title="เปรียบเทียบทรัพย์">
             <IconCompare size={16} /><span className="btn-label">เปรียบเทียบ</span>
           </button>
-          <button className="btn primary" onClick={() => navigate('/new')}>+ เพิ่มทรัพย์</button>
+          <button className="btn primary" onClick={addProperty}>+ เพิ่มทรัพย์</button>
         </div>
       </div>
 

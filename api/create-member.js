@@ -56,6 +56,22 @@ export default async function handler(req, res) {
   const targetOrg = (isSuper ? caller.impersonate_org_id : null) || caller.org_id
   if (!targetOrg) return res.status(400).json({ error: 'ยังไม่ได้เลือกองค์กร (super ต้องสวมสิทธิ์องค์กรก่อน)' })
 
+  // แพ็กเกจ Free จำกัดลูกทีม 2 คน (super ไม่ติดลิมิต) — บังคับก่อนสร้างบัญชี
+  if (!isSuper) {
+    const oRes = await fetch(`${url}/rest/v1/organizations?id=eq.${targetOrg}&select=plan`, { headers: svc })
+    const orgRow = ((await oRes.json().catch(() => [])) || [])[0]
+    const pro = orgRow?.plan === 'pro' || orgRow?.plan === 'enterprise'
+    if (!pro) {
+      const mRes = await fetch(`${url}/rest/v1/profiles?org_id=eq.${targetOrg}&select=id`, { headers: svc })
+      const members = (await mRes.json().catch(() => [])) || []
+      if (members.length >= 2) {
+        return res.status(403).json({
+          error: 'แพ็กเกจ Free มีลูกทีมได้สูงสุด 2 คน — อัปเกรดเป็น Pro เพื่อเพิ่มได้ไม่จำกัด',
+        })
+      }
+    }
+  }
+
   // 2) สร้าง user (ยืนยันอีเมลเลย — ไม่ส่งอีเมล ไม่ติด rate limit)
   const createRes = await fetch(`${url}/auth/v1/admin/users`, {
     method: 'POST',

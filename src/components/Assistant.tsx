@@ -6,6 +6,7 @@ import { usePlans } from '../hooks/usePlans'
 import { aiChat, extractJson, propertyBrief } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
 import { selectRelevant } from '../lib/relevance'
+import { usePlanAccess } from '../lib/plan'
 import type { Property } from '../types'
 import PropertyDetail from './PropertyDetail'
 import VoiceButton from './VoiceButton'
@@ -61,9 +62,10 @@ export default function Assistant() {
   const [open, setOpen] = useState(false)
   // ซ่อนปุ่มลอยในหน้าฟอร์ม (ชนแถบบันทึกที่ sticky อยู่ล่างจอมือถือ)
   const onForm = location.pathname.startsWith('/new') || location.pathname.startsWith('/edit')
+  const access = usePlanAccess()
   return (
     <>
-      {!open && !onForm && (
+      {!open && !onForm && access.ai && (
         <button className="assist-fab" data-tour="assistant" onClick={() => setOpen(true)} title="ผู้ช่วย AI">
           <IconSparkles size={23} />
         </button>
