@@ -4,12 +4,13 @@ import { PHOTO_BUCKET, supabase, supabaseConfigured } from '../lib/supabase'
 import type { Property, PropertyInput } from '../types'
 import { LABELS, OPTIONS } from '../labels'
 import Combo, { MultiSelect } from '../components/Combo'
+import LocationPicker from '../components/LocationPicker'
 import VoiceButton from '../components/VoiceButton'
 import { aiExtractProperty } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
 import { useAuth } from '../lib/auth'
-import { IconCamera, IconSparkles } from '../components/icons'
-import { isNativeApp, takePhoto } from '../lib/native'
+import { IconCamera, IconLocate, IconSparkles } from '../components/icons'
+import { getPosition, isNativeApp, takePhoto } from '../lib/native'
 import { TypeIcon, typeColor } from '../lib/propertyStyle'
 
 const emptyForm: PropertyInput = {
@@ -309,6 +310,19 @@ export default function FormPage() {
     setForm((f) => ({ ...f, photos: next, photo_url: next[0] }))
   }
 
+  async function useMyLocation() {
+    const pos = await getPosition()
+    if (pos.ok) setForm((f) => ({ ...f, lat: +pos.lat.toFixed(6), lng: +pos.lng.toFixed(6) }))
+    else
+      alert(
+        pos.reason === 'denied'
+          ? 'ไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง — เปิดสิทธิ์ตำแหน่งให้แอป/เบราว์เซอร์ก่อน'
+          : pos.reason === 'unsupported'
+            ? 'อุปกรณ์นี้ไม่รองรับการหาตำแหน่ง'
+            : 'หาตำแหน่งไม่สำเร็จ ลองใหม่อีกครั้ง',
+      )
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!supabaseConfigured) {
@@ -525,6 +539,19 @@ export default function FormPage() {
         </Section>
 
         <Section title="ตำแหน่ง">
+          <div className="form-field">
+            <div className="pick-toolbar">
+              <span className="pick-hint">แตะบนแผนที่เพื่อปักตำแหน่ง หรือกรอกพิกัดด้านล่าง</span>
+              <button type="button" className="btn sm" onClick={() => void useMyLocation()}>
+                <IconLocate size={15} /> ตำแหน่งฉัน
+              </button>
+            </div>
+            <LocationPicker
+              lat={form.lat}
+              lng={form.lng}
+              onPick={(la, ln) => setForm((f) => ({ ...f, lat: la, lng: ln }))}
+            />
+          </div>
           <div className="form-grid-2">
             <NumberField name="lat" {...fp} />
             <NumberField name="lng" {...fp} />

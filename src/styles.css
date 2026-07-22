@@ -356,6 +356,10 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   display: inline-flex; align-items: center; gap: 7px;
 }
 .type-ico { display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; flex: none; }
+/* ── แผนที่ปักตำแหน่งในฟอร์ม ── */
+.pick-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.pick-hint { color: var(--muted); font-size: 12.5px; }
+.pick-map { height: 260px; width: 100%; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 4px; z-index: 0; }
 .btn-group .opt:hover { border-color: var(--purple); color: var(--purple); }
 .btn-group .opt.on { background: var(--purple); border-color: var(--purple); color: #fff; }
 .combo-extra { display: flex; gap: 8px; margin-top: 8px; }
