@@ -16,6 +16,8 @@ import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pa
 import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
 import ReviewPanel from './components/ReviewPanel'
+import TourOverlay from './components/TourOverlay'
+import { startTour } from './lib/tour'
 import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
@@ -131,6 +133,7 @@ export default function App() {
           <span>H<span className="brand-accent">OP</span></span>
         </div>
         <input
+          data-tour="search"
           placeholder="ค้นหาทรัพย์ (รหัส, ทำเล, ประเภท…)"
           value={search}
           onChange={(e) => {
@@ -143,20 +146,21 @@ export default function App() {
           <span className="user-name">{profile.full_name || profile.email}</span>
           {isSuper && <span className="role-badge super">SUPER</span>}
           {!isSuper && isAdmin && <span className="role-badge">แอดมิน</span>}
+          <button className="btn sm" onClick={() => startTour()} title="ดูวิธีใช้ (ทัวร์แนะนำ)">?</button>
           <button className="btn sm" onClick={() => void signOut()} title="ออกจากระบบ">ออก</button>
         </div>
       </header>
       <div className="main">
         <nav className="sidebar">
-          <NavLink to="/map"><IconMap /><NavText full="แผนที่" /></NavLink>
-          <NavLink to="/new"><IconForm /><NavText full="ฟอร์ม" /></NavLink>
-          <NavLink to="/" end><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
-          <NavLink to="/dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>
-          <NavLink to="/plans"><IconRoute /><NavText full="แผนเยี่ยมชม" short="แผนเยี่ยม" /></NavLink>
+          <NavLink to="/map" data-tour="nav-map"><IconMap /><NavText full="แผนที่" /></NavLink>
+          <NavLink to="/new" data-tour="nav-form"><IconForm /><NavText full="ฟอร์ม" /></NavLink>
+          <NavLink to="/" end data-tour="nav-list"><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
+          <NavLink to="/dashboard" data-tour="nav-dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>
+          <NavLink to="/plans" data-tour="nav-plans"><IconRoute /><NavText full="แผนเยี่ยมชม" short="แผนเยี่ยม" /></NavLink>
           {((isAdmin && profile.org_id) || impersonating) && (
-            <NavLink to="/team"><IconUsers /><NavText full="ทีม" /></NavLink>
+            <NavLink to="/team" data-tour="nav-team"><IconUsers /><NavText full="ทีม" /></NavLink>
           )}
-          {isSuper && <NavLink to="/super"><IconShield /><NavText full="Super Admin" short="Super" /></NavLink>}
+          {isSuper && <NavLink to="/super" data-tour="nav-super"><IconShield /><NavText full="Super Admin" short="Super" /></NavLink>}
         </nav>
         <main className="content">
           <Routes>
@@ -198,6 +202,7 @@ export default function App() {
       </div>
       <Assistant />
       <ReviewPanel />
+      <TourOverlay />
     </div>
   )
 }

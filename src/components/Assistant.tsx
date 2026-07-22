@@ -64,7 +64,7 @@ export default function Assistant() {
   return (
     <>
       {!open && !onForm && (
-        <button className="assist-fab" onClick={() => setOpen(true)} title="ผู้ช่วย AI">
+        <button className="assist-fab" data-tour="assistant" onClick={() => setOpen(true)} title="ผู้ช่วย AI">
           <IconSparkles size={23} />
         </button>
       )}
