@@ -1,32 +1,30 @@
-import { useCallback, useEffect, useLayoutEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { TOUR_STEPS, markTourSeen, tourSeen, type TourStep } from '../lib/tour'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { markTourSeen, tourSeen, type TourStep } from '../lib/tour'
 
 const PAD = 6 // ระยะเผื่อรอบจุดที่ไฮไลต์
 const TW = 300 // ความกว้างการ์ดคำอธิบาย
-const TH = 190 // ความสูงโดยประมาณ (ใช้ตัดสินวางบน/ล่าง)
+const TH = 200 // ความสูงโดยประมาณ (ใช้ตัดสินวางบน/ล่าง)
 
-/** เลือกเฉพาะขั้นที่จุดเป้าหมาย "มีจริงและมองเห็นได้" ในหน้านี้ (ตามบทบาท/มือถือ) */
-function availableSteps(): TourStep[] {
-  return TOUR_STEPS.filter((s) => {
-    if (!s.target) return true
-    const el = document.querySelector(s.target) as HTMLElement | null
-    return !!el && el.getBoundingClientRect().width > 0
-  })
-}
-
-export default function TourOverlay() {
+export default function TourOverlay({ steps }: { steps: TourStep[] }) {
   const [active, setActive] = useState(false)
-  const [steps, setSteps] = useState<TourStep[]>([])
   const [idx, setIdx] = useState(0)
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const begin = useCallback(() => {
-    const avail = availableSteps()
-    if (avail.length === 0) return
-    setSteps(avail)
+    if (steps.length === 0) return
     setIdx(0)
+    setRect(null)
     setActive(true)
+  }, [steps.length])
+
+  const finish = useCallback(() => {
+    markTourSeen()
+    setActive(false)
+    setRect(null)
   }, [])
 
   // เริ่มจากปุ่ม "?" (event) + เล่นอัตโนมัติครั้งแรกถ้ายังไม่เคยดู
@@ -34,43 +32,76 @@ export default function TourOverlay() {
     const onStart = () => begin()
     window.addEventListener('hop-start-tour', onStart)
     let t: number | undefined
-    if (!tourSeen()) t = window.setTimeout(begin, 600)
+    if (!tourSeen()) t = window.setTimeout(begin, 700)
     return () => {
       window.removeEventListener('hop-start-tour', onStart)
       if (t) clearTimeout(t)
     }
   }, [begin])
 
-  const step: TourStep | undefined = steps[idx]
+  // เปลี่ยนขั้น: ไปหน้าเป้าหมาย → รอจุดโผล่ → ไฮไลต์ (ไม่เจอใน ~2 วิ = ข้าม)
+  useEffect(() => {
+    if (!active) return
+    const step = steps[idx]
+    if (!step) return
+    let cancelled = false
 
-  // วัดตำแหน่งจุดเป้าหมาย + อัปเดตเมื่อ resize/scroll
-  useLayoutEffect(() => {
-    if (!active || !step) return
-    const compute = () => {
-      if (!step.target) return setRect(null)
-      const el = document.querySelector(step.target) as HTMLElement | null
-      if (!el) return setRect(null)
-      setRect(el.getBoundingClientRect())
+    if (step.route && location.pathname !== step.route) navigate(step.route)
+    setRect(null)
+    if (!step.target) return // การ์ดกลางจอ
+
+    let tries = 0
+    const tick = () => {
+      if (cancelled) return
+      const el = document.querySelector(step.target!) as HTMLElement | null
+      if (el && el.getBoundingClientRect().width > 0) {
+        el.scrollIntoView({ block: 'center', inline: 'nearest' })
+        requestAnimationFrame(() => {
+          if (!cancelled) setRect(el.getBoundingClientRect())
+        })
+        return
+      }
+      if (++tries > 40) {
+        // ไม่พบจุด (ไม่มีข้อมูล/สิทธิ์) → ข้ามไปขั้นถัดไป หรือจบถ้าเป็นขั้นสุดท้าย
+        if (!cancelled) setIdx((i) => (i + 1 < steps.length ? i + 1 : i))
+        if (!cancelled && idx + 1 >= steps.length) finish()
+        return
+      }
+      window.setTimeout(tick, 50)
     }
-    compute()
-    window.addEventListener('resize', compute)
-    window.addEventListener('scroll', compute, true)
+    const startId = window.setTimeout(tick, 80)
     return () => {
-      window.removeEventListener('resize', compute)
-      window.removeEventListener('scroll', compute, true)
+      cancelled = true
+      clearTimeout(startId)
     }
-  }, [active, step])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, idx, steps])
 
-  if (!active || !step) return null
+  // ตามจุดเป้าหมายเมื่อ resize/scroll
+  useEffect(() => {
+    if (!active) return
+    const step = steps[idx]
+    if (!step?.target) return
+    const follow = () => {
+      const el = document.querySelector(step.target!) as HTMLElement | null
+      if (el) setRect(el.getBoundingClientRect())
+    }
+    window.addEventListener('resize', follow)
+    window.addEventListener('scroll', follow, true)
+    return () => {
+      window.removeEventListener('resize', follow)
+      window.removeEventListener('scroll', follow, true)
+    }
+  }, [active, idx, steps])
 
-  const finish = () => {
-    markTourSeen()
-    setActive(false)
-  }
+  if (!active) return null
+  const step = steps[idx]
+  if (!step) return null
+
   const next = () => (idx + 1 < steps.length ? setIdx(idx + 1) : finish())
   const back = () => setIdx((i) => Math.max(0, i - 1))
 
-  // ตำแหน่งการ์ด: ไม่มีเป้าหมาย = กลางจอ · มีเป้าหมาย = ใต้จุด (ถ้าไม่พอวางบน) แล้ว clamp ในจอ
+  // ตำแหน่งการ์ด: ไม่มีจุด = กลางจอ · มีจุด = ใต้จุด (ถ้าไม่พอวางบน) แล้ว clamp ในจอ
   const vw = window.innerWidth
   const vh = window.innerHeight
   let cardStyle: CSSProperties
@@ -78,27 +109,26 @@ export default function TourOverlay() {
     cardStyle = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
   } else {
     const below = rect.bottom + 12
-    const above = below + TH > vh
-    const top = above ? Math.max(12, rect.top - TH - 12) : below
+    const placeAbove = below + TH > vh
+    const top = placeAbove ? Math.max(12, rect.top - TH - 12) : below
     const left = Math.min(Math.max(12, rect.left), vw - TW - 12)
     cardStyle = { top, left }
   }
 
   return createPortal(
     <div className="tour-root" role="dialog" aria-modal="true">
-      {/* ฉากหลังกันคลิกทะลุ — โปร่งใสตอนมีสปอตไลต์ (สปอตไลต์เป็นตัวหรี่จอ), มืดตอนการ์ดกลางจอ */}
+      {/* ฉากหลังกันคลิกทะลุ — โปร่งตอนมีสปอตไลต์ (สปอตไลต์เป็นตัวหรี่จอ), มืดตอนการ์ดกลางจอ */}
       <div
         style={{
           position: 'fixed',
           inset: 0,
           zIndex: 9000,
           background: rect ? 'transparent' : 'rgba(16,17,20,0.55)',
-          cursor: 'default',
         }}
         onClick={(e) => e.stopPropagation()}
       />
 
-      {/* สปอตไลต์: กล่องโปร่งครอบจุดเป้าหมาย + เงายักษ์หรี่ส่วนที่เหลือทั้งจอ */}
+      {/* สปอตไลต์ */}
       {rect && (
         <div
           style={{
@@ -112,7 +142,7 @@ export default function TourOverlay() {
             outline: '2px solid var(--purple)',
             outlineOffset: 2,
             pointerEvents: 'none',
-            transition: 'all .22s ease',
+            transition: 'all .2s ease',
             zIndex: 9001,
           }}
         />

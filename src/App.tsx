@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
 import MapPage from './pages/MapPage'
@@ -17,7 +17,7 @@ import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
 import ReviewPanel from './components/ReviewPanel'
 import TourOverlay from './components/TourOverlay'
-import { startTour } from './lib/tour'
+import { buildTourSteps, startTour } from './lib/tour'
 import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
@@ -58,6 +58,19 @@ export default function App() {
   }, [session])
   const navigate = useNavigate()
   const location = useLocation()
+
+  // ขั้นตอนทัวร์ตามบทบาท — คำนวณระดับบนสุด (ต้องอยู่เหนือ early return ตามกฎ hooks)
+  const tourSteps = useMemo(
+    () =>
+      buildTourSteps({
+        isSuper: Boolean(profile?.is_super),
+        canTeam: Boolean(
+          (profile?.role === 'admin' && profile?.org_id) ||
+            (profile?.is_super && profile?.impersonate_org_id),
+        ),
+      }),
+    [profile?.is_super, profile?.role, profile?.org_id, profile?.impersonate_org_id],
+  )
 
   if (!supabaseConfigured) {
     return (
@@ -202,7 +215,7 @@ export default function App() {
       </div>
       <Assistant />
       <ReviewPanel />
-      <TourOverlay />
+      <TourOverlay steps={tourSteps} />
     </div>
   )
 }

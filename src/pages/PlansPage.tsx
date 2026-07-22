@@ -194,7 +194,7 @@ ${catalog}
         <h1>แผนเยี่ยมชม <span className="count-badge">{plans.length}</span></h1>
         <div className="header-actions">
           <OrgFilterSelect filter={orgFilter} />
-          <button className="btn primary" onClick={() => setShowNew((v) => !v)}>+ สร้างแผน</button>
+          <button className="btn primary" data-tour="plan-new" onClick={() => setShowNew((v) => !v)}>+ สร้างแผน</button>
         </div>
       </div>
 

@@ -112,7 +112,7 @@ export default function ListPage({ search }: { search: string }) {
     <>
       <div className="view-header">
         <h1>รายการทรัพย์ <span className="count-badge">{filtered.length}</span></h1>
-        <div className="header-actions">
+        <div className="header-actions" data-tour="list-actions">
           <button className="btn mob-icon" onClick={() => navigate('/import')} title="นำเข้าจาก Excel/CSV">
             <IconUpload size={16} /><span className="btn-label">นำเข้า</span>
           </button>

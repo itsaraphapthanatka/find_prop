@@ -140,7 +140,7 @@ export default function TeamPage() {
           )}
         </section>
 
-        <section className="form-card">
+        <section className="form-card" data-tour="team-add">
           <h3>เพิ่มลูกทีมใหม่</h3>
           {notice && <div className="auth-notice">{notice}</div>}
           {error && <div className="auth-error">{error}</div>}
