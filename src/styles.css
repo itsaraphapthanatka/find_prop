@@ -168,9 +168,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .map-legend .legend-dot-all span { width: 6px; height: 6px; border-radius: 50%; }
 .map-legend .legend-count { color: var(--muted); font-weight: 500; font-size: 11px; }
 @media (max-width: 720px) {
-  /* จอแคบ: แถวเดียวปัดซ้ายขวาได้ ไม่บังแผนที่หลายชั้น */
+  /* จอแคบ: แถวเดียวปัดซ้ายขวาได้ · เว้นมุมล่างซ้าย/ขวาให้ปุ่มลอย (รีวิว + ผู้ช่วย AI) ไม่ทับ legend */
   .map-legend {
-    left: 8px; right: 8px; bottom: 24px; max-width: none;
+    left: 76px; right: 76px; bottom: 24px; max-width: none;
     flex-wrap: nowrap; overflow-x: auto; padding: 2px 2px 4px;
     scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
