@@ -15,6 +15,8 @@ const ImportPage = lazy(() => import('./pages/ImportPage'))
 import LoginPage, { CreateOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
+import ReviewPanel from './components/ReviewPanel'
+import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { isInstalledApp } from './lib/native'
@@ -48,6 +50,10 @@ export default function App() {
     void import('./lib/push').then((m) => m.initPush(userId, userOrg)).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, userOrg])
+  // โหลดสถานะโหมดรีวิวหลังล็อกอิน (ปุ่มรีวิวจะโผล่เมื่อ super เปิดโหมด)
+  useEffect(() => {
+    if (session) void initReviewMode()
+  }, [session])
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -191,6 +197,7 @@ export default function App() {
         </main>
       </div>
       <Assistant />
+      <ReviewPanel />
     </div>
   )
 }

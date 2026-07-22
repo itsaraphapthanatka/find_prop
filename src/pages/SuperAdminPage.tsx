@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { formatDate } from '../labels'
+import { listReviews, setReviewMode, useReviewMode, type ReviewRow } from '../lib/review'
 
 interface OrgOverview {
   id: string
@@ -28,6 +29,39 @@ export default function SuperAdminPage() {
   const [fOrg, setFOrg] = useState<string | null>(null)
   const { profile, refreshProfile } = useAuth()
   const navigate = useNavigate()
+  const reviewOn = useReviewMode()
+  const [reviews, setReviews] = useState<ReviewRow[]>([])
+  const [reviewBusy, setReviewBusy] = useState(false)
+
+  useEffect(() => {
+    void listReviews().then(setReviews)
+  }, [])
+
+  async function toggleReview() {
+    setReviewBusy(true)
+    const err = await setReviewMode(!reviewOn)
+    setReviewBusy(false)
+    if (err) alert(`สลับโหมดรีวิวไม่สำเร็จ: ${err} — รัน supabase/review.sql ก่อนถ้ายังไม่ได้รัน`)
+  }
+
+  function exportReviewsCsv() {
+    const head = ['เวลา', 'กลุ่ม flow', 'จุด', 'สถานะ', 'comment', 'ผู้รีวิว']
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const statusTh = (s: string | null) =>
+      s === 'pass' ? 'ผ่าน' : s === 'fail' ? 'ไม่ผ่าน' : s === 'note' ? 'สังเกต' : ''
+    const lines = reviews.map((r) =>
+      [new Date(r.created_at).toLocaleString('th-TH'), r.flow, r.label, statusTh(r.status), r.comment, r.created_by_name]
+        .map(esc)
+        .join(','),
+    )
+    const csv = '﻿' + [head.map(esc).join(','), ...lines].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `hop-reviews-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   // คลิกชื่อองค์กร → สวมสิทธิ์เข้าไปทำงานเสมือนสมาชิกองค์กรนั้น (ต้องรัน supabase/impersonate.sql ก่อน)
   async function enterOrg(o: OrgOverview) {
@@ -114,6 +148,52 @@ export default function SuperAdminPage() {
         </div>
       </div>
       <div className="team-wrap super-wrap">
+        <section className="form-card">
+          <h3>โหมดรีวิว/ทดสอบระบบ (QA)</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            เปิดแล้วผู้ใช้ทุกคนจะเห็นปุ่ม "📝 รีวิว" ลอยมุมล่างซ้าย ไว้กรอกผลทดสอบตาม checkpoint · ปิดเมื่อขึ้นใช้งานจริง
+          </p>
+          <div className="org-row" style={{ alignItems: 'center' }}>
+            <button
+              className={`btn ${reviewOn ? 'danger' : 'primary'}`}
+              disabled={reviewBusy}
+              onClick={() => void toggleReview()}
+            >
+              {reviewBusy ? 'กำลังสลับ…' : reviewOn ? 'ปิดโหมดรีวิว' : 'เปิดโหมดรีวิว'}
+            </button>
+            <span className={`status-pill ${reviewOn ? 'on' : ''}`}>{reviewOn ? 'เปิดอยู่' : 'ปิดอยู่'}</span>
+            <span style={{ flex: 1 }} />
+            <span style={{ color: 'var(--muted)', fontSize: 13 }}>ผลรีวิว {reviews.length} รายการ</span>
+            {reviews.length > 0 && (
+              <button className="btn sm" onClick={exportReviewsCsv}>ดาวน์โหลด CSV</button>
+            )}
+          </div>
+          {reviews.length > 0 && (
+            <div className="table-scroll" style={{ marginTop: 12 }}>
+              <table className="data-table">
+                <thead>
+                  <tr><th>เวลา</th><th>จุด</th><th>สถานะ</th><th>comment</th><th>โดย</th></tr>
+                </thead>
+                <tbody>
+                  {reviews.slice(0, 50).map((r) => (
+                    <tr key={r.id}>
+                      <td data-label="เวลา">{formatDate(r.created_at)}</td>
+                      <td data-label="จุด" className="td-main">{r.label}<div className="td-sub">{r.flow}</div></td>
+                      <td data-label="สถานะ">
+                        <span className={`status-pill ${r.status === 'pass' ? 'on' : ''}`}>
+                          {r.status === 'pass' ? 'ผ่าน' : r.status === 'fail' ? 'ไม่ผ่าน' : 'สังเกต'}
+                        </span>
+                      </td>
+                      <td data-label="comment">{r.comment || '—'}</td>
+                      <td data-label="โดย">{r.created_by_name || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
         <section className="form-card">
           <h3>องค์กรทั้งหมด · บริหาร Subscription</h3>
           {orgs.length > 0 && (
