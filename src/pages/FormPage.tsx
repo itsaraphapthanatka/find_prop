@@ -432,7 +432,6 @@ export default function FormPage() {
             )}
             <p className="photo-hint">รูปที่มีป้าย "ปก" จะโชว์ในรายการ/แผนที่ · กด "ตั้งเป็นปก" เพื่อเปลี่ยน · สูงสุด {MAX_PHOTOS} รูป</p>
           </div>
-          <TextField name="pic" {...fp} />
         </Section>
 
         <Section title="ผู้ให้เช่า">

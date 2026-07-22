@@ -56,7 +56,6 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           )}
 
           <Field label={LABELS.record_date} value={formatDate(p.record_date)} />
-          <Field label={LABELS.pic} value={p.pic} />
           <Field label="ลงโดย" value={p.created_by_name} />
 
           <div className="section-title">ผู้ให้เช่า</div>
