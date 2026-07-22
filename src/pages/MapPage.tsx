@@ -149,6 +149,12 @@ export default function MapPage() {
     navigate(`/new?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`)
   }
 
+  function addAtMe() {
+    if (!me) return
+    const [lat, lng] = me.pos
+    navigate(`/new?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`)
+  }
+
   async function locateMe() {
     setLocating(true)
     const r = await getPosition()
@@ -287,7 +293,13 @@ export default function MapPage() {
                   <Popup>
                     <div className="map-popup">
                       <div className="title">ตำแหน่งของคุณ</div>
+                      <div className="coords">{me.pos[0].toFixed(6)}, {me.pos[1].toFixed(6)}</div>
                       <div className="hint">แม่นยำ ±{Math.round(me.accuracy).toLocaleString('th-TH')} ม.</div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                        <button className="btn sm primary" onClick={addAtMe}>
+                          + เพิ่มทรัพย์ที่นี่
+                        </button>
+                      </div>
                     </div>
                   </Popup>
                 </Marker>
