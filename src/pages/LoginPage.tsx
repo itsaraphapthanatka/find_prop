@@ -10,7 +10,7 @@ function Brand() {
         <rect width="32" height="32" rx="7" fill="#7132f5" />
         <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
       </svg>
-      <span>H<span className="brand-accent">UP</span></span>
+      <span>H<span className="brand-accent">OP</span></span>
     </div>
   )
 }

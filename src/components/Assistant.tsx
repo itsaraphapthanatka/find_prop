@@ -120,7 +120,7 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
             `P${i + 1} | ${pl.title} | ลูกค้า ${pl.customer_name ?? '-'} | นัด ${pl.visit_date ?? '-'} | จุดแวะ: ${pl.stops.map((s) => byId.get(s.property_id)?.code).filter(Boolean).join(', ') || '-'} | req: ${pl.requirement ?? '-'}`,
         )
         .join('\n') || '(ยังไม่มีแผนเยี่ยมชม)'
-    return `คุณคือ "ผู้ช่วย HUP" ผู้ช่วย AI ในแอปฐานข้อมูลทรัพย์ให้เช่า/ขายของทีมนายหน้าอสังหาริมทรัพย์
+    return `คุณคือ "ผู้ช่วย HOP" ผู้ช่วย AI ในแอปฐานข้อมูลทรัพย์ให้เช่า/ขายของทีมนายหน้าอสังหาริมทรัพย์
 วันนี้: ${new Date().toISOString().slice(0, 10)}
 
 ทรัพย์ในระบบ${trimmed ? ` — คัดมา ${picked.length} รายการที่เกี่ยวกับบทสนทนาที่สุด จากทั้งหมด ${total}` : ` (ทั้งหมด ${total} รายการ)`} (1 บรรทัด = 1 ทรัพย์ เริ่มด้วยรหัส):
@@ -263,7 +263,7 @@ ${plansBrief}
       <div className="assist-overlay" onClick={onClose} />
       <aside className="assist-panel">
         <div className="assist-head">
-          <span className="assist-title"><IconSparkles size={17} /> ผู้ช่วย HUP</span>
+          <span className="assist-title"><IconSparkles size={17} /> ผู้ช่วย HOP</span>
           <button
             className={`icon-btn ${speakOn ? 'on' : ''}`}
             title={speakOn ? 'ปิดเสียงอ่านคำตอบ' : 'เปิดเสียงอ่านคำตอบ'}
