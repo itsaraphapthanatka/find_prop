@@ -1,18 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { useAuth, type Profile } from '../lib/auth'
+import { API_BASE } from '../lib/native'
 
 // โปรไฟล์ + ฟิลด์การมองเห็นทรัพย์ (คอลัมน์ see_all_properties เพิ่มจาก property-visibility.sql)
 type MemberRow = Profile & { see_all_properties?: boolean }
-
-// client แยกสำหรับสมัครบัญชีลูกทีม — ไม่เก็บ session เพื่อไม่ให้ทับ session ของแอดมิน
-const inviteClient = createClient(
-  (import.meta.env.VITE_SUPABASE_URL as string) ?? 'https://placeholder.supabase.co',
-  (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ?? 'placeholder',
-  { auth: { persistSession: false, autoRefreshToken: false } },
-)
 
 export default function TeamPage() {
   const { profile: me, org, refreshProfile } = useAuth()
@@ -59,23 +52,28 @@ export default function TeamPage() {
     setAdding(true)
     setNotice(null)
     setError(null)
-    const { data, error } = await inviteClient.auth.signUp({
-      email: email.trim(),
-      password,
-      options: { data: { full_name: name.trim() } },
-    })
-    if (error) {
-      setError(`เพิ่มลูกทีมไม่สำเร็จ: ${error.message}`)
+    // สร้างลูกทีมผ่าน API ฝั่งเซิร์ฟเวอร์ (service role, ยืนยันอีเมลเลย → ไม่ส่งเมล ไม่ติด rate limit)
+    const { data: s } = await supabase.auth.getSession()
+    try {
+      const res = await fetch(`${API_BASE}/api/create-member`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${s.session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ email: email.trim(), password, full_name: name.trim() }),
+      })
+      const out = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(`เพิ่มลูกทีมไม่สำเร็จ: ${out.error || res.statusText}`)
+        setAdding(false)
+        return
+      }
+      setNotice(`เพิ่ม ${email.trim()} เข้า ${org?.name ?? 'องค์กร'} แล้ว — ใช้ล็อกอินได้ทันที`)
+    } catch (err) {
+      setError(`เพิ่มลูกทีมไม่สำเร็จ: ${err instanceof Error ? err.message : String(err)}`)
       setAdding(false)
       return
-    }
-    // trigger สร้างโปรไฟล์ (ยังไม่มีองค์กร) แล้ว — ดึงเข้าองค์กรของแอดมิน + เปิดใช้งาน
-    if (data.user) {
-      const { error: adoptErr } = await supabase.rpc('adopt_member', {
-        member_id: data.user.id,
-      })
-      if (adoptErr) setError(`สร้างบัญชีแล้วแต่ดึงเข้าองค์กรไม่สำเร็จ: ${adoptErr.message}`)
-      else setNotice(`เพิ่ม ${email.trim()} เข้า ${org?.name ?? 'องค์กร'} แล้ว — ใช้ล็อกอินได้ทันที`)
     }
     setName('')
     setEmail('')
