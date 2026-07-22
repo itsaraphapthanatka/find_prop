@@ -157,8 +157,9 @@ export default function App() {
             <Route path="/" element={<ListPage search={search} />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/map" element={<MapPage />} />
-            <Route path="/new" element={<FormPage />} />
-            <Route path="/edit/:id" element={<FormPage />} />
+            {/* key ตาม path — สลับ new/edit หรือแก้คนละทรัพย์ ให้ FormPage remount ล้างฟอร์มใหม่ */}
+            <Route path="/new" element={<FormPage key={location.pathname} />} />
+            <Route path="/edit/:id" element={<FormPage key={location.pathname} />} />
             <Route path="/plans" element={<PlansPage />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route
