@@ -12,7 +12,7 @@ import { formatDate } from '../labels'
 import Combo from '../components/Combo'
 import PropertyDetail from '../components/PropertyDetail'
 import VoiceButton from '../components/VoiceButton'
-import { IconClose, IconDown, IconHouse, IconPin, IconSparkles, IconTrash, IconUp } from '../components/icons'
+import { IconClose, IconDown, IconHouse, IconPhone, IconPin, IconSms, IconSparkles, IconTrash, IconUp } from '../components/icons'
 
 /** ผลวิเคราะห์จาก AI เมื่อลูกค้าเปลี่ยน requirement */
 interface MatchResult {
@@ -288,6 +288,12 @@ ${catalog}
                         )}
                       </div>
                       <div className="stop-actions">
+                        {p?.phone && (
+                          <>
+                            <a className="icon-btn" href={`tel:${p.phone}`} title="โทร"><IconPhone size={16} /></a>
+                            <a className="icon-btn" href={`sms:${p.phone}`} title="ส่งข้อความ"><IconSms size={16} /></a>
+                          </>
+                        )}
                         <button className="icon-btn" title="เลื่อนขึ้น" disabled={i === 0}
                           onClick={() => moveStop(sel, i, -1)}><IconUp size={16} /></button>
                         <button className="icon-btn" title="เลื่อนลง" disabled={i === sel.stops.length - 1}
