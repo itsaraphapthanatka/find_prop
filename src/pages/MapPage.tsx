@@ -261,6 +261,7 @@ export default function MapPage() {
               <Marker key={p.id} position={[p.lat, p.lng]} icon={pinFor(p.property_type)}>
                 <Popup>
                   <div className="map-popup">
+                    {p.photo_url && <img className="map-popup-img" src={p.photo_url} alt={p.code} />}
                     <div className="title">{p.code}</div>
                     {isSuper && p.org_name && <div className="hint">องค์กร: {p.org_name}</div>}
                     <div>{[p.property_type, p.listing_type].filter(Boolean).join(' · ')}</div>
