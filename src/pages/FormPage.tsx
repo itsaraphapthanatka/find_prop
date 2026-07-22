@@ -10,6 +10,7 @@ import { logActivity } from '../lib/activityLog'
 import { useAuth } from '../lib/auth'
 import { IconCamera, IconSparkles } from '../components/icons'
 import { isNativeApp, takePhoto } from '../lib/native'
+import { TypeIcon, typeColor } from '../lib/propertyStyle'
 
 const emptyForm: PropertyInput = {
   code: '',
@@ -113,23 +114,34 @@ function NumberField({ name, form, set, required }: FieldProps<NumKey>) {
   )
 }
 
-function ButtonsField({ name, form, set, required, options }: FieldProps<TextKey> & { options: string[] }) {
+function ButtonsField({
+  name, form, set, required, options, icon, color,
+}: FieldProps<TextKey> & {
+  options: string[]
+  icon?: (o: string) => React.ReactNode
+  color?: (o: string) => string | undefined
+}) {
   return (
     <div className="form-field">
       <label>
         {LABELS[name]} {required && <span className="req">*</span>}
       </label>
       <div className="btn-group">
-        {options.map((o) => (
-          <button
-            key={o}
-            type="button"
-            className={`opt ${form[name] === o ? 'on' : ''}`}
-            onClick={() => set(name, form[name] === o ? null : o)}
-          >
-            {o}
-          </button>
-        ))}
+        {options.map((o) => {
+          const on = form[name] === o
+          const c = color?.(o)
+          return (
+            <button
+              key={o}
+              type="button"
+              className={`opt ${on ? 'on' : ''}`}
+              style={on && c ? { background: `${c}1a`, borderColor: c, color: c } : undefined}
+              onClick={() => set(name, on ? null : o)}
+            >
+              {icon?.(o)}{o}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -383,7 +395,8 @@ export default function FormPage() {
         </section>
 
         <Section title="ประเภทและทำเล">
-          <ButtonsField name="property_type" options={OPTIONS.property_type} required {...fp} />
+          <ButtonsField name="property_type" options={OPTIONS.property_type} required {...fp}
+            icon={(o) => <TypeIcon type={o} size={20} />} color={typeColor} />
           <ButtonsField name="listing_type" options={OPTIONS.listing_type} required {...fp} />
           <div className="form-grid-2">
             <TextField name="subdistrict" required {...fp} />

@@ -10,36 +10,10 @@ import { formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import { IconClose, IconLocate, IconPin } from '../components/icons'
 import { getPosition } from '../lib/native'
+import { PROPERTY_STYLE as PIN_STYLE, TYPE_FALLBACK as PIN_FALLBACK } from '../lib/propertyStyle'
 
-// ── หมุดตามประเภททรัพย์: สีประจำประเภท (ไม่ซ้ำกัน) + ไอคอนสื่อประเภทในหัวหมุด ──
-// ใช้ทั้งสีและรูปคู่กันเสมอ เพื่อให้แยกประเภทออกแม้มองสีต่างกันไม่ชัด
-// ประเภทที่ไม่รู้จัก/ว่าง → บ้านสีเทา (อย่าลืมเติมที่นี่ถ้ามีประเภทใหม่ใน labels.ts)
-const PIN_STYLE: Record<string, { color: string; glyph: string }> = {
-  'โรงงาน': {
-    color: '#2563eb', // น้ำเงิน
-    glyph: '<path d="M2 21V9.5l6 3.2V9.5l6 3.2V9.5l6 3.2V21H2z"/><path d="M17 3h4v8h-4z"/>',
-  },
-  'โชว์รูม': {
-    color: '#db2777', // ชมพูบานเย็น
-    glyph: '<path d="M3.5 8 5 3h14l1.5 5c0 1.5-1.2 2.7-2.7 2.7-1.2 0-2.2-.7-2.6-1.8-.4 1.1-1.4 1.8-2.6 1.8s-2.2-.7-2.6-1.8c-.4 1.1-1.4 1.8-2.6 1.8C4.7 10.7 3.5 9.5 3.5 8z"/><path d="M5 12.5h14V21h-4.5v-5h-5v5H5z"/>',
-  },
-  'โกดัง': {
-    color: '#d97706', // ส้มอำพัน
-    glyph: '<path d="M3 21V9l9-5 9 5v12h-5v-7H8v7H3z"/>',
-  },
-  'ออฟฟิศ': {
-    color: '#0d9488', // เขียวหัวเป็ด
-    glyph: '<path fill-rule="evenodd" d="M5 21V4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5V21h-4v-4h-6v4H5zm3-14h3v3H8V7zm5 0h3v3h-3V7zm-5 5h3v3H8v-3zm5 0h3v3h-3v-3z"/>',
-  },
-  'ครัวกลาง': {
-    color: '#dc2626', // แดง
-    glyph: '<path d="M3.5 10h17v1.5c0 3-1.7 5.6-4.5 6.9v1.1c0 .8-.7 1.5-1.5 1.5h-5c-.8 0-1.5-.7-1.5-1.5v-1.1C5.2 17.1 3.5 14.5 3.5 11.5V10z"/><path d="M8 8c0-1.8 1-1.8 1-3.3M12 8c0-1.8 1-1.8 1-3.3M16 8c0-1.8 1-1.8 1-3.3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>',
-  },
-}
-const PIN_FALLBACK = {
-  color: '#64748b', // เทา
-  glyph: '<path d="M4 21v-9l8-7 8 7v9h-5.5v-5.5h-5V21H4z"/>',
-}
+// PIN_STYLE / PIN_FALLBACK (สี + glyph ต่อประเภท) ย้ายไปใช้ร่วมกันที่ src/lib/propertyStyle
+// (import ด้านบน) — ปุ่มเลือกประเภทในฟอร์มใช้ชุดเดียวกัน สี/ไอคอนจึงตรงกับหมุดเสมอ
 
 const pinSvg = (color: string, glyph: string) => `
 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
