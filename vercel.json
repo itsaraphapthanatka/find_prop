@@ -6,7 +6,9 @@
     { "source": "/FLOW.html", "destination": "/flow.html", "permanent": false },
     { "source": "/Flow-internal.html", "destination": "/flow-internal.html", "permanent": false },
     { "source": "/Features.html", "destination": "/features.html", "permanent": false },
-    { "source": "/FEATURES.html", "destination": "/features.html", "permanent": false }
+    { "source": "/FEATURES.html", "destination": "/features.html", "permanent": false },
+    { "source": "/Qa-review.html", "destination": "/qa-review.html", "permanent": false },
+    { "source": "/QA-review.html", "destination": "/qa-review.html", "permanent": false }
   ],
   "functions": {
     "api/ai.js": {

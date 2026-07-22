@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HOP — เช็กลิสต์รีวิว/ทดสอบระบบ (QA)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --brand:#7132f5; --ink:#1c1730; --muted:#6b6785; --line:#e4e0f0; --bg:#fff;
+    --soft:#faf9ff; --soft2:#f3f0fd; --ok:#16a34a; --bad:#dc2626; --warn:#d97706;
+    --sans:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--soft); color:var(--ink); font-family:var(--sans); line-height:1.6; font-size:15px}
+  .wrap{max-width:1100px; margin:0 auto; padding:0 20px 80px}
+  header.hero{background:linear-gradient(135deg,#7132f5,#5a1fd0); color:#fff; padding:40px 20px 34px; margin-bottom:24px}
+  .hero-in{max-width:1100px; margin:0 auto}
+  .logo{display:flex; align-items:center; gap:9px; font-weight:700; font-size:19px}
+  .logo .mark{width:28px;height:28px;border-radius:7px;background:#fff;display:grid;place-items:center}
+  .hero h1{font-size:27px; margin:16px 0 6px; font-weight:700}
+  .hero p{margin:0; opacity:.9; max-width:720px}
+  .hero .meta{margin-top:14px; font-size:12.5px; opacity:.8; font-family:var(--mono)}
+  .howto{background:var(--bg); border:1px solid var(--line); border-left:4px solid var(--brand); border-radius:0 12px 12px 0; padding:14px 18px; margin-bottom:10px; font-size:14px}
+  .howto b{font-weight:600}
+  .howto ul{margin:8px 0 0; padding-left:20px; color:var(--muted)}
+  .howto li{margin:3px 0}
+  .legend{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13px; color:var(--muted); margin:14px 2px}
+  .legend b{color:var(--ink)}
+  section{margin-top:30px}
+  h2{font-size:19px; font-weight:700; margin:0 0 4px; display:flex; align-items:center; gap:10px}
+  h2 .num{width:26px;height:26px;border-radius:7px;background:var(--brand);color:#fff;font-size:13px;display:grid;place-items:center;flex:none}
+  .lead{color:var(--muted); font-size:13.5px; margin:2px 0 12px}
+  table{width:100%; border-collapse:collapse; background:var(--bg); border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:top}
+  th{background:var(--soft2); font-weight:600; font-size:12.5px; white-space:nowrap}
+  td.cp{font-weight:600; width:24%}
+  td.exp{color:#4a4560; width:34%}
+  td.fill{background:#fcfcff; min-width:70px}
+  td.crit{border-left:3px solid var(--bad)}
+  .tag{display:inline-block; font-size:10.5px; font-weight:600; color:#fff; padding:1px 7px; border-radius:999px}
+  .tag.crit{background:var(--bad)} .tag.new{background:var(--warn)}
+  .note{color:var(--muted); font-size:12px; margin-top:3px}
+  code{font-family:var(--mono); font-size:.85em; background:var(--soft2); border-radius:4px; padding:1px 5px; color:var(--brand)}
+  footer{margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; text-align:center}
+  @media print{
+    body{background:#fff; font-size:11px}
+    header.hero{background:var(--brand)!important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    th,td.fill,td.crit,.tag{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+    section,table,tr{break-inside:avoid}
+    td.fill{min-height:34px}
+    @page{size:A4 landscape; margin:12mm}
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-in">
+    <div class="logo"><span class="mark"><svg width="18" height="18" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#7132f5"/><path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff"/></svg></span><span>H<span style="opacity:.85">OP</span></span></div>
+    <h1>เช็กลิสต์รีวิว/ทดสอบระบบ (QA Review)</h1>
+    <p>จุดตรวจ (checkpoint) วางไว้ตอน "ปิดท้ายแต่ละ user journey ที่มีจุดตัดสินใจหรือผลลัพธ์ที่ตรวจสอบได้" — ไม่ใช่ทุกคลิก เพื่อให้ผู้ทดสอบไม่เหนื่อยและข้อมูลไม่รก</p>
+    <div class="meta">HOP · เอกสารทดสอบภายใน · ก่อนขึ้น production</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="howto">
+    <b>วิธีใช้</b>
+    <ul>
+      <li>ทำตามแต่ละ checkpoint แล้วกรอก 3 คอลัมน์ขวา: <b>ผลจริง</b> · <b>สถานะ</b> · <b>หมายเหตุ/comment</b></li>
+      <li>เอาไป Google Sheet ได้: ลากเลือกทั้งตาราง → คัดลอก → วางใน Sheet (โครงตารางติดไปด้วย) · หรือกด <b>Ctrl/Cmd+P</b> พิมพ์เป็นกระดาษ (จัดเป็นแนวนอน A4 ให้แล้ว)</li>
+      <li>เจอสถานะ <b>❌ ไม่ผ่าน</b> โดยเฉพาะที่ติดป้าย <span class="tag crit">critical</span> → ตั้ง ticket ส่งทีมพัฒนาทันที</li>
+    </ul>
+    <div class="legend">
+      <span><b>สถานะ:</b></span>
+      <span>✅ ผ่าน</span><span>❌ ไม่ผ่าน</span><span>⚠️ มีข้อสังเกต</span>
+      <span><span class="tag crit">critical</span> = พังแล้วกระทบหนัก</span>
+      <span><span class="tag new">ยังไม่เคยทดสอบ</span></span>
+    </div>
+  </div>
+
+  <!-- 1 -->
+  <section>
+    <h2><span class="num">1</span> Flow เพิ่มทรัพย์</h2>
+    <p class="lead">แยก checkpoint เพราะแต่ละจุดทดสอบคนละความสามารถ</p>
+    <table>
+      <thead><tr><th>Checkpoint (จุด)</th><th>ผลที่คาดหวัง</th><th>ผลจริง</th><th>สถานะ</th><th>หมายเหตุ / comment</th></tr></thead>
+      <tbody>
+        <tr><td class="cp">1.1 หลังกดปุ่ม "🎤 พูด" แล้วพูดข้อมูลทรัพย์</td><td class="exp">ข้อความที่ถอดเสียงตรงกับที่พูด — ตัวเลข/หน่วยถูก (เช่น "แปดหมื่นห้า" → 85,000)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">1.2 หลังกด "ให้ AI กรอกฟอร์ม" จากข้อความ</td><td class="exp">ข้อมูลแมปเข้าช่องถูกทุกช่อง — <b>โดยเฉพาะขนาดที่ดิน ≠ ขนาดอาคาร</b> (ห้ามสลับ) จุดที่ AI เคยสับสน<div class="note">จุดสำคัญมาก</div></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">1.3 หลังกด "บันทึก" ทรัพย์สำเร็จ</td><td class="exp">เปิดดูรายละเอียด/แก้ไข → ข้อมูลที่บันทึกจริงตรงกับที่กรอกครบทุกช่อง</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">1.4 วางหมุดบนแผนที่ → กด "+ เพิ่มทรัพย์ที่จุดนี้"</td><td class="exp">ฟอร์มเปิดพร้อม lat/lng ตรงกับจุดที่ปักบนแผนที่</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <h2><span class="num">2</span> Flow แก้ไข &amp; ลบทรัพย์</h2>
+    <table>
+      <thead><tr><th>Checkpoint (จุด)</th><th>ผลที่คาดหวัง</th><th>ผลจริง</th><th>สถานะ</th><th>หมายเหตุ / comment</th></tr></thead>
+      <tbody>
+        <tr><td class="cp">2.1 หลังกด "บันทึก" การแก้ไข</td><td class="exp">ค่าที่แก้เปลี่ยนตามจริง · ค่าอื่นที่ไม่ได้แตะไม่เพี้ยน (เทียบก่อน–หลัง)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp crit">2.2 <b>ก่อน</b>กดปุ่ม "ลบ" — หยุดรีวิวก่อนคลิก <span class="tag crit">critical</span></td><td class="exp">กดลบต้องมี <b>dialog ยืนยันก่อนเสมอ</b> ทุกที่ (หน้ารายการ + แผงรายละเอียด + ในแอปมือถือ) ถ้าลบทันทีไม่ถาม → flag critical<div class="note">โค้ดปัจจุบันมี <code>window.confirm</code> "ลบรายการ …?" แล้ว — จุดนี้ยืนยันว่าเด้งจริงทุกหน้า/ทุกอุปกรณ์</div></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <h2><span class="num">3</span> Flow ค้นหา &amp; กรอง</h2>
+    <table>
+      <thead><tr><th>Checkpoint (จุด)</th><th>ผลที่คาดหวัง</th><th>ผลจริง</th><th>สถานะ</th><th>หมายเหตุ / comment</th></tr></thead>
+      <tbody>
+        <tr><td class="cp">3.1 ช่องค้นหาบน header</td><td class="exp">พิมพ์รหัส/ทำเล/ประเภท → กรองรายการถูกต้องและทันที</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">3.2 เทียบช่องค้นหาหลัก vs dropdown ค้นหาใน เปรียบเทียบ / แผนเยี่ยม / AI</td><td class="exp">พิมพ์คำเดียวกันทั้งสองที่ → ได้ผลลัพธ์สอดคล้องกัน (ชุดทรัพย์เดียวกัน)<div class="note">เคยเจอความไม่สอดคล้องระหว่างช่องหลักกับ dropdown</div></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <h2><span class="num">4</span> Flow ที่ใช้ AI ช่วยวิเคราะห์</h2>
+    <p class="lead">ทุกจุด: หลังกดให้ AI ประมวลผล เช็ก 2 เรื่อง — (ก) คำตอบสมเหตุสมผลกับข้อมูลจริง ไม่มโนทรัพย์ที่ไม่มี · (ข) เวลาตอบสนองยอมรับได้ (ระบุวินาที)</p>
+    <table>
+      <thead><tr><th>Checkpoint (จุด)</th><th>ผลที่คาดหวัง</th><th>ผลจริง</th><th>สถานะ</th><th>หมายเหตุ / comment (เวลา…วิ)</th></tr></thead>
+      <tbody>
+        <tr><td class="cp">4.1 เปรียบเทียบทรัพย์ — AI เขียนบทวิเคราะห์</td><td class="exp">บทวิเคราะห์อิงสเปกจริงของทรัพย์ที่เลือก · จุดเด่น/ข้อควรพิจารณาสมเหตุสมผล</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">4.2 Dashboard — AI วิเคราะห์พอร์ตรายวัน</td><td class="exp">สรุปตรงกับข้อมูลพอร์ตจริง (จำนวน/สัดส่วน/ช่องว่างความต้องการ)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">4.3 แผนเยี่ยม — ลูกค้าเปลี่ยน requirement → AI re-match</td><td class="exp">แนะนำทรัพย์ที่ตรง requirement ใหม่จริง + ชี้จุดเดิมที่ไม่ตรง (รหัสมีจริงในระบบ)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">4.4 AI Assistant — แชทถาม/สั่งงาน</td><td class="exp">ตอบจากข้อมูลจริง (ไม่มีก็บอกตรง) · คำสั่งมีปุ่มยืนยันก่อนทำจริง</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <h2><span class="num">5</span> Flow ความเสี่ยงสูง (ทำผิดกระทบมาก)</h2>
+    <p class="lead">ต้องยืนยันก่อนลงมือจริง + ตรวจว่ามี validation กันข้อมูลผิด</p>
+    <table>
+      <thead><tr><th>Checkpoint (จุด)</th><th>ผลที่คาดหวัง</th><th>ผลจริง</th><th>สถานะ</th><th>หมายเหตุ / comment</th></tr></thead>
+      <tbody>
+        <tr><td class="cp">5.1 เพิ่มลูกทีม — ก่อนกด "เพิ่มลูกทีม"</td><td class="exp">ใช้อีเมล/ข้อมูล <b>ทดสอบ</b> เท่านั้น (ไม่สร้างบัญชีจริงมั่ว) · ทวนก่อนกด</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">5.2 เพิ่มลูกทีม — validation <span class="tag new">ยังไม่เคยทดสอบ</span></td><td class="exp">ระบบกันอีเมลซ้ำ/รหัสสั้นเกิน 6/ช่องว่าง — ขึ้น error ชัด ไม่สร้างบัญชีพัง</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">5.3 นำเข้า (Import) — ก่อนกด upload จริง</td><td class="exp">ใช้ไฟล์ <b>ทดสอบ</b> เท่านั้น · ทวนก่อนนำเข้า</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+        <tr><td class="cp">5.4 นำเข้า — validation <span class="tag new">ยังไม่เคยทดสอบ</span></td><td class="exp">กันข้อมูลผิด: คอลัมน์ไม่ครบ/ชนิดผิด/รหัสซ้ำ (ให้เลือกข้าม/อัปเดตทับ) — ไม่นำเข้าขยะเข้าฐาน</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>HOP — เช็กลิสต์รีวิว/ทดสอบระบบ · ยึดหลัก "ปิดท้าย journey ที่มีจุดตัดสินใจ/ผลตรวจสอบได้" · เฟสถัดไป: ฝัง review เข้าแอป (super เปิด-ปิดได้)</footer>
+
+</div>
+</body>
+</html>
