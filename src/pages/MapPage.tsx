@@ -93,6 +93,12 @@ export default function MapPage() {
   const [map, setMap] = useState<L.Map | null>(null)
   const [me, setMe] = useState<{ pos: [number, number]; accuracy: number } | null>(null)
   const [locating, setLocating] = useState(false)
+  // เลเยอร์ฐาน: แผนที่ (OSM) หรือ ภาพดาวเทียม (Esri) — ทั้งคู่ฟรี ไม่มี key
+  const [baseLayer, setBaseLayer] = useState<'map' | 'satellite'>('map')
+  // ค้นหาที่อยู่/สถานที่ ด้วย geocoder ฟรี (OSM Nominatim)
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<{ label: string; lat: number; lng: number }[]>([])
+  const [searching, setSearching] = useState(false)
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const focusId = params.get('focus')
@@ -174,6 +180,45 @@ export default function MapPage() {
     map?.flyTo(p, Math.max(map.getZoom(), 15), { duration: 0.8 })
   }
 
+  // ค้นหาที่อยู่: หน่วง 450ms + อย่างน้อย 3 ตัวอักษร (มารยาทต่อ Nominatim) · ยกเลิกคำค้นเก่าเมื่อพิมพ์ต่อ
+  useEffect(() => {
+    const term = q.trim()
+    if (term.length < 3) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const ctrl = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=th&accept-language=th&q=${encodeURIComponent(term)}`,
+          { signal: ctrl.signal, headers: { Accept: 'application/json' } },
+        )
+        const data = (await res.json()) as { display_name: string; lat: string; lon: string }[]
+        setResults(data.map((d) => ({ label: d.display_name, lat: parseFloat(d.lat), lng: parseFloat(d.lon) })))
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) setResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 450)
+    return () => {
+      clearTimeout(t)
+      ctrl.abort()
+    }
+  }, [q])
+
+  // เลือกผลค้นหา → เด้งแผนที่ไปจุดนั้น + ปักหมุดชั่วคราว (กด "+ เพิ่มทรัพย์ที่จุดนี้" ต่อได้เลย)
+  function pickResult(r: { label: string; lat: number; lng: number }) {
+    map?.flyTo([r.lat, r.lng], 16, { duration: 0.8 })
+    setDraft([r.lat, r.lng])
+    setPicking(false)
+    setResults([])
+    setQ('')
+  }
+
   return (
     <div className={`map-page ${picking ? 'picking' : ''}`}>
       <div className="view-header">
@@ -204,6 +249,39 @@ export default function MapPage() {
             onClick={locateMe}
           >
             <IconLocate size={20} className={locating ? 'locating' : undefined} />
+          </button>
+        )}
+        {/* ค้นหาที่อยู่/สถานที่ (geocoder ฟรี) — เลือกผลแล้วเด้งไป + ปักหมุด */}
+        {!loading && (
+          <div className="map-search">
+            <input
+              type="text"
+              placeholder="ค้นหาที่อยู่ / สถานที่…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            {q.trim().length >= 3 && (
+              <div className="map-search-results">
+                {searching && <div className="map-search-empty">กำลังค้นหา…</div>}
+                {!searching && results.length === 0 && <div className="map-search-empty">ไม่พบผลลัพธ์</div>}
+                {results.map((r, i) => (
+                  <button key={i} type="button" className="map-search-item" onClick={() => pickResult(r)}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {/* สลับ แผนที่ ↔ ภาพดาวเทียม */}
+        {!loading && (
+          <button
+            type="button"
+            className="map-layer-toggle"
+            onClick={() => setBaseLayer((v) => (v === 'map' ? 'satellite' : 'map'))}
+            title={baseLayer === 'map' ? 'สลับเป็นภาพดาวเทียม' : 'สลับเป็นแผนที่'}
+          >
+            {baseLayer === 'map' ? '🛰 ดาวเทียม' : '🗺 แผนที่'}
           </button>
         )}
         {/* legend สีตามประเภททรัพย์ — แตะเพื่อดูเฉพาะประเภทนั้น แตะซ้ำกลับมาทั้งหมด */}
@@ -251,10 +329,20 @@ export default function MapPage() {
             zoom={focused ? 15 : 10}
             scrollWheelZoom
           >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            {baseLayer === 'satellite' ? (
+              <TileLayer
+                key="sat"
+                attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={19}
+              />
+            ) : (
+              <TileLayer
+                key="osm"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+            )}
             {!focused && <FitBounds points={points} />}
             <ClickCatcher
               enabled={picking}
