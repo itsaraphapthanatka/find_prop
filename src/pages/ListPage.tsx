@@ -7,6 +7,7 @@ import { OPTIONS, formatDate, formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
 import { IconCompare, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
+import { TypeTag } from '../lib/propertyStyle'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -221,7 +222,7 @@ export default function ListPage({ search }: { search: string }) {
             <div className="info">
               <div className="title-line">
                 <span className="title">{p.code}</span>
-                {p.property_type && <span className="tag">{p.property_type}</span>}
+                <TypeTag type={p.property_type} />
                 {p.listing_type && <span className="tag alt">{p.listing_type}</span>}
                 {isSuper && p.org_name && <span className="tag org">{p.org_name}</span>}
               </div>

@@ -40,6 +40,17 @@ export const TYPE_FALLBACK: TypeStyle = {
 export const typeColor = (type?: string | null): string | undefined =>
   type ? PROPERTY_STYLE[type]?.color : undefined
 
+/** ป้ายประเภททรัพย์: พื้นสีอ่อน + ตัวอักษรสีประจำประเภท (ประเภทไม่รู้จัก/ว่าง → ป้ายเริ่มต้น) */
+export function TypeTag({ type }: { type?: string | null }) {
+  if (!type) return null
+  const c = typeColor(type)
+  return (
+    <span className="tag" style={c ? { background: `${c}22`, color: c } : undefined}>
+      {type}
+    </span>
+  )
+}
+
 /** ไอคอนประเภท: กล่องสีประจำประเภท + glyph สีขาว (สไตล์เดียวกับหัวหมุดแผนที่) */
 export function TypeIcon({ type, size = 22 }: { type?: string | null; size?: number }) {
   const { color, glyph } = (type && PROPERTY_STYLE[type]) || TYPE_FALLBACK
