@@ -12,7 +12,7 @@ import { formatDate } from '../labels'
 import Combo from '../components/Combo'
 import PropertyDetail from '../components/PropertyDetail'
 import VoiceButton from '../components/VoiceButton'
-import { IconClose, IconDown, IconPin, IconSparkles, IconTrash, IconUp } from '../components/icons'
+import { IconClose, IconDown, IconHouse, IconPin, IconSparkles, IconTrash, IconUp } from '../components/icons'
 
 /** ผลวิเคราะห์จาก AI เมื่อลูกค้าเปลี่ยน requirement */
 interface MatchResult {
@@ -275,6 +275,9 @@ ${catalog}
                   return (
                     <li key={s.property_id} className="stop-row">
                       <span className="stop-no">{i + 1}</span>
+                      <div className="stop-thumb">
+                        {p?.photo_url ? <img src={p.photo_url} alt={p.code} /> : <IconHouse />}
+                      </div>
                       <div className="stop-info">
                         <div className="stop-title">{p ? p.code : '(ทรัพย์ถูกลบไปแล้ว)'}</div>
                         {p && (

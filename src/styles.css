@@ -592,6 +592,12 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   font-size: 12px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
 }
+.stop-thumb {
+  flex: none; width: 44px; height: 44px; border-radius: 8px; overflow: hidden;
+  background: var(--purple-subtle); display: flex; align-items: center; justify-content: center; color: #b9a3ef;
+}
+.stop-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.stop-thumb svg { width: 22px; height: 22px; }
 .stop-info { flex: 1; min-width: 0; }
 .stop-title { font-weight: 600; font-size: 14px; }
 .stop-sub { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
