@@ -382,6 +382,19 @@ export default function FormPage() {
           )}
         </section>
 
+        <Section title="ประเภทและทำเล">
+          <ButtonsField name="property_type" options={OPTIONS.property_type} required {...fp} />
+          <ButtonsField name="listing_type" options={OPTIONS.listing_type} required {...fp} />
+          <div className="form-grid-2">
+            <TextField name="subdistrict" required {...fp} />
+            <TextField name="district" required {...fp} />
+            <TextField name="province" required {...fp} />
+            <ComboField name="color_zone" options={OPTIONS.color_zone} required {...fp} />
+          </div>
+          <MultiField name="zones" options={OPTIONS.zones} {...fp} />
+          <TextField name="nearby" {...fp} />
+        </Section>
+
         <Section title="ข้อมูลทั่วไป">
           <div className="form-grid-2">
             <TextField name="record_date" type="date" required {...fp} />
@@ -442,19 +455,6 @@ export default function FormPage() {
             <TextField name="phone" type="tel" required {...fp} />
           </div>
           <TextField name="deed_no" {...fp} />
-        </Section>
-
-        <Section title="ประเภทและทำเล">
-          <ButtonsField name="property_type" options={OPTIONS.property_type} required {...fp} />
-          <ButtonsField name="listing_type" options={OPTIONS.listing_type} required {...fp} />
-          <div className="form-grid-2">
-            <TextField name="subdistrict" required {...fp} />
-            <TextField name="district" required {...fp} />
-            <TextField name="province" required {...fp} />
-            <ComboField name="color_zone" options={OPTIONS.color_zone} required {...fp} />
-          </div>
-          <MultiField name="zones" options={OPTIONS.zones} {...fp} />
-          <TextField name="nearby" {...fp} />
         </Section>
 
         <Section title="ขนาดพื้นที่">
