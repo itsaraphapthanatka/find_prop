@@ -610,6 +610,8 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .stop-thumb svg { width: 22px; height: 22px; }
 .stop-info { flex: 1; min-width: 0; }
 .stop-title { font-weight: 600; font-size: 14px; }
+.stop-code { border: none; background: none; padding: 0; font: inherit; cursor: pointer; color: inherit; text-align: left; }
+.stop-code:hover { color: var(--purple); text-decoration: underline; }
 .stop-sub { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
 .stop-actions { display: flex; gap: 0; }
 .stop-actions .icon-btn { width: 30px; height: 30px; }

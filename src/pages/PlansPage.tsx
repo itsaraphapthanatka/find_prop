@@ -279,7 +279,11 @@ ${catalog}
                         {p?.photo_url ? <img src={p.photo_url} alt={p.code} /> : <IconHouse />}
                       </div>
                       <div className="stop-info">
-                        <div className="stop-title">{p ? p.code : '(ทรัพย์ถูกลบไปแล้ว)'}</div>
+                        <div className="stop-title">
+                          {p
+                            ? <button type="button" className="stop-code" onClick={() => setPreview(p)}>{p.code}</button>
+                            : '(ทรัพย์ถูกลบไปแล้ว)'}
+                        </div>
                         {p && (
                           <div className="stop-sub">
                             {[p.property_type, [p.district, p.province].filter(Boolean).join(', ')]
