@@ -330,12 +330,25 @@ export default function MapPage() {
             scrollWheelZoom
           >
             {baseLayer === 'satellite' ? (
-              <TileLayer
-                key="sat"
-                attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={19}
-              />
+              <>
+                <TileLayer
+                  key="sat"
+                  attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={19}
+                />
+                {/* ป้ายชื่อสถานที่ + ถนน โปร่งใสทับบนภาพดาวเทียม (hybrid) — ฟรี ไม่มี key */}
+                <TileLayer
+                  key="sat-places"
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={19}
+                />
+                <TileLayer
+                  key="sat-roads"
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={19}
+                />
+              </>
             ) : (
               <TileLayer
                 key="osm"
