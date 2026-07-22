@@ -361,8 +361,15 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .pick-hint { color: var(--muted); font-size: 12.5px; }
 .pick-map { height: 260px; width: 100%; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 4px; z-index: 0; }
 /* ── review panel (โหมดทดสอบ QA) ── */
-.review-fab { position: fixed; left: 16px; bottom: 16px; z-index: 1200; background: #1c1730; color: #fff; border: none; border-radius: 999px; padding: 10px 16px; font-family: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); cursor: pointer; }
+.review-fab { position: fixed; left: 16px; bottom: 16px; z-index: 1200; display: inline-flex; align-items: center; gap: 6px; background: #1c1730; color: #fff; border: none; border-radius: 999px; padding: 10px 16px; font-family: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); cursor: pointer; }
 .review-fab:hover { background: #2a2348; }
+.review-fab .rf-emoji { font-size: 15px; line-height: 1; }
+/* มือถือ: ยกขึ้นเหนือแถบเมนูล่าง + เป็น FAB วงกลม สมมาตรกับปุ่มผู้ช่วย AI */
+@media (max-width: 720px) {
+  .review-fab { bottom: calc(86px + env(safe-area-inset-bottom)); width: 54px; height: 54px; padding: 0; justify-content: center; }
+  .review-fab .rf-emoji { font-size: 22px; }
+  .review-fab .rf-label { display: none; }
+}
 .review-overlay { position: fixed; inset: 0; background: rgba(20,16,32,.4); z-index: 1201; display: flex; justify-content: flex-end; }
 .review-drawer { width: min(440px, 100%); background: #fff; height: 100%; overflow: auto; box-shadow: -8px 0 30px rgba(0,0,0,.2); display: flex; flex-direction: column; }
 .review-head { position: sticky; top: 0; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; z-index: 1; }

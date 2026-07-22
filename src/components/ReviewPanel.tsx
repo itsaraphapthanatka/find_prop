@@ -51,7 +51,8 @@ export default function ReviewPanel() {
   return (
     <>
       <button className="review-fab" onClick={() => setOpen(true)} title="รีวิว/ทดสอบระบบ">
-        📝 รีวิว
+        <span className="rf-emoji">📝</span>
+        <span className="rf-label">รีวิว</span>
       </button>
       {open && (
         <div className="review-overlay" onClick={() => setOpen(false)}>
