@@ -164,6 +164,13 @@ export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOu
       setBusy(false)
       return
     }
+    // ถ้ามาจากลิงก์ชวนเพื่อน → ผูกกับองค์กรผู้ชวน (ผู้ชวนจะได้รางวัลเมื่อครบ 2 คน)
+    let ref: string | null = null
+    try { ref = localStorage.getItem('hop_ref') } catch { /* ข้าม */ }
+    if (ref) {
+      await supabase.rpc('apply_referral', { ref_code: ref })
+      try { localStorage.removeItem('hop_ref') } catch { /* ข้าม */ }
+    }
     await refreshProfile()
   }
 

@@ -20,6 +20,11 @@ export default function TeamPage() {
   const [password, setPassword] = useState('')
   const [adding, setAdding] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  // สถานะชวนเพื่อน (referral) — โหลดจาก RPC referral_status
+  const [refStat, setRefStat] = useState<
+    { code: string; referred_count: number; rewards_granted: number; expires_at: string | null } | null
+  >(null)
+  const [copied, setCopied] = useState(false)
 
   // องค์กรที่มีผลจริง: สำหรับ super ให้องค์กรที่สวมสิทธิ์มาก่อนเสมอ
   // (super เห็นโปรไฟล์ทุกองค์กรผ่าน RLS จึงต้องกรองฝั่งนี้ให้เหลือองค์กรเดียว)
@@ -46,6 +51,39 @@ export default function TeamPage() {
     void reload()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId])
+
+  useEffect(() => {
+    void supabase.rpc('referral_status').then(({ data }) => {
+      const rows = (data ?? []) as {
+        code: string; referred_count: number; rewards_granted: number; expires_at: string | null
+      }[]
+      if (rows[0]) setRefStat(rows[0])
+    })
+  }, [])
+
+  // ลิงก์ชวนเพื่อนต้องชี้ไป "เว็บ" เสมอ (ในแอป origin เป็น capacitor://localhost)
+  const shareBase = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
+  const refLink = refStat ? `${shareBase}/#/login?ref=${refStat.code}` : ''
+  // อีกกี่คนถึงได้รางวัลรอบถัดไป (ครบทุก 2 คน)
+  const toNext = refStat ? 2 - (refStat.referred_count % 2) : 2
+
+  async function copyRefLink() {
+    try {
+      await navigator.clipboard.writeText(refLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch { /* บางเบราว์เซอร์ไม่ให้ copy — ผู้ใช้กดเลือกเองได้ */ }
+  }
+
+  async function shareRefLink() {
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
+      try {
+        await navigator.share({ title: 'HOP', text: 'สมัครใช้ HOP ผ่านลิงก์นี้', url: refLink })
+      } catch { /* ผู้ใช้ยกเลิกการแชร์ */ }
+    } else {
+      void copyRefLink()
+    }
+  }
 
   async function addMember(e: React.FormEvent) {
     e.preventDefault()
@@ -139,6 +177,33 @@ export default function TeamPage() {
             </p>
           )}
         </section>
+
+        {refStat && (
+          <section className="form-card">
+            <h3>ชวนเพื่อน รับ Pro ฟรี 🎁</h3>
+            <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75 }}>
+              ชวนเพื่อนสมัคร HOP แล้วสร้างองค์กรของตัวเอง ครบทุก <b>2 คน</b> องค์กรคุณได้ <b>Pro เพิ่ม 30 วัน</b> (สะสมได้)
+            </p>
+            <div className="org-row">
+              <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
+                <label>ลิงก์ชวนเพื่อนของคุณ</label>
+                <input type="text" readOnly value={refLink} onFocus={(e) => e.currentTarget.select()} />
+              </div>
+              <button type="button" className="btn" onClick={() => void copyRefLink()}>
+                {copied ? 'คัดลอกแล้ว ✓' : 'คัดลอก'}
+              </button>
+              {typeof navigator !== 'undefined' && 'share' in navigator && (
+                <button type="button" className="btn" onClick={() => void shareRefLink()}>แชร์</button>
+              )}
+            </div>
+            <p className="plan-line" style={{ marginTop: 12 }}>
+              ชวนสำเร็จแล้ว <b>{refStat.referred_count}</b> คน · อีก <b>{toNext}</b> คนได้ Pro +30 วัน
+              {refStat.rewards_granted > 0 && (
+                <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง (Pro +{refStat.rewards_granted * 30} วัน)</>
+              )}
+            </p>
+          </section>
+        )}
 
         <section className="form-card" data-tour="team-add">
           <h3>เพิ่มลูกทีมใหม่</h3>

@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
@@ -58,6 +58,15 @@ export default function App() {
   }, [session])
   const navigate = useNavigate()
   const location = useLocation()
+
+  // เปิดลิงก์ชวนเพื่อน (?ref=CODE) → เก็บไว้ ให้คงอยู่ข้ามหน้าสมัคร/OAuth แล้วผูกตอนสร้างองค์กร
+  const [searchParams] = useSearchParams()
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref) {
+      try { localStorage.setItem('hop_ref', ref) } catch { /* ไม่มี localStorage ก็ข้าม */ }
+    }
+  }, [searchParams])
 
   // ขั้นตอนทัวร์ตามบทบาท — คำนวณระดับบนสุด (ต้องอยู่เหนือ early return ตามกฎ hooks)
   const tourSteps = useMemo(
