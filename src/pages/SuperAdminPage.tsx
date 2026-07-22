@@ -44,13 +44,17 @@ export default function SuperAdminPage() {
     if (err) alert(`สลับโหมดรีวิวไม่สำเร็จ: ${err} — รัน supabase/review.sql ก่อนถ้ายังไม่ได้รัน`)
   }
 
+  // แผนที่ org_id → ชื่อองค์กร (จากภาพรวมที่โหลดอยู่แล้ว) สำหรับตารางผลรีวิว
+  const orgNameById = new Map(orgs.map((o) => [o.id, o.name]))
+  const orgNameOf = (id: string | null) => (id ? orgNameById.get(id) ?? '—' : '—')
+
   function exportReviewsCsv() {
-    const head = ['เวลา', 'กลุ่ม flow', 'จุด', 'สถานะ', 'comment', 'ผู้รีวิว']
+    const head = ['เวลา', 'กลุ่ม flow', 'จุด', 'สถานะ', 'comment', 'องค์กร', 'ผู้รีวิว']
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
     const statusTh = (s: string | null) =>
       s === 'pass' ? 'ผ่าน' : s === 'fail' ? 'ไม่ผ่าน' : s === 'note' ? 'สังเกต' : ''
     const lines = reviews.map((r) =>
-      [new Date(r.created_at).toLocaleString('th-TH'), r.flow, r.label, statusTh(r.status), r.comment, r.created_by_name]
+      [new Date(r.created_at).toLocaleString('th-TH'), r.flow, r.label, statusTh(r.status), r.comment, orgNameOf(r.org_id), r.created_by_name]
         .map(esc)
         .join(','),
     )
@@ -172,7 +176,7 @@ export default function SuperAdminPage() {
             <div className="table-scroll" style={{ marginTop: 12 }}>
               <table className="data-table">
                 <thead>
-                  <tr><th>เวลา</th><th>จุด</th><th>สถานะ</th><th>comment</th><th>โดย</th></tr>
+                  <tr><th>เวลา</th><th>จุด</th><th>สถานะ</th><th>comment</th><th>องค์กร</th><th>โดย</th></tr>
                 </thead>
                 <tbody>
                   {reviews.slice(0, 50).map((r) => (
@@ -185,6 +189,7 @@ export default function SuperAdminPage() {
                         </span>
                       </td>
                       <td data-label="comment">{r.comment || '—'}</td>
+                      <td data-label="องค์กร">{orgNameOf(r.org_id)}</td>
                       <td data-label="โดย">{r.created_by_name || '—'}</td>
                     </tr>
                   ))}

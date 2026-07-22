@@ -45,6 +45,7 @@ export interface ReviewRow {
   comment: string | null
   created_by_name: string | null
   created_at: string
+  org_id: string | null
 }
 
 // ── สวิตช์ review_mode: เก็บใน module + แจ้ง subscriber (reactive ทั้งแอปโดยไม่ต้อง context) ──
@@ -105,7 +106,7 @@ export async function submitReview(
 export async function listReviews(): Promise<ReviewRow[]> {
   const { data, error } = await supabase
     .from('flow_reviews')
-    .select('id, checkpoint, flow, label, status, comment, created_by_name, created_at')
+    .select('id, checkpoint, flow, label, status, comment, created_by_name, created_at, org_id')
     .order('created_at', { ascending: false })
   if (error) return []
   return (data ?? []) as ReviewRow[]
