@@ -220,6 +220,8 @@
   .plan { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); padding: 18px 18px 20px; box-shadow: var(--shadow); }
   .plan.featured { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: linear-gradient(180deg, var(--accent-tint) 0%, var(--paper) 40%); }
   .plan .pname { font-size: 20px; font-weight: 800; margin: 0 0 2px; }
+  .plan .pprice { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 4px 0 2px; }
+  .plan .pprice span { font-size: 14px; font-weight: 600; color: var(--muted); }
   .plan .ptag { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
   .plan ul { gap: 7px; }
   .plan ul li { font-size: 14px; }
@@ -275,7 +277,7 @@
   <span class="crumb">คู่มือการใช้งาน</span>
   <span class="spacer"></span>
   <a class="topnav-link" href="/#/login">เข้าสู่ระบบ</a>
-  <a class="cta-mini" href="/#/login?mode=signup">สมัครฟรี</a>
+  <a class="cta-mini" href="/#/login?mode=signup">ทดลองฟรี</a>
 </div>
 
 <header class="hero">
@@ -309,7 +311,7 @@
       <div class="grp">จัดการทีม & บัญชี</div>
       <nav>
         <a href="#team">ทีมและสิทธิ์</a>
-        <a href="#plans">แพ็กเกจ Free / Pro</a>
+        <a href="#plans">แพ็กเกจและราคา</a>
         <a href="#referral">ชวนเพื่อน</a>
         <a href="#mobile">แอปมือถือ</a>
         <a href="#security">ความปลอดภัย</a>
@@ -333,14 +335,14 @@
         <li>บริษัทที่มีลูกทีมหลายคนต้องใช้ฐานข้อมูลทรัพย์ร่วมกัน</li>
         <li>คนที่อยากเลิกจดใส่ Excel แล้วย้ายมาระบบที่ใช้ได้ทั้งคอมและมือถือ</li>
       </ul>
-      <div class="note tip"><span class="lbl">เริ่มฟรี</span> สมัครด้วยอีเมลหรือ Google ใช้แพ็กเกจฟรีได้ตลอด ไม่ต้องผูกบัตรเครดิต</div>
+      <div class="note tip"><span class="lbl">ทดลองฟรี</span> สมัครด้วยอีเมลหรือ Google ทดลองใช้ฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต</div>
     </section>
 
     <section id="start">
       <h2>เริ่มต้นใช้งาน</h2>
       <p class="lead">จากศูนย์ถึงใช้งานได้จริงใน 4 ขั้นตอน</p>
       <ol class="steps">
-        <li><b>สมัครบัญชี</b> เปิดหน้าเว็บแล้วกด “สมัครฟรี” — กรอกอีเมล/รหัสผ่าน หรือเลือก “สมัครด้วย Google” ได้ทันที</li>
+        <li><b>สมัครบัญชี</b> เปิดหน้าเว็บแล้วกด “ทดลองฟรี 14 วัน” — กรอกอีเมล/รหัสผ่าน หรือเลือก “สมัครด้วย Google” ได้ทันที</li>
         <li><b>ตั้งองค์กรของทีม</b> ตั้งชื่อบริษัท/ทีม ระบบจะตั้งให้คุณเป็น <b>แอดมิน</b> โดยอัตโนมัติ</li>
         <li><b>เพิ่มทรัพย์ + เชิญลูกทีม</b> เพิ่มทรัพย์เองผ่านฟอร์ม หรือนำเข้าจาก Excel/CSV <span class="pro">Pro</span> แล้วเชิญลูกทีมด้วยลิงก์ทางอีเมล</li>
         <li><b>เริ่มใช้ได้เลย</b> ทำงานพร้อมกันทั้งบนเว็บและแอปมือถือ — ค้นหาทรัพย์ ดูแผนที่ จัดแผนพาชม และสร้างเอกสารเสนอลูกค้า</li>
@@ -359,7 +361,7 @@
       </ul>
       <h3>เพิ่ม / แก้ไขทรัพย์</h3>
       <p>ใช้เมนู <b>ฟอร์ม</b> เพื่อเพิ่มทรัพย์ใหม่ หรือกดไอคอนดินสอบนการ์ดทรัพย์เพื่อแก้ไข ทุกการเปลี่ยนแปลงบันทึกทันทีและซิงก์ให้ทั้งทีม</p>
-      <div class="note"><span class="lbl">ลิมิตแพ็กเกจฟรี</span> เก็บทรัพย์ได้สูงสุด <b>10 รายการ</b> — อัปเกรดเป็น Pro เพื่อเก็บได้ไม่จำกัด</div>
+      <div class="note"><span class="lbl">แพ็กเกจเริ่มต้น</span> เก็บทรัพย์ได้สูงสุด <b>10 รายการ</b> — อัปเกรดเป็น Pro เพื่อเก็บได้ไม่จำกัด</div>
     </section>
 
     <section id="map">
@@ -439,16 +441,17 @@
       <p>บัญชีเดียวเป็นสมาชิกได้หลายองค์กร มี <b>ตัวสลับองค์กร</b> บน topbar — เหมาะกับคนที่ถูกเชิญเข้าทีมอื่นทั้งที่มีองค์กรของตัวเองอยู่แล้ว</p>
       <h3>โปรไฟล์ของฉัน</h3>
       <p>กดไอคอนรูปคนมุมบนขวา → <b>โปรไฟล์ของฉัน</b> เพื่อแก้ชื่อที่แสดง เปลี่ยนรหัสผ่าน (เฉพาะผู้สมัครด้วยอีเมล) ดูองค์กรที่สังกัด และลิงก์ชวนเพื่อน</p>
-      <div class="note"><span class="lbl">ลิมิตแพ็กเกจฟรี</span> มีลูกทีมได้สูงสุด <b>2 คน</b> (รวมทุกคนในองค์กร) — อัปเกรด Pro หรือชวนเพื่อนเพื่อเพิ่มได้ไม่จำกัด</div>
+      <div class="note"><span class="lbl">แพ็กเกจเริ่มต้น</span> มีลูกทีมได้สูงสุด <b>2 คน</b> (รวมทุกคนในองค์กร) — อัปเกรด Pro หรือชวนเพื่อนเพื่อเพิ่มได้ไม่จำกัด</div>
     </section>
 
     <section id="plans">
-      <h2>แพ็กเกจ Free / Pro</h2>
-      <p class="lead">เริ่มฟรีได้เลยไม่มีวันหมดอายุ อัปเกรดเป็น Pro เมื่ออยากได้ AI, Dashboard, นำเข้าข้อมูล และทีมไม่จำกัด</p>
+      <h2>แพ็กเกจและราคา</h2>
+      <p class="lead">ทดลองใช้ฟรี 14 วัน (ไม่ต้องผูกบัตรเครดิต) แล้วเลือกแพ็กเกจ — จ่ายรายปีประหยัด 15%</p>
       <div class="plans">
         <div class="plan">
-          <p class="pname">ฟรี</p>
-          <p class="ptag">ฟรีตลอด ไม่มีวันหมดอายุ</p>
+          <p class="pname">เริ่มต้น</p>
+          <p class="pprice">฿990<span>/เดือน</span></p>
+          <p class="ptag">หรือ ฿842/เดือน เมื่อจ่ายรายปี (ประหยัด 15%)</p>
           <ul>
             <li>ทรัพย์สูงสุด 10 รายการ</li>
             <li>ทีมสูงสุด 2 คน</li>
@@ -458,7 +461,8 @@
         </div>
         <div class="plan featured">
           <p class="pname">Pro</p>
-          <p class="ptag">ทีมที่กำลังเติบโต</p>
+          <p class="pprice">฿1,290<span>/เดือน</span></p>
+          <p class="ptag">หรือ ฿1,097/เดือน เมื่อจ่ายรายปี (ประหยัด 15%)</p>
           <ul>
             <li>ทรัพย์และลูกทีม ไม่จำกัด</li>
             <li>ผู้ช่วย AI ครบชุด</li>
@@ -470,7 +474,7 @@
       <div class="table-scroll">
         <table class="cmp">
           <thead>
-            <tr><th>ฟีเจอร์</th><th>ฟรี</th><th class="pro-col">Pro</th></tr>
+            <tr><th>ฟีเจอร์</th><th>เริ่มต้น</th><th class="pro-col">Pro</th></tr>
           </thead>
           <tbody>
             <tr><td>จำนวนทรัพย์</td><td><span class="val">10 รายการ</span></td><td class="pro-col"><span class="val">ไม่จำกัด</span></td></tr>
@@ -521,8 +525,8 @@
       <h2>คำถามที่พบบ่อย</h2>
 
       <details class="faq">
-        <summary>ใช้ฟรีได้นานแค่ไหน?</summary>
-        <div class="a"><p>แพ็กเกจฟรีใช้ได้ตลอด ไม่มีวันหมดอายุ ภายในลิมิต 10 ทรัพย์ / 2 ลูกทีม เมื่อพร้อมค่อยอัปเกรดเป็น Pro</p></div>
+        <summary>ทดลองใช้ฟรีได้กี่วัน?</summary>
+        <div class="a"><p>สมัครแล้วทดลองใช้ฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต จากนั้นเลือกแพ็กเกจ เริ่มต้น (฿990/เดือน) หรือ Pro (฿1,290/เดือน) — จ่ายรายปีประหยัด 15%</p></div>
       </details>
       <details class="faq">
         <summary>ถูกเชิญเข้าทีมอื่น ทั้งที่มีองค์กรของตัวเองแล้ว ทำได้ไหม?</summary>

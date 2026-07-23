@@ -32,7 +32,7 @@ const GALLERY = [
 const FEATURES = [
   {
     title: 'สมัครเองใช้ได้ทันที',
-    desc: 'กดสมัครด้วยอีเมลหรือ Google ตั้งองค์กรของทีมได้เองใน 1 นาที ไม่ต้องรอทีมงานเปิดบัญชี — เริ่มฟรี ไม่ต้องผูกบัตรเครดิต',
+    desc: 'กดสมัครด้วยอีเมลหรือ Google ตั้งองค์กรของทีมได้เองใน 1 นาที ไม่ต้องรอทีมงานเปิดบัญชี — ทดลองฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต',
     icon: <IconUser size={22} />,
   },
   {
@@ -92,27 +92,29 @@ const TRUST = [
 
 const PLANS = [
   {
-    name: 'ฟรี',
-    tag: 'เริ่มต้นใช้งาน · ฟรีตลอด ไม่มีวันหมดอายุ',
+    name: 'เริ่มต้น',
+    price: 990,
+    tag: 'ทีมเล็ก เริ่มต้นใช้งาน',
     points: [
       'ทรัพย์สูงสุด 10 รายการ',
       'ทีมสูงสุด 2 คน',
       'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มบันทึก',
       'ใช้ได้ทั้งเว็บและแอปมือถือ',
     ],
-    cta: 'สมัครฟรี',
+    cta: 'ทดลองฟรี 14 วัน',
     featured: false,
   },
   {
     name: 'Pro',
-    tag: 'ทีมที่กำลังเติบโต · อัปเกรดได้ในแอป',
+    price: 1290,
+    tag: 'ทีมที่กำลังเติบโต',
     points: [
       'ทรัพย์และลูกทีม ไม่จำกัด',
       'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)',
       'Dashboard + นำเข้า Excel/CSV',
       'แผนเยี่ยมชม + แจ้งเตือนถึงมือถือ',
     ],
-    cta: 'เริ่มใช้ฟรี แล้วอัปเกรด',
+    cta: 'ทดลองฟรี 14 วัน',
     featured: true,
   },
 ]
@@ -135,7 +137,7 @@ const COMPARE: { label: string; free: boolean | string; pro: boolean | string }[
 ]
 
 const STEPS = [
-  { n: '1', title: 'สมัครฟรีใน 1 นาที', desc: 'กดสมัครด้วยอีเมลหรือ Google แล้วตั้งชื่อองค์กรของทีม — เริ่มใช้ได้เองทันที ไม่ต้องรอใคร' },
+  { n: '1', title: 'สมัครใน 1 นาที', desc: 'กดสมัครด้วยอีเมลหรือ Google แล้วตั้งชื่อองค์กรของทีม — ทดลองใช้ฟรี 14 วันทันที ไม่ต้องรอใคร' },
   { n: '2', title: 'เพิ่มทรัพย์ + เชิญทีม', desc: 'เพิ่มทรัพย์เองหรือนำเข้าจาก Excel/CSV (Pro) แล้วเชิญลูกทีมด้วยลิงก์ทางอีเมล' },
   { n: '3', title: 'ใช้ได้เลยทั้งทีม', desc: 'ทำงานพร้อมกันทั้งคอมและมือถือ พร้อมแผนที่ แผนพาชม เอกสารเสนอลูกค้า และผู้ช่วย AI' },
 ]
@@ -204,6 +206,7 @@ function DashboardMock() {
 export default function LandingPage() {
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
+  const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -227,7 +230,7 @@ export default function LandingPage() {
           <a href="#features" className="btn sm ghost">ฟีเจอร์</a>
           <a href="#pricing" className="btn sm ghost">แพ็กเกจ</a>
           <button className="btn sm ghost" onClick={goLogin}>เข้าสู่ระบบ</button>
-          <button className="btn sm primary" onClick={goSignup}>สมัครฟรี</button>
+          <button className="btn sm primary" onClick={goSignup}>ทดลองฟรี</button>
         </nav>
       </header>
 
@@ -246,7 +249,7 @@ export default function LandingPage() {
             </p>
             <div className="ld-cta-row">
               <button className="btn primary ld-cta" onClick={goSignup}>
-                สมัครฟรี — ใช้ได้ทันที
+                ทดลองฟรี 14 วัน
               </button>
               <button className="btn ld-cta" onClick={goLogin}>
                 เข้าสู่ระบบ
@@ -258,7 +261,7 @@ export default function LandingPage() {
                 <span style={{ background: '#0d9488' }}>บ</span>
                 <span style={{ background: '#d97706' }}>ค</span>
               </div>
-              <small>ทีมนายหน้าอสังหาฯ ใช้จริง<br /><b>เริ่มฟรี</b> · สมัครด้วยอีเมลหรือ Google · ไม่ต้องผูกบัตรเครดิต</small>
+              <small>ทีมนายหน้าอสังหาฯ ใช้จริง<br /><b>ทดลองฟรี 14 วัน</b> · ไม่ต้องผูกบัตรเครดิต · ยกเลิกได้ทุกเมื่อ</small>
             </div>
           </div>
           <div className="ld-hero-visual">
@@ -322,22 +325,38 @@ export default function LandingPage() {
 
       <section className="ld-section" id="pricing">
         <span className="ld-kicker">แพ็กเกจ</span>
-        <h2>เริ่มฟรี อัปเกรดเมื่อพร้อม</h2>
-        <p className="ld-lead">เริ่มใช้ฟรีได้เลยไม่มีวันหมดอายุ — อยากได้ AI, Dashboard, นำเข้าข้อมูล และทีมไม่จำกัด ค่อยอัปเกรดเป็น Pro</p>
+        <h2>ราคาโปร่งใส ทดลองฟรี 14 วัน</h2>
+        <p className="ld-lead">สมัครแล้วทดลองใช้ฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีประหยัด 15%</p>
+        <div className="ld-billing" role="group" aria-label="รอบการชำระเงิน">
+          <button type="button" className={billing === 'monthly' ? 'on' : ''} onClick={() => setBilling('monthly')}>รายเดือน</button>
+          <button type="button" className={billing === 'yearly' ? 'on' : ''} onClick={() => setBilling('yearly')}>
+            รายปี <span className="save">−15%</span>
+          </button>
+        </div>
         <div className="ld-pricing">
-          {PLANS.map((p) => (
-            <div key={p.name} className={`ld-price-card ${p.featured ? 'featured' : ''}`}>
-              {p.featured && <span className="ld-price-badge">คุ้มสุด</span>}
-              <h3>{p.name}</h3>
-              <p className="ld-price-tag">{p.tag}</p>
-              <ul>
-                {p.points.map((pt) => <li key={pt}>{pt}</li>)}
-              </ul>
-              <button className={`btn ld-cta ${p.featured ? 'primary' : ''}`} onClick={goSignup}>
-                {p.cta}
-              </button>
-            </div>
-          ))}
+          {PLANS.map((p) => {
+            const perMonth = billing === 'yearly' ? Math.round(p.price * 0.85) : p.price
+            const yearTotal = billing === 'yearly' ? Math.round(p.price * 12 * 0.85) : null
+            return (
+              <div key={p.name} className={`ld-price-card ${p.featured ? 'featured' : ''}`}>
+                {p.featured && <span className="ld-price-badge">คุ้มสุด</span>}
+                <h3>{p.name}</h3>
+                <p className="ld-price-tag">{p.tag}</p>
+                <div className="ld-price-amt">
+                  <span className="cur">฿</span>{perMonth.toLocaleString()}<span className="per">/เดือน</span>
+                </div>
+                <p className="ld-price-note">
+                  {yearTotal ? `เรียกเก็บ ฿${yearTotal.toLocaleString()}/ปี` : 'จ่ายรายปีเหลือ ฿' + Math.round(p.price * 0.85).toLocaleString() + '/เดือน'}
+                </p>
+                <ul>
+                  {p.points.map((pt) => <li key={pt}>{pt}</li>)}
+                </ul>
+                <button className={`btn ld-cta ${p.featured ? 'primary' : ''}`} onClick={goSignup}>
+                  {p.cta}
+                </button>
+              </div>
+            )
+          })}
         </div>
         <div className="ld-compare">
           <p className="ld-compare-title">เทียบฟีเจอร์แบบละเอียด</p>
@@ -346,7 +365,7 @@ export default function LandingPage() {
               <thead>
                 <tr>
                   <th>ฟีเจอร์</th>
-                  <th>ฟรี</th>
+                  <th>เริ่มต้น</th>
                   <th className="pro-col">Pro</th>
                 </tr>
               </thead>
@@ -387,10 +406,10 @@ export default function LandingPage() {
 
       <section className="ld-contact" id="contact">
         <h2>พร้อมยกระดับทีมของคุณหรือยัง?</h2>
-        <p>สมัครฟรีแล้วเริ่มใช้ได้เองทันที — หรือถ้ามีคำถาม/อยากให้ช่วยย้ายข้อมูลเดิม ทักทีมงานได้เลย ไม่มีค่าใช้จ่าย</p>
+        <p>ทดลองใช้ฟรี 14 วันแล้วเริ่มได้ทันที — หรือถ้ามีคำถาม/อยากให้ช่วยย้ายข้อมูลเดิม ทักทีมงานได้เลย ไม่มีค่าใช้จ่าย</p>
         <div className="ld-cta-row">
           <button className="btn primary ld-cta" onClick={goSignup}>
-            สมัครฟรีเลย
+            ทดลองฟรี 14 วัน
           </button>
           <a className="btn ld-cta on-dark" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
             LINE {CONTACT.lineId}

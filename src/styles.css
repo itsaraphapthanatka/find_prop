@@ -1419,6 +1419,17 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .ld-price-card li:last-child { border-bottom: none; }
 .ld-price-card li::before { content: '✓'; position: absolute; left: 2px; color: var(--success); font-weight: 700; }
 .ld-price-card .btn { width: 100%; border-radius: 11px; }
+/* Toggle รายเดือน/รายปี */
+.ld-billing { display: inline-flex; gap: 4px; margin: 6px auto 24px; padding: 4px; background: var(--ld-paper); border: 1px solid var(--ld-hair); border-radius: 999px; }
+.ld-billing button { border: none; background: none; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; color: var(--ld-dim); padding: 8px 18px; border-radius: 999px; display: inline-flex; align-items: center; gap: 7px; transition: background .15s, color .15s; }
+.ld-billing button.on { background: var(--purple); color: #fff; }
+.ld-billing .save { font-size: 11.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: var(--success); color: #fff; }
+.ld-billing button.on .save { background: rgba(255,255,255,.24); }
+/* ราคาในการ์ดแพ็กเกจ */
+.ld-price-amt { display: flex; align-items: baseline; gap: 2px; font-size: 34px; font-weight: 800; letter-spacing: -.03em; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+.ld-price-amt .cur { font-size: 20px; font-weight: 700; }
+.ld-price-amt .per { font-size: 14px; font-weight: 600; color: var(--ld-dim); letter-spacing: 0; }
+.ld-price-note { font-size: 12.5px; color: var(--ld-dim); margin: 0 0 16px; min-height: 1.1em; }
 /* ตารางเทียบฟีเจอร์ Free vs Pro */
 .ld-compare { max-width: 720px; margin: 34px auto 0; }
 .ld-compare-title { text-align: center; font-weight: 700; font-size: 15px; color: var(--ld-dim); margin: 0 0 14px; }
