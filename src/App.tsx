@@ -195,7 +195,10 @@ export default function App() {
             <select
               className="org-switch"
               value={org?.id ?? ''}
-              onChange={(e) => { void switchOrg(e.target.value); navigate('/') }}
+              onChange={(e) => {
+                // สลับ org แล้วโหลดหน้าใหม่ที่ '/' — ให้ทุกหน้าดึงข้อมูลของ org ใหม่ครบ (กันข้อมูลค้างของเก่า)
+                void switchOrg(e.target.value).then(() => window.location.assign('/'))
+              }}
               title="สลับองค์กร"
             >
               {orgs.map((o) => <option key={o.org_id} value={o.org_id}>{o.name}</option>)}
