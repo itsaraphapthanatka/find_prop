@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
 import MapPage from './pages/MapPage'
@@ -25,7 +25,7 @@ import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { isInstalledApp } from './lib/native'
-import { IconChart, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
+import { IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
 function NavText({ full, short }: { full: string; short?: string }) {
@@ -41,6 +41,22 @@ export default function App() {
   const { session, profile, org, loading, signOut, refreshProfile, orgs, switchOrg } = useAuth()
   const [search, setSearch] = useState('')
   const [ignoreInvite, setIgnoreInvite] = useState(false)
+  // เมนูบัญชีบน topbar (โปรไฟล์/วิธีใช้/ออกจากระบบ)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: Event) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
   // แจ้งเตือนจาก lib/appUpdate เมื่อมี APK เวอร์ชันใหม่ให้ดาวน์โหลด (เฉพาะในแอป)
   const [apkUpdate, setApkUpdate] = useState<{ version: string; url: string } | null>(null)
   useEffect(() => {
@@ -210,9 +226,35 @@ export default function App() {
           <span className="user-name">{profile.full_name || profile.email}</span>
           {isSuper && <span className="role-badge super">SUPER</span>}
           {!isSuper && isAdmin && <span className="role-badge">แอดมิน</span>}
-          <button className="btn sm icon-only" onClick={() => navigate('/me')} title="โปรไฟล์ของฉัน" aria-label="โปรไฟล์ของฉัน"><IconUser size={15} /></button>
-          <button className="btn sm" onClick={() => startTour()} title="ดูวิธีใช้ (ทัวร์แนะนำ)">?</button>
-          <button className="btn sm" onClick={() => void signOut()} title="ออกจากระบบ">ออก</button>
+          <div className="user-menu" ref={menuRef}>
+            <button
+              className="btn sm user-menu-btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              title="เมนูบัญชี"
+            >
+              <IconUser size={15} />
+              <IconDown size={12} />
+            </button>
+            {menuOpen && (
+              <div className="user-menu-pop" role="menu">
+                <div className="user-menu-head">
+                  <div className="umh-name">{profile.full_name || 'ผู้ใช้'}</div>
+                  <div className="umh-email">{profile.email}</div>
+                </div>
+                <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/me') }}>
+                  <IconUser size={16} /> โปรไฟล์ของฉัน
+                </button>
+                <button role="menuitem" onClick={() => { setMenuOpen(false); startTour() }}>
+                  วิธีใช้ (ทัวร์แนะนำ)
+                </button>
+                <button role="menuitem" className="danger" onClick={() => { setMenuOpen(false); void signOut() }}>
+                  ออกจากระบบ
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <div className="main">
