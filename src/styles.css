@@ -37,7 +37,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   outline: 2px solid var(--purple); outline-offset: 2px;
 }
 
-.app-shell { display: flex; flex-direction: column; height: 100%; }
+.app-shell { display: flex; flex-direction: column; height: 100%; padding-top: env(safe-area-inset-top); background: #fff; }
 
 /* ── Top bar (ขาวสะอาด + เส้นบาง) ─────────── */
 .topbar {
@@ -85,7 +85,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .view-header {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 14px 20px; border-bottom: 1px solid var(--line);
-  background: #fff; position: sticky; top: 0; z-index: 5;
+  background: #fff; position: sticky; top: env(safe-area-inset-top); z-index: 5;
 }
 .view-header h1 {
   font-size: 18px; margin: 0; font-weight: 700; letter-spacing: -0.4px;
