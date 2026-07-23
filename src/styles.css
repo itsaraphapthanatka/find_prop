@@ -1419,6 +1419,20 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .ld-price-card li:last-child { border-bottom: none; }
 .ld-price-card li::before { content: '✓'; position: absolute; left: 2px; color: var(--success); font-weight: 700; }
 .ld-price-card .btn { width: 100%; border-radius: 11px; }
+/* ตารางเทียบฟีเจอร์ Free vs Pro */
+.ld-compare { max-width: 720px; margin: 34px auto 0; }
+.ld-compare-title { text-align: center; font-weight: 700; font-size: 15px; color: var(--ld-dim); margin: 0 0 14px; }
+.ld-compare-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 16px; border: 1px solid var(--ld-hair); }
+.ld-compare-table { width: 100%; min-width: 460px; border-collapse: collapse; font-size: 14.5px; background: #fff; }
+.ld-compare-table th, .ld-compare-table td { padding: 13px 18px; text-align: left; border-bottom: 1px solid var(--ld-hair); }
+.ld-compare-table thead th { font-weight: 700; background: var(--ld-paper); position: sticky; top: 0; }
+.ld-compare-table th:not(:first-child), .ld-compare-table td:not(:first-child) { text-align: center; width: 120px; }
+.ld-compare-table tbody tr:last-child td { border-bottom: none; }
+.ld-compare-table .pro-col { background: rgba(113, 50, 245, 0.055); }
+.ld-compare-table thead th.pro-col { color: var(--purple); }
+.cmp-yes { color: var(--success); font-weight: 800; font-size: 16px; }
+.cmp-no { color: var(--ld-dim); }
+.cmp-val { font-weight: 700; }
 /* แบนเนอร์ชวนเพื่อน (referral) ใต้แพ็กเกจ */
 .ld-referral {
   max-width: 960px; margin: 22px auto 0; display: flex; align-items: center; gap: 16px;

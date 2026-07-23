@@ -110,11 +110,28 @@ const PLANS = [
       'ทรัพย์และลูกทีม ไม่จำกัด',
       'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)',
       'Dashboard + นำเข้า Excel/CSV',
-      'แผนเยี่ยมชม + เอกสารเปรียบเทียบ',
+      'แผนเยี่ยมชม + แจ้งเตือนถึงมือถือ',
     ],
     cta: 'เริ่มใช้ฟรี แล้วอัปเกรด',
     featured: true,
   },
+]
+
+// ตารางเทียบฟีเจอร์ Free vs Pro — ต้องตรงกับ plan.ts + route gating ใน App.tsx
+// (true = มี, false = ไม่มี, string = ค่าที่แสดง) · /compare ไม่ถูกล็อก → Free ก็มีเอกสารเปรียบเทียบ
+const COMPARE: { label: string; free: boolean | string; pro: boolean | string }[] = [
+  { label: 'จำนวนทรัพย์', free: '10 รายการ', pro: 'ไม่จำกัด' },
+  { label: 'จำนวนลูกทีม', free: '2 คน', pro: 'ไม่จำกัด' },
+  { label: 'ฐานข้อมูลทรัพย์ + รูปภาพ', free: true, pro: true },
+  { label: 'แผนที่ดาวเทียม + ค้นหาที่อยู่', free: true, pro: true },
+  { label: 'ค้นหา/กรองทรัพย์', free: true, pro: true },
+  { label: 'เชิญลูกทีมทางอีเมล', free: true, pro: true },
+  { label: 'เอกสารเปรียบเทียบ + พิมพ์ PDF', free: true, pro: true },
+  { label: 'แอปมือถือ (Android/iPhone)', free: true, pro: true },
+  { label: 'Dashboard สรุปภาพรวม', free: false, pro: true },
+  { label: 'ผู้ช่วย AI (พูดกรอก/แชท/วิเคราะห์)', free: false, pro: true },
+  { label: 'นำเข้า Excel/CSV', free: false, pro: true },
+  { label: 'แผนเยี่ยมชม (จัดรูท + แจ้งเตือน)', free: false, pro: true },
 ]
 
 const STEPS = [
@@ -195,6 +212,12 @@ export default function LandingPage() {
 
   const goSignup = () => navigate('/login?mode=signup')
   const goLogin = () => navigate('/login')
+
+  // เซลล์ในตารางเทียบ: true = ✓, false = –, ข้อความ = ค่าที่แสดง
+  const cmpCell = (v: boolean | string) =>
+    v === true ? <span className="cmp-yes" aria-label="มี">✓</span>
+      : v === false ? <span className="cmp-no" aria-label="ไม่มี">–</span>
+        : <span className="cmp-val">{v}</span>
 
   return (
     <div className="landing">
@@ -315,6 +338,29 @@ export default function LandingPage() {
               </button>
             </div>
           ))}
+        </div>
+        <div className="ld-compare">
+          <p className="ld-compare-title">เทียบฟีเจอร์แบบละเอียด</p>
+          <div className="ld-compare-scroll">
+            <table className="ld-compare-table">
+              <thead>
+                <tr>
+                  <th>ฟีเจอร์</th>
+                  <th>ฟรี</th>
+                  <th className="pro-col">Pro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARE.map((r) => (
+                  <tr key={r.label}>
+                    <td>{r.label}</td>
+                    <td>{cmpCell(r.free)}</td>
+                    <td className="pro-col">{cmpCell(r.pro)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
         <div className="ld-referral">
           <span className="ld-referral-emoji">🎁</span>
