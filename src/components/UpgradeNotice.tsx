@@ -10,9 +10,9 @@ export default function UpgradeNotice({ feature }: { feature: string }) {
       <div style={{ fontSize: 44, marginBottom: 8 }}>🔒</div>
       <h2 style={{ margin: '0 0 8px' }}>{feature} — ฟีเจอร์ Pro</h2>
       <p style={{ color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 18px' }}>
-        แพ็กเกจ Free ใช้ได้: แผนที่ · ฟอร์ม · รายการทรัพย์ (สูงสุด 10 ชิ้น) · ค้นหา
+        แพ็กเกจปัจจุบันของคุณยังไม่รวม <b>{feature}</b>
         <br />
-        อัปเกรดเป็น <b>Pro</b> เพื่อปลดล็อก <b>{feature}</b> พร้อม AI · นำเข้า Excel · ทรัพย์/ลูกทีมไม่จำกัด
+        อัปเกรดเป็น <b>Pro</b> เพื่อปลดล็อก {feature} พร้อม AI · Dashboard · นำเข้า Excel · แผนเยี่ยมชม
       </p>
       <div style={{
         marginBottom: 16, padding: '10px 14px', borderRadius: 10,

@@ -96,8 +96,8 @@ const PLANS = [
     price: 990,
     tag: 'ทีมเล็ก เริ่มต้นใช้งาน',
     points: [
-      'ทรัพย์สูงสุด 10 รายการ',
-      'ทีมสูงสุด 2 คน',
+      'ทรัพย์ไม่จำกัด',
+      'ลูกทีมไม่จำกัด',
       'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มบันทึก',
       'ใช้ได้ทั้งเว็บและแอปมือถือ',
     ],
@@ -122,8 +122,8 @@ const PLANS = [
 // ตารางเทียบฟีเจอร์ Free vs Pro — ต้องตรงกับ plan.ts + route gating ใน App.tsx
 // (true = มี, false = ไม่มี, string = ค่าที่แสดง) · /compare ไม่ถูกล็อก → Free ก็มีเอกสารเปรียบเทียบ
 const COMPARE: { label: string; free: boolean | string; pro: boolean | string }[] = [
-  { label: 'จำนวนทรัพย์', free: '10 รายการ', pro: 'ไม่จำกัด' },
-  { label: 'จำนวนลูกทีม', free: '2 คน', pro: 'ไม่จำกัด' },
+  { label: 'จำนวนทรัพย์', free: 'ไม่จำกัด', pro: 'ไม่จำกัด' },
+  { label: 'จำนวนลูกทีม', free: 'ไม่จำกัด', pro: 'ไม่จำกัด' },
   { label: 'ฐานข้อมูลทรัพย์ + รูปภาพ', free: true, pro: true },
   { label: 'แผนที่ดาวเทียม + ค้นหาที่อยู่', free: true, pro: true },
   { label: 'ค้นหา/กรองทรัพย์', free: true, pro: true },
