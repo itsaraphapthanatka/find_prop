@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useAuth, type Profile } from '../lib/auth'
+import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
 import { FREE_MAX_MEMBERS, usePlanAccess } from '../lib/plan'
 
-// โปรไฟล์ + ฟิลด์การมองเห็นทรัพย์ (คอลัมน์ see_all_properties เพิ่มจาก property-visibility.sql)
-type MemberRow = Profile & { see_all_properties?: boolean }
+// สมาชิก = membership (ใครอยู่ org นี้) + ข้อมูลโปรไฟล์ (ชื่อ/อีเมล) · id = user_id
+type MemberRow = {
+  id: string
+  full_name: string | null
+  email: string
+  role: 'admin' | 'member'
+  active: boolean
+  see_all_properties: boolean
+}
 
 export default function TeamPage() {
   const { profile: me, org, refreshProfile } = useAuth()
@@ -40,13 +47,38 @@ export default function TeamPage() {
       return
     }
     setLoading(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
+    // ใครอยู่ org นี้ = memberships (multi-org) · ดึงชื่อ/อีเมลจาก profiles มา merge
+    const { data: ms, error } = await supabase
+      .from('memberships')
+      .select('user_id, role, active, see_all_properties, created_at')
       .eq('org_id', orgId)
       .order('created_at', { ascending: true })
-    if (error) setError(error.message)
-    else setMembers((data ?? []) as MemberRow[])
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
+    const rows = (ms ?? []) as {
+      user_id: string; role: 'admin' | 'member'; active: boolean; see_all_properties: boolean
+    }[]
+    const prof = new Map<string, { full_name: string | null; email: string }>()
+    if (rows.length) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', rows.map((r) => r.user_id))
+      for (const p of (profs ?? []) as { id: string; full_name: string | null; email: string }[]) {
+        prof.set(p.id, { full_name: p.full_name, email: p.email })
+      }
+    }
+    setMembers(rows.map((r) => ({
+      id: r.user_id,
+      full_name: prof.get(r.user_id)?.full_name ?? null,
+      email: prof.get(r.user_id)?.email ?? '—',
+      role: r.role,
+      active: r.active,
+      see_all_properties: r.see_all_properties,
+    })))
     setLoading(false)
   }
 
@@ -154,7 +186,8 @@ export default function TeamPage() {
   }
 
   async function setField(p: MemberRow, patch: Partial<MemberRow>) {
-    const { error } = await supabase.from('profiles').update(patch).eq('id', p.id)
+    // แก้ที่ membership ของ org นี้ (role/active/see_all_properties เป็นราย org)
+    const { error } = await supabase.from('memberships').update(patch).eq('user_id', p.id).eq('org_id', orgId)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
     else await reload()
   }

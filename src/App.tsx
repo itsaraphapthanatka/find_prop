@@ -37,7 +37,7 @@ function NavText({ full, short }: { full: string; short?: string }) {
 }
 
 export default function App() {
-  const { session, profile, org, loading, signOut, refreshProfile } = useAuth()
+  const { session, profile, org, loading, signOut, refreshProfile, orgs, switchOrg } = useAuth()
   const [search, setSearch] = useState('')
   const [ignoreInvite, setIgnoreInvite] = useState(false)
   // แจ้งเตือนจาก lib/appUpdate เมื่อมี APK เวอร์ชันใหม่ให้ดาวน์โหลด (เฉพาะในแอป)
@@ -189,7 +189,18 @@ export default function App() {
           }}
         />
         <div className="user-chip">
-          {org && <span className="org-badge">{org.name}</span>}
+          {orgs.length > 1 ? (
+            <select
+              className="org-switch"
+              value={org?.id ?? ''}
+              onChange={(e) => { void switchOrg(e.target.value); navigate('/') }}
+              title="สลับองค์กร"
+            >
+              {orgs.map((o) => <option key={o.org_id} value={o.org_id}>{o.name}</option>)}
+            </select>
+          ) : (
+            org && <span className="org-badge">{org.name}</span>
+          )}
           <span className="user-name">{profile.full_name || profile.email}</span>
           {isSuper && <span className="role-badge super">SUPER</span>}
           {!isSuper && isAdmin && <span className="role-badge">แอดมิน</span>}

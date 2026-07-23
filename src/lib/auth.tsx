@@ -47,6 +47,10 @@ interface AuthState {
   signInWithGoogle: () => Promise<string | null>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  /** องค์กรทั้งหมดที่ผู้ใช้เป็นสมาชิก (สำหรับตัวสลับองค์กร) */
+  orgs: { org_id: string; name: string; role: string }[]
+  /** สลับองค์กรที่กำลังใช้งาน */
+  switchOrg: (orgId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -55,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [org, setOrg] = useState<Organization | null>(null)
+  const [orgs, setOrgs] = useState<{ org_id: string; name: string; role: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   async function loadProfile(userId: string) {
@@ -74,6 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setOrg(null)
     }
+    // รายชื่อองค์กรที่ผู้ใช้เป็นสมาชิก (multi-org) — สำหรับตัวสลับองค์กร
+    const { data: mo } = await supabase.rpc('my_orgs')
+    setOrgs((mo as { org_id: string; name: string; role: string }[] | null) ?? [])
   }
 
   useEffect(() => {
@@ -170,9 +178,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (session) await loadProfile(session.user.id)
   }
 
+  async function switchOrg(orgId: string) {
+    const { error } = await supabase.rpc('switch_org', { p_org: orgId })
+    if (error) {
+      alert(`สลับองค์กรไม่สำเร็จ: ${error.message}`)
+      return
+    }
+    if (session) await loadProfile(session.user.id)
+  }
+
   return (
     <AuthContext.Provider
-      value={{ session, profile, org, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile }}
+      value={{ session, profile, org, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile, orgs, switchOrg }}
     >
       {children}
     </AuthContext.Provider>
