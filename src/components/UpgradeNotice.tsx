@@ -22,7 +22,10 @@ export default function UpgradeNotice({ feature }: { feature: string }) {
         {isAdmin && <> — รับลิงก์ชวนที่เมนู “ทีม”</>}
       </div>
       {isAdmin && (
-        <Link to="/team" className="btn primary">ไปหน้าทีม เพื่อรับลิงก์ชวนเพื่อน</Link>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link to="/upgrade" className="btn primary">อัปเกรดเป็น Pro</Link>
+          <Link to="/team" className="btn">รับลิงก์ชวนเพื่อน</Link>
+        </div>
       )}
     </div>
   )

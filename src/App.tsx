@@ -10,6 +10,7 @@ import TeamPage from './pages/TeamPage'
 import SuperAdminPage from './pages/SuperAdminPage'
 import LogsPage from './pages/LogsPage'
 import ProfilePage from './pages/ProfilePage'
+import UpgradePage from './pages/UpgradePage'
 
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
@@ -246,6 +247,11 @@ export default function App() {
                 <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/me') }}>
                   <IconUser size={16} /> โปรไฟล์ของฉัน
                 </button>
+                {(isAdmin || impersonating) && (
+                  <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/upgrade') }}>
+                    อัปเกรดแพ็กเกจ
+                  </button>
+                )}
                 <button role="menuitem" onClick={() => { setMenuOpen(false); startTour() }}>
                   วิธีใช้ (ทัวร์แนะนำ)
                 </button>
@@ -273,6 +279,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<ListPage search={search} />} />
             <Route path="/me" element={<ProfilePage />} />
+            <Route path="/upgrade" element={<UpgradePage />} />
             <Route path="/dashboard" element={access.dashboard ? <DashboardPage /> : <UpgradeNotice feature="สรุปภาพรวม" />} />
             <Route path="/map" element={<MapPage />} />
             {/* key ตาม path — สลับ new/edit หรือแก้คนละทรัพย์ ให้ FormPage remount ล้างฟอร์มใหม่ */}

@@ -16,10 +16,12 @@ export interface PlanAccess {
 
 export function planAccess(plan?: string | null): PlanAccess {
   const pro = plan === 'pro' || plan === 'enterprise'
+  // 'starter' (เริ่มต้น ฿990) = ปลดลิมิตจำนวน (ทรัพย์/ทีมไม่จำกัด) แต่ยังไม่มีฟีเจอร์พรีเมียม
+  const unlimited = pro || plan === 'starter'
   return {
     pro,
-    maxProperties: pro ? null : FREE_MAX_PROPERTIES,
-    maxMembers: pro ? null : FREE_MAX_MEMBERS,
+    maxProperties: unlimited ? null : FREE_MAX_PROPERTIES,
+    maxMembers: unlimited ? null : FREE_MAX_MEMBERS,
     dashboard: pro,
     visitPlans: pro,
     ai: pro,
