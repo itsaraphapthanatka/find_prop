@@ -2,17 +2,42 @@
 -- องค์กรเดโม "Demo Estate" + ทรัพย์ตัวอย่าง 10 รายการ (DM-001…DM-010)
 -- ใช้ทดสอบมุมมอง super (ป้าย/ตัวกรององค์กร) และเดโมขายแพลตฟอร์ม
 -- รันใน Supabase SQL Editor — รันซ้ำได้ (ล้างทรัพย์ DM-% เดิมก่อนใส่ใหม่)
+--
+-- เจ้าของทรัพย์เดโม = admin@demo.com (แอดมินของ Demo Estate)
+--   · สร้างบัญชี admin@demo.com ก่อน (หน้า "ทีม" ในแอปตอนสวมสิทธิ์ Demo Estate หรือ Supabase Dashboard)
+--     แล้วรันไฟล์นี้ → จะตั้งให้เป็นแอดมิน Demo Estate + ยกทรัพย์เดโมให้เป็นเจ้าของอัตโนมัติ
+--   · ถ้ายังไม่มี admin@demo.com → ยกให้ super ไปก่อน (สร้างแล้วรันไฟล์นี้ซ้ำเพื่อยกให้ถูกคน)
+--   → ทรัพย์เดโมจึง "ไม่กำพร้า" ลูกทีมที่ตั้งเป็น "เห็นเฉพาะของตัวเอง" จะไม่เห็นทรัพย์เดโม
+--
 -- ลบทิ้งทั้งชุด: delete from properties where code like 'DM-%';
 --               delete from organizations where name = 'Demo Estate';
 -- ============================================================
 do $$
-declare v_org uuid;
+declare
+  v_org   uuid;
+  v_owner uuid;
 begin
+  -- กันเคสรันไฟล์นี้ก่อน property-visibility.sql — ให้มีคอลัมน์เจ้าของแน่นอน
+  alter table public.properties
+    add column if not exists created_by uuid references auth.users(id) on delete set null;
+
   select id into v_org from public.organizations where name = 'Demo Estate';
   if v_org is null then
     insert into public.organizations (name, plan, sub_status, sub_expires_at)
     values ('Demo Estate', 'pro', 'active', (current_date + interval '1 year')::date)
     returning id into v_org;
+  end if;
+
+  -- เจ้าของทรัพย์เดโม: admin@demo.com ถ้ามี (ตั้งให้เป็นแอดมินของ Demo Estate ด้วย)
+  -- ไม่มีก็ยกให้ super คนแรกไปก่อน กันทรัพย์กำพร้า
+  select id into v_owner from public.profiles where email = 'admin@demo.com';
+  if v_owner is not null then
+    update public.profiles
+    set org_id = v_org, role = 'admin', active = true
+    where id = v_owner;
+  else
+    select id into v_owner from public.profiles
+    where is_super = true order by created_at asc limit 1;
   end if;
 
   delete from public.properties where code like 'DM-%';
@@ -105,5 +130,10 @@ begin
      array['พื้นที่สำนักงาน', 'ที่จอดรถ', 'ใกล้ทางด่วน'], array['สำนักงาน'],
      13.9126, 100.5504, 'ข้อมูลเดโมสำหรับทดสอบระบบ');
 
-  raise notice 'สร้างองค์กร Demo Estate (%) พร้อมทรัพย์ 10 รายการแล้ว', v_org;
+  -- ประทับเจ้าของให้ทรัพย์เดโมทุกชิ้น (ไม่ให้กำพร้า)
+  update public.properties set created_by = v_owner
+  where org_id = v_org and code like 'DM-%';
+
+  raise notice 'สร้างองค์กร Demo Estate (%) + ทรัพย์ 10 รายการ · เจ้าของ = %',
+    v_org, coalesce((select email from public.profiles where id = v_owner), '(ยังไม่มี — กำพร้า)');
 end $$;
