@@ -9,6 +9,7 @@ import ComparePage from './pages/ComparePage'
 import TeamPage from './pages/TeamPage'
 import SuperAdminPage from './pages/SuperAdminPage'
 import LogsPage from './pages/LogsPage'
+import ProfilePage from './pages/ProfilePage'
 
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
@@ -24,7 +25,7 @@ import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { isInstalledApp } from './lib/native'
-import { IconChart, IconForm, IconList, IconMap, IconRoute, IconShield, IconUsers } from './components/icons'
+import { IconChart, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
 function NavText({ full, short }: { full: string; short?: string }) {
@@ -209,6 +210,7 @@ export default function App() {
           <span className="user-name">{profile.full_name || profile.email}</span>
           {isSuper && <span className="role-badge super">SUPER</span>}
           {!isSuper && isAdmin && <span className="role-badge">แอดมิน</span>}
+          <button className="btn sm icon-only" onClick={() => navigate('/me')} title="โปรไฟล์ของฉัน" aria-label="โปรไฟล์ของฉัน"><IconUser size={15} /></button>
           <button className="btn sm" onClick={() => startTour()} title="ดูวิธีใช้ (ทัวร์แนะนำ)">?</button>
           <button className="btn sm" onClick={() => void signOut()} title="ออกจากระบบ">ออก</button>
         </div>
@@ -228,6 +230,7 @@ export default function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<ListPage search={search} />} />
+            <Route path="/me" element={<ProfilePage />} />
             <Route path="/dashboard" element={access.dashboard ? <DashboardPage /> : <UpgradeNotice feature="สรุปภาพรวม" />} />
             <Route path="/map" element={<MapPage />} />
             {/* key ตาม path — สลับ new/edit หรือแก้คนละทรัพย์ ให้ FormPage remount ล้างฟอร์มใหม่ */}

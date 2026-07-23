@@ -632,6 +632,17 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .role-badge.plain { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
 .role-badge.super { background: var(--ink); color: #fff; letter-spacing: 0.4px; }
 .plan-line { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+/* ปุ่มไอคอนล้วน (เช่น โปรไฟล์บน topbar) — ให้เป็นสี่เหลี่ยมจัตุรัส ไอคอนอยู่กลาง */
+.btn.sm.icon-only { padding: 5px 8px; }
+.btn.sm.icon-only svg { display: block; }
+/* รายการองค์กรที่สังกัด ในหน้าโปรไฟล์ */
+.profile-orgs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.profile-orgs li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff;
+}
+.profile-orgs li.current { border-color: var(--purple); background: var(--purple-tint); }
+.profile-orgs .org-name { font-weight: 600; margin-right: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* หน้า super กว้างกว่าหน้าทีม (ตาราง 7 คอลัมน์) — ต้องเจาะจงกว่า .team-wrap ที่ประกาศทีหลัง */
 .team-wrap.super-wrap { max-width: 1080px; }
 .super-wrap .plan-select { width: 118px; }
