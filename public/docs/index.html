@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="คู่มือการใช้งาน HOP — แพลตฟอร์มบริหารทรัพย์สำหรับทีมนายหน้า: ฟีเจอร์ วิธีเริ่มต้น ทีม/สิทธิ์ และตารางเทียบแพ็กเกจ Free/Pro">
+<meta name="robots" content="index,follow">
+<link rel="icon" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>HOP — คู่มือการใช้งาน</title>
+<style>
+  :root {
+    --ground: #f6f5fb;
+    --paper: #ffffff;
+    --ink: #17161f;
+    --muted: #6b6979;
+    --faint: #8f8d9d;
+    --line: #e8e6f1;
+    --line-soft: #f0eef7;
+    --accent: #7132f5;
+    --accent-2: #5a1fd0;
+    --accent-tint: #f2edff;
+    --accent-tint-2: #e7dcff;
+    --ok: #0ea48f;
+    --shadow: 0 1px 2px rgba(23,22,31,.04), 0 8px 30px -18px rgba(23,22,31,.22);
+    --radius: 16px;
+    --maxw: 760px;
+    --sidebar: 250px;
+    --fs-body: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #121118;
+      --paper: #1b1a23;
+      --ink: #f2f1f8;
+      --muted: #a3a1b1;
+      --faint: #7d7b8b;
+      --line: #2a2933;
+      --line-soft: #232230;
+      --accent: #ad8dff;
+      --accent-2: #c4adff;
+      --accent-tint: rgba(150,110,255,.13);
+      --accent-tint-2: rgba(150,110,255,.22);
+      --ok: #33d4b9;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 34px -20px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f6f5fb; --paper: #ffffff; --ink: #17161f; --muted: #6b6979; --faint: #8f8d9d;
+    --line: #e8e6f1; --line-soft: #f0eef7; --accent: #7132f5; --accent-2: #5a1fd0;
+    --accent-tint: #f2edff; --accent-tint-2: #e7dcff; --ok: #0ea48f;
+    --shadow: 0 1px 2px rgba(23,22,31,.04), 0 8px 30px -18px rgba(23,22,31,.22);
+  }
+  :root[data-theme="dark"] {
+    --ground: #121118; --paper: #1b1a23; --ink: #f2f1f8; --muted: #a3a1b1; --faint: #7d7b8b;
+    --line: #2a2933; --line-soft: #232230; --accent: #ad8dff; --accent-2: #c4adff;
+    --accent-tint: rgba(150,110,255,.13); --accent-tint-2: rgba(150,110,255,.22); --ok: #33d4b9;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 34px -20px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Sukhumvit Set", "IBM Plex Sans Thai",
+      "Noto Sans Thai", "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+    font-size: var(--fs-body); line-height: 1.78; -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: var(--accent-tint-2); color: var(--ink); }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-2); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ── Top bar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px clamp(16px, 4vw, 32px);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+  .wordmark:hover { text-decoration: none; opacity: .82; }
+  .wordmark svg { flex: none; border-radius: 8px; }
+  .wordmark .op { color: var(--accent); }
+  .topnav-link { color: var(--muted); font-weight: 600; font-size: 13.5px; text-decoration: none; }
+  .topnav-link:hover { color: var(--accent); text-decoration: none; }
+  .cta-mini { display: inline-flex; align-items: center; font-weight: 700; font-size: 13px; color: #fff; background: var(--accent); padding: 7px 15px; border-radius: 999px; text-decoration: none; }
+  .cta-mini:hover { background: var(--accent-2); color: #fff; text-decoration: none; }
+  .topbar .crumb { color: var(--faint); font-weight: 600; font-size: 14px; }
+  .topbar .crumb::before { content: "/"; margin-right: 10px; color: var(--line); }
+  .topbar .spacer { flex: 1; }
+  .topbar .ver {
+    font: 600 12px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px;
+  }
+
+  /* ── Header band ── */
+  header.hero {
+    padding: clamp(34px, 6vw, 60px) clamp(16px, 4vw, 32px) clamp(26px, 4vw, 40px);
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(120% 140% at 85% -20%, var(--accent-tint) 0%, transparent 55%),
+      var(--paper);
+  }
+  header.hero .inner { max-width: calc(var(--sidebar) + var(--maxw) + 80px); margin: 0 auto; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 12px;
+  }
+  header.hero h1 {
+    font-size: clamp(28px, 5vw, 40px); line-height: 1.18; font-weight: 800; letter-spacing: -.02em;
+    margin: 0 0 12px; text-wrap: balance; max-width: 18ch;
+  }
+  header.hero p { margin: 0; color: var(--muted); font-size: clamp(15px, 2vw, 17px); max-width: 56ch; }
+
+  /* ── Layout ── */
+  .wrap {
+    display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    gap: clamp(24px, 4vw, 56px);
+    max-width: calc(var(--sidebar) + var(--maxw) + 80px); margin: 0 auto;
+    padding: 0 clamp(16px, 4vw, 32px) 80px;
+  }
+
+  /* ── Sidebar TOC ── */
+  .toc { position: relative; }
+  .toc-inner { position: sticky; top: 78px; padding-top: 32px; }
+  .toc summary {
+    display: none; list-style: none; cursor: pointer;
+    font-weight: 700; padding: 12px 14px; border: 1px solid var(--line);
+    border-radius: 12px; background: var(--paper); margin-bottom: 8px;
+  }
+  .toc summary::-webkit-details-marker { display: none; }
+  .toc .grp { font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--faint); margin: 22px 0 8px; padding-left: 14px; }
+  .toc .grp:first-child { margin-top: 4px; }
+  .toc nav { display: flex; flex-direction: column; gap: 1px; }
+  .toc nav a {
+    display: block; padding: 7px 14px; border-radius: 9px; color: var(--muted);
+    font-size: 14.5px; line-height: 1.4; border-left: 2px solid transparent;
+  }
+  .toc nav a:hover { background: var(--line-soft); color: var(--ink); text-decoration: none; }
+  .toc nav a.active {
+    color: var(--accent); background: var(--accent-tint); font-weight: 600;
+    border-left-color: var(--accent); border-radius: 0 9px 9px 0;
+  }
+
+  /* ── Content ── */
+  main { min-width: 0; padding-top: 32px; max-width: var(--maxw); }
+  section { scroll-margin-top: 88px; padding: 8px 0 30px; }
+  section + section { border-top: 1px solid var(--line-soft); padding-top: 34px; }
+  section > h2 {
+    font-size: clamp(21px, 3vw, 25px); font-weight: 800; letter-spacing: -.02em;
+    margin: 0 0 6px; display: flex; align-items: center; gap: 10px; text-wrap: balance;
+  }
+  section > .lead { margin: 0 0 18px; color: var(--muted); }
+  h3 { font-size: 16.5px; font-weight: 700; margin: 26px 0 8px; letter-spacing: -.01em; }
+  p { margin: 0 0 14px; }
+  main ul { margin: 0 0 16px; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  main ul li { position: relative; padding-left: 24px; }
+  main ul li::before {
+    content: ""; position: absolute; left: 4px; top: .72em; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--accent); opacity: .55;
+  }
+  b, strong { font-weight: 700; color: var(--ink); }
+  code {
+    font: 600 .88em/1 ui-monospace, "SF Mono", Menlo, monospace;
+    background: var(--accent-tint); color: var(--accent-2); padding: 2px 7px; border-radius: 6px;
+  }
+
+  /* Pro badge */
+  .pro {
+    display: inline-flex; align-items: center; font-size: 11px; font-weight: 800; letter-spacing: .04em;
+    color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    padding: 2px 9px; border-radius: 999px; vertical-align: middle; line-height: 1.5;
+    box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  h2 .pro, h3 .pro { transform: translateY(-1px); }
+
+  /* Steps (ordered = real sequence) */
+  ol.steps { counter-reset: s; list-style: none; margin: 4px 0 18px; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  ol.steps > li { position: relative; padding-left: 46px; }
+  ol.steps > li::before {
+    counter-increment: s; content: counter(s); position: absolute; left: 0; top: -2px;
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+    background: var(--accent-tint); color: var(--accent); font-weight: 800; font-size: 15px;
+    font-variant-numeric: tabular-nums;
+  }
+  ol.steps > li b { display: block; }
+
+  /* Callout */
+  .note {
+    background: var(--accent-tint); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+    border-left-width: 3px; border-radius: 12px; padding: 14px 16px; margin: 18px 0; font-size: 14.6px; color: var(--ink);
+  }
+  .note .lbl { font-weight: 800; color: var(--accent); margin-right: 6px; }
+  .note.tip { background: color-mix(in srgb, var(--ok) 12%, var(--paper)); border-color: color-mix(in srgb, var(--ok) 38%, transparent); }
+  .note.tip .lbl { color: var(--ok); }
+
+  /* ── Comparison table ── */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow); margin: 6px 0 4px; }
+  table.cmp { width: 100%; min-width: 440px; border-collapse: collapse; background: var(--paper); }
+  table.cmp th, table.cmp td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line-soft); font-size: 14.6px; }
+  table.cmp thead th { font-weight: 800; font-size: 14px; background: var(--ground); position: sticky; top: 0; }
+  table.cmp th:not(:first-child), table.cmp td:not(:first-child) { text-align: center; width: 118px; font-variant-numeric: tabular-nums; }
+  table.cmp tbody tr:last-child td { border-bottom: none; }
+  table.cmp .pro-col { background: var(--accent-tint); }
+  table.cmp thead th.pro-col { color: var(--accent); }
+  .yes { color: var(--ok); font-weight: 800; font-size: 16px; }
+  .no { color: var(--faint); }
+  .val { font-weight: 700; }
+
+  /* Two price cards */
+  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 4px 0 20px; }
+  .plan { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); padding: 18px 18px 20px; box-shadow: var(--shadow); }
+  .plan.featured { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: linear-gradient(180deg, var(--accent-tint) 0%, var(--paper) 40%); }
+  .plan .pname { font-size: 20px; font-weight: 800; margin: 0 0 2px; }
+  .plan .ptag { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .plan ul { gap: 7px; }
+  .plan ul li { font-size: 14px; }
+
+  /* FAQ */
+  details.faq { border: 1px solid var(--line); border-radius: 12px; background: var(--paper); margin-bottom: 10px; overflow: hidden; }
+  details.faq > summary { cursor: pointer; list-style: none; padding: 14px 16px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  details.faq > summary::-webkit-details-marker { display: none; }
+  details.faq > summary::after { content: "+"; color: var(--accent); font-weight: 800; font-size: 20px; line-height: 1; flex: none; }
+  details.faq[open] > summary::after { content: "−"; }
+  details.faq > summary:hover { color: var(--accent); }
+  details.faq .a { padding: 0 16px 15px; color: var(--muted); font-size: 14.6px; }
+  details.faq .a p { margin: 0; }
+
+  footer.docfoot {
+    max-width: calc(var(--sidebar) + var(--maxw) + 80px); margin: 0 auto;
+    padding: 26px clamp(16px, 4vw, 32px) 60px; border-top: 1px solid var(--line);
+    color: var(--faint); font-size: 13.5px; display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: space-between;
+  }
+
+  :where(a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 880px) {
+    .wrap { grid-template-columns: 1fr; gap: 0; }
+    .toc { position: sticky; top: 57px; z-index: 20; background: var(--ground); padding-top: 12px; margin-bottom: 6px; }
+    .toc-inner { position: static; padding-top: 0; }
+    .toc-inner > .grp { display: none; }
+    .toc summary { display: flex; justify-content: space-between; align-items: center; }
+    .toc summary::after { content: "▾"; color: var(--accent); font-weight: 700; }
+    .toc-inner[open] summary::after { content: "▴"; }
+    .toc nav { display: none; }
+    .toc-inner[open] nav { display: block; }
+    .toc-inner[open] > .grp { display: block; }
+    .toc-inner[open] { border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 6px 6px 10px; max-height: 66vh; overflow: auto; }
+    .toc-inner[open] summary { border: none; margin-bottom: 2px; background: transparent; }
+    main { padding-top: 18px; }
+    .plans { grid-template-columns: 1fr; }
+    .topbar .crumb { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="wordmark" href="/" aria-label="HOP หน้าแรก">
+    <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="#7132f5"></rect>
+      <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff"></path>
+    </svg>
+    H<span class="op">OP</span>
+  </a>
+  <span class="crumb">คู่มือการใช้งาน</span>
+  <span class="spacer"></span>
+  <a class="topnav-link" href="/#/login">เข้าสู่ระบบ</a>
+  <a class="cta-mini" href="/#/login?mode=signup">สมัครฟรี</a>
+</div>
+
+<header class="hero">
+  <div class="inner">
+    <span class="eyebrow">Documentation</span>
+    <h1>คู่มือการใช้งาน HOP</h1>
+    <p>แพลตฟอร์มบริหารทรัพย์สำหรับทีมนายหน้าอสังหาฯ — โกดัง โรงงาน โชว์รูม ออฟฟิศ ครบทั้งฐานข้อมูล แผนที่ ผู้ช่วย AI และเอกสารเสนอลูกค้า ในระบบเดียวที่ทั้งทีมใช้ร่วมกัน ทั้งบนเว็บและแอปมือถือ</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- Sidebar -->
+  <aside class="toc">
+    <details class="toc-inner" open>
+      <summary>สารบัญ</summary>
+      <div class="grp">เริ่มต้น</div>
+      <nav id="toc">
+        <a href="#overview">ภาพรวม HOP</a>
+        <a href="#start">เริ่มต้นใช้งาน</a>
+      </nav>
+      <div class="grp">ฟีเจอร์</div>
+      <nav>
+        <a href="#properties">ฐานข้อมูลทรัพย์</a>
+        <a href="#map">แผนที่</a>
+        <a href="#ai">ผู้ช่วย AI</a>
+        <a href="#visit">แผนเยี่ยมชม</a>
+        <a href="#compare">เอกสารเปรียบเทียบ</a>
+        <a href="#dashboard">Dashboard</a>
+        <a href="#import">นำเข้าข้อมูล</a>
+      </nav>
+      <div class="grp">จัดการทีม & บัญชี</div>
+      <nav>
+        <a href="#team">ทีมและสิทธิ์</a>
+        <a href="#plans">แพ็กเกจ Free / Pro</a>
+        <a href="#referral">ชวนเพื่อน</a>
+        <a href="#mobile">แอปมือถือ</a>
+        <a href="#security">ความปลอดภัย</a>
+      </nav>
+      <div class="grp">ช่วยเหลือ</div>
+      <nav>
+        <a href="#faq">คำถามที่พบบ่อย</a>
+      </nav>
+    </details>
+  </aside>
+
+  <!-- Content -->
+  <main>
+    <section id="overview">
+      <h2>ภาพรวม HOP</h2>
+      <p class="lead">HOP รวมงานนายหน้าทั้งหมดไว้ในที่เดียว ตั้งแต่รับทรัพย์เข้าระบบ จนถึงปิดดีลกับลูกค้า</p>
+      <p>แทนที่จะกระจัดกระจายอยู่ในกระดาษ Excel หรือ AppSheet ทีมของคุณเก็บทรัพย์ทุกตัวไว้ในฐานข้อมูลกลาง เห็นบนแผนที่ จัดแผนพาลูกค้าชม สร้างเอกสารเปรียบเทียบ และให้ผู้ช่วย AI ช่วยงาน — ข้อมูลของแต่ละองค์กรแยกกันสมบูรณ์และปลอดภัย</p>
+      <h3>เหมาะกับใคร</h3>
+      <ul>
+        <li>ทีมนายหน้า/โบรกเกอร์อสังหาฯ เชิงพาณิชย์ (โกดัง โรงงาน โชว์รูม ออฟฟิศ ที่ดิน)</li>
+        <li>บริษัทที่มีลูกทีมหลายคนต้องใช้ฐานข้อมูลทรัพย์ร่วมกัน</li>
+        <li>คนที่อยากเลิกจดใส่ Excel แล้วย้ายมาระบบที่ใช้ได้ทั้งคอมและมือถือ</li>
+      </ul>
+      <div class="note tip"><span class="lbl">เริ่มฟรี</span> สมัครด้วยอีเมลหรือ Google ใช้แพ็กเกจฟรีได้ตลอด ไม่ต้องผูกบัตรเครดิต</div>
+    </section>
+
+    <section id="start">
+      <h2>เริ่มต้นใช้งาน</h2>
+      <p class="lead">จากศูนย์ถึงใช้งานได้จริงใน 4 ขั้นตอน</p>
+      <ol class="steps">
+        <li><b>สมัครบัญชี</b> เปิดหน้าเว็บแล้วกด “สมัครฟรี” — กรอกอีเมล/รหัสผ่าน หรือเลือก “สมัครด้วย Google” ได้ทันที</li>
+        <li><b>ตั้งองค์กรของทีม</b> ตั้งชื่อบริษัท/ทีม ระบบจะตั้งให้คุณเป็น <b>แอดมิน</b> โดยอัตโนมัติ</li>
+        <li><b>เพิ่มทรัพย์ + เชิญลูกทีม</b> เพิ่มทรัพย์เองผ่านฟอร์ม หรือนำเข้าจาก Excel/CSV <span class="pro">Pro</span> แล้วเชิญลูกทีมด้วยลิงก์ทางอีเมล</li>
+        <li><b>เริ่มใช้ได้เลย</b> ทำงานพร้อมกันทั้งบนเว็บและแอปมือถือ — ค้นหาทรัพย์ ดูแผนที่ จัดแผนพาชม และสร้างเอกสารเสนอลูกค้า</li>
+      </ol>
+      <div class="note"><span class="lbl">การนำทาง</span> เมนูหลักอยู่ที่แถบล่าง (มือถือ) หรือแถบซ้าย (คอม): <b>แผนที่ · ฟอร์ม · รายการ · สรุป · แผนเยี่ยม · ทีม</b> — บัญชีและการออกจากระบบอยู่ที่ไอคอนรูปคนมุมบนขวา</div>
+    </section>
+
+    <section id="properties">
+      <h2>ฐานข้อมูลทรัพย์</h2>
+      <p class="lead">หัวใจของระบบ — เก็บรายละเอียดทรัพย์ครบถ้วนพร้อมค้นหา/กรองได้ทันใจ</p>
+      <ul>
+        <li>เก็บได้ราว <b>50 ฟิลด์ต่อทรัพย์</b>: รหัส ประเภท ทำเล ราคา ขนาด ผู้ให้เช่า เบอร์ติดต่อ ฯลฯ</li>
+        <li>แนบรูปภาพทรัพย์ ถ่ายจากกล้องในแอปได้โดยตรง</li>
+        <li>ป้ายสีแยกตาม <b>ประเภททรัพย์</b> และ <b>เช่า/ขาย</b> เห็นชัดในหน้ารายการ</li>
+        <li>ค้นหาด้วยรหัส/ทำเล/ประเภท และกรองตามจังหวัด ช่วงราคา ประเภท เช่า-ขาย</li>
+      </ul>
+      <h3>เพิ่ม / แก้ไขทรัพย์</h3>
+      <p>ใช้เมนู <b>ฟอร์ม</b> เพื่อเพิ่มทรัพย์ใหม่ หรือกดไอคอนดินสอบนการ์ดทรัพย์เพื่อแก้ไข ทุกการเปลี่ยนแปลงบันทึกทันทีและซิงก์ให้ทั้งทีม</p>
+      <div class="note"><span class="lbl">ลิมิตแพ็กเกจฟรี</span> เก็บทรัพย์ได้สูงสุด <b>10 รายการ</b> — อัปเกรดเป็น Pro เพื่อเก็บได้ไม่จำกัด</div>
+    </section>
+
+    <section id="map">
+      <h2>แผนที่</h2>
+      <p class="lead">เห็นทรัพย์ทุกตัวบนแผนที่จริง เข้าใจภาพรวมทำเลได้ทันที</p>
+      <ul>
+        <li>หมุดแยกสีตามประเภททรัพย์ — กดหมุดเพื่อดูรายละเอียดและเปิดทรัพย์นั้น</li>
+        <li>สลับ <b>ภาพแผนที่ / ภาพดาวเทียม</b> (พร้อมชื่อสถานที่กำกับ)</li>
+        <li><b>ค้นหาที่อยู่</b> เพื่อเลื่อนแผนที่ไปยังทำเลที่ต้องการ (ฟรี)</li>
+        <li>กดจากป๊อปอัป “ตำแหน่งของคุณ” เพื่อ <b>เพิ่มทรัพย์ตรงจุดนั้น</b> ได้เลย</li>
+      </ul>
+    </section>
+
+    <section id="ai">
+      <h2>ผู้ช่วย AI <span class="pro">Pro</span></h2>
+      <p class="lead">ให้ AI ช่วยกรอกข้อมูลและตอบคำถามจากทรัพย์จริงของทีมคุณ</p>
+      <ul>
+        <li><b>พูดปุ๊บได้ข้อมูล</b> — กดพูดเล่ารายละเอียดทรัพย์รวดเดียว AI แกะเป็นฟิลด์กรอกให้อัตโนมัติ (เข้าใจตัวเลขไทย)</li>
+        <li><b>ผู้ช่วยแชท</b> — ถามหาทรัพย์เป็นภาษาพูด สั่งเพิ่มจุดแวะ สร้างแผน หรือเปิดหน้าเปรียบเทียบผ่านแชท</li>
+        <li>ตอบจากข้อมูลจริงในองค์กรของคุณเท่านั้น</li>
+      </ul>
+      <div class="note"><span class="lbl">ความปลอดภัยของคีย์</span> การเรียก AI ทั้งหมดผ่านเซิร์ฟเวอร์ของ HOP — คีย์ผู้ให้บริการ AI ไม่ถูกฝังในแอป</div>
+    </section>
+
+    <section id="visit">
+      <h2>แผนเยี่ยมชม <span class="pro">Pro</span></h2>
+      <p class="lead">วางแผนพาลูกค้าดูทรัพย์หลายจุดในทริปเดียว</p>
+      <ul>
+        <li>จัดรูทหลายจุดในคลิกเดียว แล้วเปิดนำทางด้วย Google Maps จากตำแหน่งปัจจุบัน</li>
+        <li>แจ้งเตือนแผนล่วงหน้าถึงมือถือ (push)</li>
+        <li>ลูกค้าเปลี่ยนโจทย์กลางทาง ให้ AI ช่วยหาทรัพย์ตัวใหม่ที่ตรงเงื่อนไขได้ทันที</li>
+      </ul>
+    </section>
+
+    <section id="compare">
+      <h2>เอกสารเปรียบเทียบ</h2>
+      <p class="lead">สร้างเอกสารเสนอลูกค้าแบบมืออาชีพในไม่กี่คลิก</p>
+      <ul>
+        <li>เลือกทรัพย์ <b>2–4 ตัว</b> ระบบสร้างตารางเทียบสเปกให้อัตโนมัติ</li>
+        <li>พิมพ์เป็น <b>PDF แนวนอน</b> ส่งลูกค้าทาง LINE ได้ทันที</li>
+        <li>เพิ่มบทวิเคราะห์เปรียบเทียบจาก AI ได้ <span class="pro">Pro</span></li>
+      </ul>
+      <div class="note tip"><span class="lbl">ใช้ได้ทั้งฟรีและ Pro</span> การสร้างตารางเทียบและพิมพ์ PDF ใช้ได้ทุกแพ็กเกจ — เฉพาะบทวิเคราะห์ AI ที่ต้องใช้ Pro</div>
+    </section>
+
+    <section id="dashboard">
+      <h2>Dashboard สรุปภาพรวม <span class="pro">Pro</span></h2>
+      <p class="lead">เห็นสุขภาพพอร์ตทั้งหมดในหน้าเดียว</p>
+      <ul>
+        <li>มูลค่าพอร์ตรวม · สัดส่วนประเภททรัพย์ · ทำเลยอดนิยม</li>
+        <li>ราคาเฉลี่ยต่อ ตร.ม. และสุขภาพความครบถ้วนของข้อมูล</li>
+        <li>บทวิเคราะห์พอร์ตรายวันจาก AI</li>
+      </ul>
+    </section>
+
+    <section id="import">
+      <h2>นำเข้าข้อมูล <span class="pro">Pro</span></h2>
+      <p class="lead">ย้ายจากระบบเดิมได้ในวันเดียว</p>
+      <ul>
+        <li>นำเข้าจาก <b>Excel / CSV</b> รวมถึงข้อมูลเดิมจาก AppSheet หรือ Google Sheets</li>
+        <li>จับคู่คอลัมน์อัตโนมัติ รองรับ <b>วันที่แบบ พ.ศ.</b></li>
+        <li>ตรวจรหัสซ้ำให้ก่อนบันทึก</li>
+      </ul>
+    </section>
+
+    <section id="team">
+      <h2>ทีมและสิทธิ์</h2>
+      <p class="lead">ทำงานเป็นทีมทั้งบริษัท พร้อมควบคุมสิทธิ์การเห็นข้อมูล</p>
+      <h3>เชิญลูกทีม</h3>
+      <p>แอดมินไปที่เมนู <b>ทีม</b> กรอกอีเมลลูกทีม → ระบบสร้างลิงก์เชิญและส่งอีเมลให้ (แบบ Jira) เมื่อเปิดลิงก์แล้วสมัคร/ล็อกอินด้วยอีเมลนั้น จะเข้าเป็นลูกทีมอัตโนมัติ</p>
+      <h3>บทบาท</h3>
+      <ul>
+        <li><b>แอดมิน</b> — จัดการทีม เชิญ/ปิดสมาชิก ตั้งค่าองค์กร เห็นทรัพย์ทั้งหมด</li>
+        <li><b>ลูกทีม</b> — เพิ่ม/แก้ทรัพย์ ตั้งค่าให้เห็นเฉพาะทรัพย์ของตัวเอง หรือทั้งทีมก็ได้</li>
+      </ul>
+      <h3>หนึ่งบัญชี หลายองค์กร</h3>
+      <p>บัญชีเดียวเป็นสมาชิกได้หลายองค์กร มี <b>ตัวสลับองค์กร</b> บน topbar — เหมาะกับคนที่ถูกเชิญเข้าทีมอื่นทั้งที่มีองค์กรของตัวเองอยู่แล้ว</p>
+      <h3>โปรไฟล์ของฉัน</h3>
+      <p>กดไอคอนรูปคนมุมบนขวา → <b>โปรไฟล์ของฉัน</b> เพื่อแก้ชื่อที่แสดง เปลี่ยนรหัสผ่าน (เฉพาะผู้สมัครด้วยอีเมล) ดูองค์กรที่สังกัด และลิงก์ชวนเพื่อน</p>
+      <div class="note"><span class="lbl">ลิมิตแพ็กเกจฟรี</span> มีลูกทีมได้สูงสุด <b>2 คน</b> (รวมทุกคนในองค์กร) — อัปเกรด Pro หรือชวนเพื่อนเพื่อเพิ่มได้ไม่จำกัด</div>
+    </section>
+
+    <section id="plans">
+      <h2>แพ็กเกจ Free / Pro</h2>
+      <p class="lead">เริ่มฟรีได้เลยไม่มีวันหมดอายุ อัปเกรดเป็น Pro เมื่ออยากได้ AI, Dashboard, นำเข้าข้อมูล และทีมไม่จำกัด</p>
+      <div class="plans">
+        <div class="plan">
+          <p class="pname">ฟรี</p>
+          <p class="ptag">ฟรีตลอด ไม่มีวันหมดอายุ</p>
+          <ul>
+            <li>ทรัพย์สูงสุด 10 รายการ</li>
+            <li>ทีมสูงสุด 2 คน</li>
+            <li>ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์ม</li>
+            <li>ใช้ได้ทั้งเว็บและแอปมือถือ</li>
+          </ul>
+        </div>
+        <div class="plan featured">
+          <p class="pname">Pro</p>
+          <p class="ptag">ทีมที่กำลังเติบโต</p>
+          <ul>
+            <li>ทรัพย์และลูกทีม ไม่จำกัด</li>
+            <li>ผู้ช่วย AI ครบชุด</li>
+            <li>Dashboard + นำเข้า Excel/CSV</li>
+            <li>แผนเยี่ยมชม + แจ้งเตือน</li>
+          </ul>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="cmp">
+          <thead>
+            <tr><th>ฟีเจอร์</th><th>ฟรี</th><th class="pro-col">Pro</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>จำนวนทรัพย์</td><td><span class="val">10 รายการ</span></td><td class="pro-col"><span class="val">ไม่จำกัด</span></td></tr>
+            <tr><td>จำนวนลูกทีม</td><td><span class="val">2 คน</span></td><td class="pro-col"><span class="val">ไม่จำกัด</span></td></tr>
+            <tr><td>ฐานข้อมูลทรัพย์ + รูปภาพ</td><td><span class="yes">✓</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>แผนที่ดาวเทียม + ค้นหาที่อยู่</td><td><span class="yes">✓</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>ค้นหา / กรองทรัพย์</td><td><span class="yes">✓</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>เชิญลูกทีมทางอีเมล</td><td><span class="yes">✓</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>เอกสารเปรียบเทียบ + พิมพ์ PDF</td><td><span class="yes">✓</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>แอปมือถือ (Android/iPhone)</td><td><span class="yes">✓</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>Dashboard สรุปภาพรวม</td><td><span class="no">–</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>ผู้ช่วย AI (พูดกรอก / แชท / วิเคราะห์)</td><td><span class="no">–</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>นำเข้า Excel / CSV</td><td><span class="no">–</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+            <tr><td>แผนเยี่ยมชม (จัดรูท + แจ้งเตือน)</td><td><span class="no">–</span></td><td class="pro-col"><span class="yes">✓</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="referral">
+      <h2>ชวนเพื่อน รับ Pro ฟรี</h2>
+      <p class="lead">ยิ่งชวน ยิ่งได้ใช้ Pro ฟรีนานขึ้น</p>
+      <p>คัดลอกลิงก์ชวนเพื่อนได้จากหน้า <b>โปรไฟล์ของฉัน</b> หรือหน้า <b>ทีม</b> เมื่อเพื่อนสมัครแล้วเปิดองค์กรของตัวเอง <b>ครบทุก 2 คน</b> องค์กรของคุณจะได้ <b>Pro เพิ่ม 30 วัน</b> — สะสมได้ไม่จำกัด</p>
+      <div class="note tip"><span class="lbl">เคล็ดลับ</span> ลูกทีมทุกคนมีลิงก์ชวนเพื่อนของตัวเองในหน้าโปรไฟล์ ไม่ใช่แค่แอดมิน</div>
+    </section>
+
+    <section id="mobile">
+      <h2>แอปมือถือ</h2>
+      <p class="lead">แอปจริงทั้ง Android และ iPhone ใช้งานหน้างานได้เต็มที่</p>
+      <ul>
+        <li>ใช้ <b>กล้อง GPS และการแจ้งเตือน (push)</b> ได้เต็มที่</li>
+        <li>ทำงาน <b>offline</b> ได้ และอัปเดตตัวเองอัตโนมัติ</li>
+        <li>หน้าจอปรับให้ใช้มือเดียวสะดวก เมนูอยู่แถบล่าง</li>
+      </ul>
+    </section>
+
+    <section id="security">
+      <h2>ความปลอดภัยของข้อมูล</h2>
+      <p class="lead">ข้อมูลแต่ละองค์กรแยกกันจริง บังคับที่ชั้นฐานข้อมูล</p>
+      <ul>
+        <li>แต่ละบริษัทเห็นเฉพาะข้อมูลของตัวเอง บังคับด้วย <b>Row Level Security</b> ที่ฐานข้อมูล ไม่ใช่แค่ซ่อนใน UI</li>
+        <li>มีประวัติการใช้งาน (activity log) สำหรับแอดมิน</li>
+        <li>ระบบล็อกอินรองรับอีเมล/รหัสผ่าน และ Google — HOP ไม่เก็บรหัสผ่านของคุณเป็นข้อความธรรมดา</li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>คำถามที่พบบ่อย</h2>
+
+      <details class="faq">
+        <summary>ใช้ฟรีได้นานแค่ไหน?</summary>
+        <div class="a"><p>แพ็กเกจฟรีใช้ได้ตลอด ไม่มีวันหมดอายุ ภายในลิมิต 10 ทรัพย์ / 2 ลูกทีม เมื่อพร้อมค่อยอัปเกรดเป็น Pro</p></div>
+      </details>
+      <details class="faq">
+        <summary>ถูกเชิญเข้าทีมอื่น ทั้งที่มีองค์กรของตัวเองแล้ว ทำได้ไหม?</summary>
+        <div class="a"><p>ได้ — บัญชีเดียวอยู่ได้หลายองค์กร เปิดลิงก์เชิญแล้วกดยอมรับ จากนั้นสลับไปมาด้วยตัวสลับองค์กรบนแถบบน</p></div>
+      </details>
+      <details class="faq">
+        <summary>ล็อกอินด้วย Google แล้วจะเปลี่ยนรหัสผ่านตรงไหน?</summary>
+        <div class="a"><p>ผู้ที่สมัคร/ล็อกอินด้วย Google ไม่มีรหัสผ่านในระบบ HOP จึงไม่มีช่องเปลี่ยนรหัส (จัดการผ่านบัญชี Google) — ช่องเปลี่ยนรหัสจะแสดงเฉพาะผู้ที่สมัครด้วยอีเมล</p></div>
+      </details>
+      <details class="faq">
+        <summary>เอกสารเปรียบเทียบต้องใช้ Pro ไหม?</summary>
+        <div class="a"><p>ไม่ต้อง — การสร้างตารางเทียบและพิมพ์ PDF ใช้ได้ทุกแพ็กเกจ เฉพาะบทวิเคราะห์เปรียบเทียบจาก AI ที่ต้องใช้ Pro</p></div>
+      </details>
+      <details class="faq">
+        <summary>ย้ายข้อมูลเดิมจาก Excel/AppSheet มายังไง?</summary>
+        <div class="a"><p>ใช้เมนูนำเข้า (Pro) อัปโหลดไฟล์ Excel/CSV ระบบจับคู่คอลัมน์อัตโนมัติ รองรับวันที่ พ.ศ. และตรวจรหัสซ้ำให้ หากต้องการให้ทีมงานช่วยย้าย ทักติดต่อได้</p></div>
+      </details>
+    </section>
+  </main>
+</div>
+
+<footer class="docfoot">
+  <span>© 2026 HOP — แพลตฟอร์มบริหารทรัพย์สำหรับทีมนายหน้า</span>
+  <span>คู่มือการใช้งาน · v1.0</span>
+</footer>
+
+<script>
+  // Scrollspy: ไฮไลต์หัวข้อในสารบัญตามส่วนที่กำลังดู
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc nav a'));
+    var map = {};
+    links.forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var sec = document.getElementById(id);
+      if (sec) map[id] = a;
+    });
+    var current = null;
+    function setActive(id) {
+      if (current === id) return;
+      links.forEach(function (a) { a.classList.remove('active'); });
+      if (map[id]) { map[id].classList.add('active'); current = id; }
+    }
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) setActive(e.target.id);
+        });
+      }, { rootMargin: '-88px 0px -70% 0px', threshold: 0 });
+      Object.keys(map).forEach(function (id) {
+        io.observe(document.getElementById(id));
+      });
+    }
+    // ปิดสารบัญบนมือถือหลังกดลิงก์
+    var toc = document.querySelector('.toc.toc-inner, details.toc-inner');
+    document.querySelectorAll('.toc nav a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        if (window.matchMedia('(max-width: 880px)').matches && toc) toc.removeAttribute('open');
+      });
+    });
+  })();
+</script>
+</body>
+</html>
