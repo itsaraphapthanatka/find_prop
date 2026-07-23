@@ -54,11 +54,8 @@ export default async function handler(req, res) {
     if (info?.org_name) orgName = info.org_name
   } catch { /* ไม่มีชื่อก็ใช้ค่า default */ }
 
-  // 2) ส่งอีเมลผ่าน Resend (ถ้าตั้งค่าไว้)
-  const resendKey = process.env.RESEND_API_KEY
-  if (!resendKey) return res.status(200).json({ ok: true, link, emailed: false, reason: 'no_resend' })
-
-  const from = process.env.INVITE_FROM || 'HOP <onboarding@resend.dev>'
+  // 2) ส่งอีเมล — ลอง SMTP (เช่น Gmail) ก่อน → Resend → คืนลิงก์ให้คัดลอก
+  const subject = `คำเชิญเข้าร่วม ${orgName} บน HOP`
   const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
   const html = `<div style="font-family:-apple-system,'Segoe UI',sans-serif;line-height:1.6;color:#101114;max-width:480px">
     <h2 style="margin:0 0 8px">คุณได้รับเชิญเข้าร่วม ${esc(orgName)}</h2>
@@ -66,18 +63,47 @@ export default async function handler(req, res) {
     <p style="margin:22px 0"><a href="${link}" style="display:inline-block;background:#7132f5;color:#fff;padding:11px 22px;border-radius:9px;text-decoration:none;font-weight:600">เข้าร่วม ${esc(orgName)}</a></p>
     <p style="color:#999;font-size:12.5px">หรือเปิดลิงก์นี้: <br>${esc(link)}</p>
   </div>`
-  try {
-    const er = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [email], subject: `คำเชิญเข้าร่วม ${orgName} บน HOP`, html }),
-    })
-    const eout = await er.json().catch(() => ({}))
-    if (!er.ok) {
-      return res.status(200).json({ ok: true, link, emailed: false, reason: eout?.message || `resend ${er.status}` })
+
+  // 2a) SMTP (Gmail ก็ได้: SMTP_HOST=smtp.gmail.com, SMTP_USER=อีเมล, SMTP_PASS=App Password)
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    try {
+      const nodemailer = (await import('nodemailer')).default
+      const port = Number(process.env.SMTP_PORT || 587)
+      const transport = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port,
+        secure: port === 465, // 465 = SSL · 587 = STARTTLS
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      })
+      await transport.sendMail({
+        from: process.env.INVITE_FROM || process.env.SMTP_USER,
+        to: email,
+        subject,
+        html,
+      })
+      return res.status(200).json({ ok: true, link, emailed: true })
+    } catch (e) {
+      return res.status(200).json({ ok: true, link, emailed: false, reason: `smtp: ${e?.message || 'error'}` })
     }
-    return res.status(200).json({ ok: true, link, emailed: true })
-  } catch {
-    return res.status(200).json({ ok: true, link, emailed: false, reason: 'resend_error' })
   }
+
+  // 2b) Resend
+  const resendKey = process.env.RESEND_API_KEY
+  if (resendKey) {
+    try {
+      const er = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: process.env.INVITE_FROM || 'HOP <onboarding@resend.dev>', to: [email], subject, html }),
+      })
+      const eout = await er.json().catch(() => ({}))
+      if (!er.ok) return res.status(200).json({ ok: true, link, emailed: false, reason: eout?.message || `resend ${er.status}` })
+      return res.status(200).json({ ok: true, link, emailed: true })
+    } catch {
+      return res.status(200).json({ ok: true, link, emailed: false, reason: 'resend_error' })
+    }
+  }
+
+  // 2c) ยังไม่ตั้งค่าอีเมล → คืนลิงก์ให้คัดลอกส่งเอง
+  return res.status(200).json({ ok: true, link, emailed: false, reason: 'no_email_config' })
 }
