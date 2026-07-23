@@ -20,7 +20,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteErr, setInviteErr] = useState<string | null>(null)
-  const [lastInvite, setLastInvite] = useState<{ email: string; link: string } | null>(null)
+  const [lastInvite, setLastInvite] = useState<{ email: string; link: string; emailed: boolean } | null>(null)
   const [invites, setInvites] = useState<{ id: string; email: string; token: string; created_at: string }[]>([])
   const [copiedTok, setCopiedTok] = useState<string | null>(null)
   // สถานะชวนเพื่อน (referral) — โหลดจาก RPC referral_status
@@ -113,15 +113,30 @@ export default function TeamPage() {
     e.preventDefault()
     setInviting(true)
     setInviteErr(null)
-    const { data, error } = await supabase.rpc('create_team_invite', { p_email: inviteEmail.trim() })
-    setInviting(false)
-    if (error) {
-      setInviteErr(`สร้างคำเชิญไม่สำเร็จ: ${error.message}`)
-      return
+    // ผ่าน API ฝั่งเซิร์ฟเวอร์: สร้างคำเชิญ + ส่งอีเมลอัตโนมัติ (ถ้าตั้ง Resend) · ไม่งั้นคืนลิงก์ให้คัดลอก
+    const { data: s } = await supabase.auth.getSession()
+    try {
+      const res = await fetch(`${API_BASE}/api/send-invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${s.session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ email: inviteEmail.trim() }),
+      })
+      const out = await res.json().catch(() => ({}))
+      setInviting(false)
+      if (!res.ok) {
+        setInviteErr(`สร้างคำเชิญไม่สำเร็จ: ${out.error || res.statusText}`)
+        return
+      }
+      setLastInvite({ email: inviteEmail.trim(), link: out.link, emailed: Boolean(out.emailed) })
+      setInviteEmail('')
+      await loadInvites()
+    } catch (err) {
+      setInviting(false)
+      setInviteErr(`สร้างคำเชิญไม่สำเร็จ: ${err instanceof Error ? err.message : String(err)}`)
     }
-    setLastInvite({ email: inviteEmail.trim(), link: `${shareBase}/#/login?invite=${data as string}` })
-    setInviteEmail('')
-    await loadInvites()
   }
 
   async function revokeInvite(id: string) {
@@ -251,7 +266,9 @@ export default function TeamPage() {
 
           {lastInvite && (
             <div className="auth-notice" style={{ marginTop: 12 }}>
-              ลิงก์เชิญสำหรับ <b>{lastInvite.email}</b> — คัดลอกส่งให้ได้เลย:
+              {lastInvite.emailed
+                ? <>ส่งอีเมลเชิญไปที่ <b>{lastInvite.email}</b> แล้ว ✓ (หรือคัดลอกลิงก์ส่งเองได้)</>
+                : <>ลิงก์เชิญสำหรับ <b>{lastInvite.email}</b> — คัดลอกส่งให้ได้เลย:</>}
               <div className="org-row" style={{ marginTop: 8 }}>
                 <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
                   <input type="text" readOnly value={lastInvite.link} onFocus={(e) => e.currentTarget.select()} />
