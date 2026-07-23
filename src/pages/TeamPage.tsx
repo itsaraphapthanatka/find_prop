@@ -20,7 +20,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteErr, setInviteErr] = useState<string | null>(null)
-  const [lastInvite, setLastInvite] = useState<{ email: string; link: string; emailed: boolean } | null>(null)
+  const [lastInvite, setLastInvite] = useState<{ email: string; link: string; emailed: boolean; reason?: string } | null>(null)
   const [invites, setInvites] = useState<{ id: string; email: string; token: string; created_at: string }[]>([])
   const [copiedTok, setCopiedTok] = useState<string | null>(null)
   // สถานะชวนเพื่อน (referral) — โหลดจาก RPC referral_status
@@ -130,7 +130,7 @@ export default function TeamPage() {
         setInviteErr(`สร้างคำเชิญไม่สำเร็จ: ${out.error || res.statusText}`)
         return
       }
-      setLastInvite({ email: inviteEmail.trim(), link: out.link, emailed: Boolean(out.emailed) })
+      setLastInvite({ email: inviteEmail.trim(), link: out.link, emailed: Boolean(out.emailed), reason: out.reason })
       setInviteEmail('')
       await loadInvites()
     } catch (err) {
@@ -269,6 +269,13 @@ export default function TeamPage() {
               {lastInvite.emailed
                 ? <>ส่งอีเมลเชิญไปที่ <b>{lastInvite.email}</b> แล้ว ✓ (หรือคัดลอกลิงก์ส่งเองได้)</>
                 : <>ลิงก์เชิญสำหรับ <b>{lastInvite.email}</b> — คัดลอกส่งให้ได้เลย:</>}
+              {!lastInvite.emailed && lastInvite.reason && (
+                <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
+                  (ยังไม่ได้ส่งอีเมลอัตโนมัติ — {lastInvite.reason === 'no_email_config'
+                    ? 'ยังไม่ได้ตั้งค่า SMTP/Resend หรือยังไม่ได้ Redeploy หลังใส่ env'
+                    : lastInvite.reason})
+                </div>
+              )}
               <div className="org-row" style={{ marginTop: 8 }}>
                 <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
                   <input type="text" readOnly value={lastInvite.link} onFocus={(e) => e.currentTarget.select()} />
