@@ -1419,6 +1419,16 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .ld-price-card li:last-child { border-bottom: none; }
 .ld-price-card li::before { content: '✓'; position: absolute; left: 2px; color: var(--success); font-weight: 700; }
 .ld-price-card .btn { width: 100%; border-radius: 11px; }
+/* แบนเนอร์ชวนเพื่อน (referral) ใต้แพ็กเกจ */
+.ld-referral {
+  max-width: 960px; margin: 22px auto 0; display: flex; align-items: center; gap: 16px;
+  text-align: left; padding: 18px 22px; border-radius: 16px;
+  background: var(--purple-subtle); border: 1px solid var(--purple);
+}
+.ld-referral-emoji { font-size: 30px; flex: none; line-height: 1; }
+.ld-referral b { display: block; font-size: 16px; color: var(--purple-dark); margin-bottom: 3px; }
+.ld-referral div span { font-size: 13.5px; opacity: 0.85; }
+@media (max-width: 560px) { .ld-referral { flex-direction: column; text-align: center; } }
 
 /* ── Contact ── */
 .ld-contact {

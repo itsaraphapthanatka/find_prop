@@ -10,6 +10,8 @@ import {
   IconShield,
   IconSparkles,
   IconUpload,
+  IconUser,
+  IconUsers,
 } from '../components/icons'
 
 // ── ช่องทางติดต่อ/ทีมขาย — แก้ตรงนี้จุดเดียว ──────────────────
@@ -29,14 +31,24 @@ const GALLERY = [
 
 const FEATURES = [
   {
-    title: 'ฐานข้อมูลทรัพย์ + แผนที่',
-    desc: 'โกดัง โรงงาน โชว์รูม ออฟฟิศ — เก็บครบ ~50 ฟิลด์ต่อทรัพย์ พร้อมรูปภาพ ค้นหา/กรองทันใจ และแผนที่รวมทรัพย์ที่หมุดแยกสีตามประเภท เห็นภาพรวมทำเลทันที',
+    title: 'สมัครเองใช้ได้ทันที',
+    desc: 'กดสมัครด้วยอีเมลหรือ Google ตั้งองค์กรของทีมได้เองใน 1 นาที ไม่ต้องรอทีมงานเปิดบัญชี — เริ่มฟรี ไม่ต้องผูกบัตรเครดิต',
+    icon: <IconUser size={22} />,
+  },
+  {
+    title: 'ฐานข้อมูลทรัพย์ + แผนที่ดาวเทียม',
+    desc: 'โกดัง โรงงาน โชว์รูม ออฟฟิศ — เก็บครบ ~50 ฟิลด์ต่อทรัพย์ พร้อมรูปภาพ ค้นหา/กรองทันใจ แผนที่หมุดแยกสีตามประเภท สลับภาพดาวเทียม และค้นหาที่อยู่เพื่อปักหมุดได้ฟรี',
     icon: <IconMap size={22} />,
   },
   {
     title: 'พูดปุ๊บ ถ่ายรูปปั๊บ ได้ข้อมูล',
     desc: 'เซลส์ยืนหน้างาน กดพูดเล่ารายละเอียดรวดเดียว AI แกะเป็นฟิลด์กรอกให้อัตโนมัติ (เข้าใจตัวเลขไทย) และถ่ายรูปทรัพย์ด้วยกล้องในแอปแนบได้ทันที',
     icon: <IconMic size={22} />,
+  },
+  {
+    title: 'ทำงานเป็นทีมทั้งบริษัท',
+    desc: 'เชิญลูกทีมด้วยลิงก์ทางอีเมล (แบบ Jira) กำหนดสิทธิ์แอดมิน/ลูกทีม และเห็นเฉพาะทรัพย์ของตัวเองหรือทั้งทีมก็ได้ — 1 บัญชีสลับได้หลายองค์กร',
+    icon: <IconUsers size={22} />,
   },
   {
     title: 'แผนพาลูกค้าชมทรัพย์',
@@ -80,32 +92,35 @@ const TRUST = [
 
 const PLANS = [
   {
-    name: 'ทดลองใช้ฟรี',
-    tag: '14 วัน · ครบทุกฟีเจอร์',
-    points: ['ใช้ได้ครบทุกฟีเจอร์ รวม AI', 'ไม่ต้องผูกบัตรเครดิต', 'มีทีมช่วยตั้งค่า + ย้ายข้อมูลเดิมให้'],
-    cta: 'เริ่มทดลองใช้',
+    name: 'ฟรี',
+    tag: 'เริ่มต้นใช้งาน · ฟรีตลอด ไม่มีวันหมดอายุ',
+    points: [
+      'ทรัพย์สูงสุด 10 รายการ',
+      'ทีมสูงสุด 2 คน',
+      'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มบันทึก',
+      'ใช้ได้ทั้งเว็บและแอปมือถือ',
+    ],
+    cta: 'สมัครฟรี',
     featured: false,
   },
   {
     name: 'Pro',
-    tag: 'ทีมที่กำลังเติบโต',
-    points: ['ทุกอย่างในช่วงทดลอง', 'ฟีเจอร์ AI ครบชุด (เสียง/จับคู่/ผู้ช่วย)', 'Dashboard + เอกสารเปรียบเทียบ + แอปมือถือ'],
-    cta: 'สอบถามราคา',
+    tag: 'ทีมที่กำลังเติบโต · อัปเกรดได้ในแอป',
+    points: [
+      'ทรัพย์และลูกทีม ไม่จำกัด',
+      'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)',
+      'Dashboard + นำเข้า Excel/CSV',
+      'แผนเยี่ยมชม + เอกสารเปรียบเทียบ',
+    ],
+    cta: 'เริ่มใช้ฟรี แล้วอัปเกรด',
     featured: true,
-  },
-  {
-    name: 'Enterprise',
-    tag: 'องค์กรขนาดใหญ่',
-    points: ['ทุกอย่างใน Pro', 'จำนวนผู้ใช้ไม่จำกัด', 'ซัพพอร์ตแบบ dedicated'],
-    cta: 'สอบถามราคา',
-    featured: false,
   },
 ]
 
 const STEPS = [
-  { n: '1', title: 'ทักมาคุยกับเรา', desc: 'เล่าหน้างานทีมคุณให้ฟัง เราเปิดบัญชีองค์กรพร้อมพาตั้งค่าให้' },
-  { n: '2', title: 'นำเข้าข้อมูลเดิม', desc: 'อัปโหลดไฟล์ Excel / ข้อมูล AppSheet เดิม ระบบจับคู่คอลัมน์ให้อัตโนมัติ' },
-  { n: '3', title: 'ทีมเริ่มใช้ได้เลย', desc: 'เพิ่มสมาชิกทีม แล้วใช้งานได้ทันทีทั้งคอมและมือถือ พร้อม AI ครบชุด' },
+  { n: '1', title: 'สมัครฟรีใน 1 นาที', desc: 'กดสมัครด้วยอีเมลหรือ Google แล้วตั้งชื่อองค์กรของทีม — เริ่มใช้ได้เองทันที ไม่ต้องรอใคร' },
+  { n: '2', title: 'เพิ่มทรัพย์ + เชิญทีม', desc: 'เพิ่มทรัพย์เองหรือนำเข้าจาก Excel/CSV (Pro) แล้วเชิญลูกทีมด้วยลิงก์ทางอีเมล' },
+  { n: '3', title: 'ใช้ได้เลยทั้งทีม', desc: 'ทำงานพร้อมกันทั้งคอมและมือถือ พร้อมแผนที่ แผนพาชม เอกสารเสนอลูกค้า และผู้ช่วย AI' },
 ]
 
 function Brand() {
@@ -178,6 +193,9 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const goSignup = () => navigate('/login?mode=signup')
+  const goLogin = () => navigate('/login')
+
   return (
     <div className="landing">
       <header className={`ld-topbar ${scrolled ? 'scrolled' : ''}`}>
@@ -185,10 +203,8 @@ export default function LandingPage() {
         <nav className="ld-nav">
           <a href="#features" className="btn sm ghost">ฟีเจอร์</a>
           <a href="#pricing" className="btn sm ghost">แพ็กเกจ</a>
-          <button className="btn sm ghost" onClick={() => navigate('/login')}>เข้าสู่ระบบ</button>
-          <a href={CONTACT.lineUrl} target="_blank" rel="noreferrer" className="btn sm primary">
-            ทดลองใช้ฟรี
-          </a>
+          <button className="btn sm ghost" onClick={goLogin}>เข้าสู่ระบบ</button>
+          <button className="btn sm primary" onClick={goSignup}>สมัครฟรี</button>
         </nav>
       </header>
 
@@ -206,12 +222,12 @@ export default function LandingPage() {
               และผู้ช่วย AI ที่รู้จักทรัพย์ของคุณทุกตัว
             </p>
             <div className="ld-cta-row">
-              <a className="btn primary ld-cta" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
-                ทดลองใช้ฟรี 14 วัน
-              </a>
-              <a className="btn ld-cta" href={`tel:${CONTACT.phone.replace(/-/g, '')}`}>
-                <IconPhone size={18} /> นัดดูเดโม
-              </a>
+              <button className="btn primary ld-cta" onClick={goSignup}>
+                สมัครฟรี — ใช้ได้ทันที
+              </button>
+              <button className="btn ld-cta" onClick={goLogin}>
+                เข้าสู่ระบบ
+              </button>
             </div>
             <div className="ld-proof">
               <div className="ld-proof-dots">
@@ -219,7 +235,7 @@ export default function LandingPage() {
                 <span style={{ background: '#0d9488' }}>บ</span>
                 <span style={{ background: '#d97706' }}>ค</span>
               </div>
-              <small>ทีมนายหน้าอสังหาฯ ใช้จริง<br /><b>ทดลองฟรี 14 วัน</b> · ไม่ต้องผูกบัตรเครดิต</small>
+              <small>ทีมนายหน้าอสังหาฯ ใช้จริง<br /><b>เริ่มฟรี</b> · สมัครด้วยอีเมลหรือ Google · ไม่ต้องผูกบัตรเครดิต</small>
             </div>
           </div>
           <div className="ld-hero-visual">
@@ -284,26 +300,28 @@ export default function LandingPage() {
       <section className="ld-section" id="pricing">
         <span className="ld-kicker">แพ็กเกจ</span>
         <h2>เริ่มฟรี อัปเกรดเมื่อพร้อม</h2>
-        <p className="ld-lead">ทดลองครบทุกฟีเจอร์ 14 วันก่อน ไม่ต้องผูกบัตรเครดิต</p>
+        <p className="ld-lead">เริ่มใช้ฟรีได้เลยไม่มีวันหมดอายุ — อยากได้ AI, Dashboard, นำเข้าข้อมูล และทีมไม่จำกัด ค่อยอัปเกรดเป็น Pro</p>
         <div className="ld-pricing">
           {PLANS.map((p) => (
             <div key={p.name} className={`ld-price-card ${p.featured ? 'featured' : ''}`}>
-              {p.featured && <span className="ld-price-badge">ยอดนิยม</span>}
+              {p.featured && <span className="ld-price-badge">คุ้มสุด</span>}
               <h3>{p.name}</h3>
               <p className="ld-price-tag">{p.tag}</p>
               <ul>
                 {p.points.map((pt) => <li key={pt}>{pt}</li>)}
               </ul>
-              <a
-                className={`btn ld-cta ${p.featured ? 'primary' : ''}`}
-                href={CONTACT.lineUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <button className={`btn ld-cta ${p.featured ? 'primary' : ''}`} onClick={goSignup}>
                 {p.cta}
-              </a>
+              </button>
             </div>
           ))}
+        </div>
+        <div className="ld-referral">
+          <span className="ld-referral-emoji">🎁</span>
+          <div>
+            <b>ชวนเพื่อน 2 คน รับ Pro ฟรี 30 วัน</b>
+            <span>เพื่อนสมัครแล้วเปิดองค์กรของตัวเอง ครบทุก 2 คน องค์กรคุณได้ Pro เพิ่ม 30 วัน — สะสมได้ไม่จำกัด</span>
+          </div>
         </div>
       </section>
 
@@ -323,21 +341,23 @@ export default function LandingPage() {
 
       <section className="ld-contact" id="contact">
         <h2>พร้อมยกระดับทีมของคุณหรือยัง?</h2>
-        <p>ทักมาคุยก่อนได้ ไม่มีค่าใช้จ่าย — เล่าหน้างานของทีมคุณ เดี๋ยวเราพาดูว่าระบบช่วยตรงไหนได้บ้าง</p>
+        <p>สมัครฟรีแล้วเริ่มใช้ได้เองทันที — หรือถ้ามีคำถาม/อยากให้ช่วยย้ายข้อมูลเดิม ทักทีมงานได้เลย ไม่มีค่าใช้จ่าย</p>
         <div className="ld-cta-row">
-          <a className="btn primary ld-cta" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
+          <button className="btn primary ld-cta" onClick={goSignup}>
+            สมัครฟรีเลย
+          </button>
+          <a className="btn ld-cta on-dark" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
             LINE {CONTACT.lineId}
           </a>
           <a className="btn ld-cta on-dark" href={`tel:${CONTACT.phone.replace(/-/g, '')}`}>
             <IconPhone size={18} /> {CONTACT.phone}
           </a>
-          <a className="btn ld-cta on-dark" href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
         </div>
       </section>
 
       <footer className="ld-footer">
         <span>© {new Date().getFullYear()} HOP — แพลตฟอร์มบริหารทรัพย์</span>
-        <button className="linklike" onClick={() => navigate('/login')}>ลูกค้าปัจจุบัน: เข้าสู่ระบบ</button>
+        <button className="linklike" onClick={goLogin}>ลูกค้าปัจจุบัน: เข้าสู่ระบบ</button>
       </footer>
     </div>
   )

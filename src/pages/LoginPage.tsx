@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { isInstalledApp } from '../lib/native'
@@ -28,7 +29,9 @@ function GoogleIcon() {
 
 export default function LoginPage() {
   const { signIn, signUp, signInWithGoogle } = useAuth()
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [params] = useSearchParams()
+  // มาจากปุ่ม "สมัครฟรี" บนหน้า landing (/login?mode=signup) → เปิดแท็บสมัครเลย
+  const [mode, setMode] = useState<'login' | 'signup'>(params.get('mode') === 'signup' ? 'signup' : 'login')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
