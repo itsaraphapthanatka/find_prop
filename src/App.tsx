@@ -104,12 +104,10 @@ export default function App() {
 
   const isSuper = Boolean(profile?.is_super)
 
-  // ยังไม่มีองค์กร: ถ้ามาจากลิงก์เชิญ → หน้ายอมรับคำเชิญ · ไม่งั้น → ตั้งองค์กรใหม่ (super ข้ามได้)
-  if (profile && !profile.org_id && !isSuper) {
+  // คำเชิญค้างอยู่ (มาจากลิงก์เชิญ) → หน้ายอมรับ — ต้องทำงานแม้ผู้ใช้ "มี org อยู่แล้ว" (multi-org)
+  if (profile && !isSuper && !ignoreInvite) {
     let inviteTok: string | null = null
-    if (!ignoreInvite) {
-      try { inviteTok = localStorage.getItem('hop_invite') } catch { inviteTok = null }
-    }
+    try { inviteTok = localStorage.getItem('hop_invite') } catch { inviteTok = null }
     if (inviteTok) {
       return (
         <JoinOrgScreen
@@ -122,6 +120,10 @@ export default function App() {
         />
       )
     }
+  }
+
+  // ยังไม่มีองค์กร → ตั้งองค์กรใหม่ (super admin ข้ามได้ เพื่อเข้าหน้าบริหารระบบ)
+  if (profile && !profile.org_id && !isSuper) {
     return <CreateOrgScreen email={session.user.email} onSignOut={() => void signOut()} />
   }
   // มีองค์กรแต่ถูกปิดใช้งานรายบุคคล → รอแอดมินเปิดให้

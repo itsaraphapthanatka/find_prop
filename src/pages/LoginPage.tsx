@@ -267,7 +267,7 @@ export function JoinOrgScreen({
           </button>
         )}
         <p className="auth-note">
-          <a href="#" onClick={(e) => { e.preventDefault(); onDecline() }}>สร้างองค์กรของตัวเองแทน</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); onDecline() }}>ข้ามไปก่อน</a>
           {' · '}
           <a href="#" onClick={(e) => { e.preventDefault(); onSignOut() }}>ออกจากระบบ</a>
         </p>
