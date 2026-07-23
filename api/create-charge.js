@@ -20,9 +20,14 @@ const YEARLY_DISCOUNT = 0.15
 function quote(plan, cycle) {
   const monthly = PRICES[plan]
   if (!monthly) return null
-  if (cycle === 'monthly') return { amount: monthly, months: 1 }
-  if (cycle === 'yearly') return { amount: Math.round(monthly * 12 * (1 - YEARLY_DISCOUNT)), months: 12 }
-  return null
+  let out
+  if (cycle === 'monthly') out = { amount: monthly, months: 1 }
+  else if (cycle === 'yearly') out = { amount: Math.round(monthly * 12 * (1 - YEARLY_DISCOUNT)), months: 12 }
+  else return null
+  // โหมดทดสอบชั่วคราว: ตั้ง env PUNPAY_TEST_AMOUNT (เช่น 1) → บังคับยอดเป็นค่านั้น · ⚠️ ลบ env นี้ก่อนขึ้นจริง!
+  const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
+  if (testAmt > 0) out.amount = testAmt
+  return out
 }
 
 export default async function handler(req, res) {

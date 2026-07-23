@@ -10,11 +10,11 @@ const YEARLY_DISCOUNT = 0.15
 const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
 function expectedAmount(plan, cycle) {
-  const m = PRICES[plan]
-  if (!m) return null
-  if (cycle === 'monthly') return m
-  if (cycle === 'yearly') return Math.round(m * 12 * (1 - YEARLY_DISCOUNT))
-  return null
+  if (!PRICES[plan] || !['monthly', 'yearly'].includes(cycle)) return null
+  // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง
+  const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
+  if (testAmt > 0) return testAmt
+  return cycle === 'yearly' ? Math.round(PRICES[plan] * 12 * (1 - YEARLY_DISCOUNT)) : PRICES[plan]
 }
 
 export default async function handler(req, res) {
