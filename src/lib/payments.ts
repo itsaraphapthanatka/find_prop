@@ -26,7 +26,11 @@ async function authedPost<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   })
   const json = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(json?.error || `เกิดข้อผิดพลาด (${res.status})`)
+  if (!res.ok) {
+    // แนบ detail จากเซิร์ฟเวอร์ด้วย (เช่น ข้อความ error จริงจากฐานข้อมูล) — ช่วยไล่ปัญหาการจ่ายเงิน
+    const msg = json?.error || `เกิดข้อผิดพลาด (${res.status})`
+    throw new Error(json?.detail ? `${msg} — ${json.detail}` : msg)
+  }
   return json as T
 }
 
