@@ -18,6 +18,8 @@ const YEARLY_DISCOUNT = 0.15
 const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
 function expectedAmount(plan, cycle) {
+  // 🧪 แพ็กเกจทดสอบ ฿1 — ต้องตรงกับ quote() ใน create-charge · ⚠️ ลบก่อนเปิดใช้จริง!
+  if (plan === 'test') return 1
   if (!PRICES[plan] || !['monthly', 'yearly'].includes(cycle)) return null
   // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง
   const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
@@ -87,11 +89,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, note: 'metadata/ยอดไม่ตรง' })
     }
 
+    // แพ็กเกจทดสอบ ฿1 → ให้สิทธิ์ 'starter' จริงๆ (ต้องตรงกับ verify-charge)
+    const applyPlan = meta.plan === 'test' ? 'starter' : meta.plan
     const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
     const rpc = await fetch(`${supaUrl}/rest/v1/rpc/apply_payment`, {
       method: 'POST',
       headers: svc,
-      body: JSON.stringify({ p_charge_id: chargeId, p_org: meta.org_id, p_plan: meta.plan, p_months: months, p_amount: want }),
+      body: JSON.stringify({ p_charge_id: chargeId, p_org: meta.org_id, p_plan: applyPlan, p_months: months, p_amount: want }),
     })
     if (!rpc.ok) return res.status(500).json({ error: 'อัปเกรดไม่สำเร็จ' }) // 5xx → retry
     return res.status(200).json({ ok: true, applied: chargeId })

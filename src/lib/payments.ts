@@ -30,8 +30,11 @@ async function authedPost<T>(path: string, body: unknown): Promise<T> {
   return json as T
 }
 
+// 'test' = แพ็กเกจทดสอบ ฿1 (ได้สิทธิ์ 'เริ่มต้น' 1 เดือน) — ⚠️ ลบก่อนเปิดใช้จริง
+export type PlanKey = 'starter' | 'pro' | 'test'
+
 /** สร้างรายการชำระเงิน → คืน checkout_url ให้พาผู้ใช้ไปจ่าย (ยอดเงินคำนวณฝั่งเซิร์ฟเวอร์) */
-export function createCharge(plan: 'starter' | 'pro', cycle: 'monthly' | 'yearly'): Promise<Charge> {
+export function createCharge(plan: PlanKey, cycle: 'monthly' | 'yearly'): Promise<Charge> {
   return authedPost<Charge>('create-charge', { plan, cycle })
 }
 

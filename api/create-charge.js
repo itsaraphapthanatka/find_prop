@@ -18,6 +18,9 @@ const YEARLY_DISCOUNT = 0.15
 
 // คืนยอดเงิน (บาท) + จำนวนเดือน จาก (plan, cycle) — ไม่รู้จัก = null
 function quote(plan, cycle) {
+  // 🧪 แพ็กเกจทดสอบ ฿1 — จ่ายจริงผ่าน PromptPay ยอดต่ำสุด แล้วได้สิทธิ์ "เริ่มต้น" 1 เดือน
+  // ⚠️ ลบทั้งบล็อกนี้ (และการ์ดทดสอบใน UpgradePage + เงื่อนไข 'test' ใน verify-charge/webhook) ก่อนเปิดใช้จริง!
+  if (plan === 'test') return { amount: 1, months: 1 }
   const monthly = PRICES[plan]
   if (!monthly) return null
   let out
@@ -91,14 +94,16 @@ export default async function handler(req, res) {
   const { plan, cycle } = req.body || {}
   const q = quote(plan, cycle)
   if (!q) {
-    return res.status(400).json({ error: 'plan/cycle ไม่ถูกต้อง (plan: starter|pro, cycle: monthly|yearly)' })
+    return res.status(400).json({ error: 'plan/cycle ไม่ถูกต้อง (plan: starter|pro|test, cycle: monthly|yearly)' })
   }
 
   // reference ไม่ซ้ำ ใช้ผูก charge กับองค์กร/แพ็กเกจ (verify-charge จะอ่าน metadata)
   const reference = `hop-${orgId}-${plan}-${cycle}-${Date.now()}`
   const body = {
     amount: q.amount,
-    description: `HOP ${plan === 'pro' ? 'Pro' : 'เริ่มต้น'} (${cycle === 'yearly' ? 'รายปี' : 'รายเดือน'})`,
+    description: plan === 'test'
+      ? 'HOP ทดสอบระบบชำระเงิน (฿1)'
+      : `HOP ${plan === 'pro' ? 'Pro' : 'เริ่มต้น'} (${cycle === 'yearly' ? 'รายปี' : 'รายเดือน'})`,
     reference,
     metadata: { org_id: orgId, plan, cycle, months: q.months, source: 'hop' },
     expires_in: 3600, // QR หมดอายุใน 1 ชม.

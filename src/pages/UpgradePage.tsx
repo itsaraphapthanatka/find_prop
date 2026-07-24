@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { createCharge, verifyCharge } from '../lib/payments'
+import { createCharge, verifyCharge, type PlanKey } from '../lib/payments'
 
 const YEARLY_DISCOUNT = 0.15
 const PLANS = [
@@ -21,7 +21,7 @@ const PLANS = [
   },
 ]
 
-type ActiveCharge = { charge_id: string; checkout_url?: string; plan?: 'starter' | 'pro' }
+type ActiveCharge = { charge_id: string; checkout_url?: string; plan?: PlanKey }
 
 export default function UpgradePage() {
   const navigate = useNavigate()
@@ -68,7 +68,7 @@ export default function UpgradePage() {
     }
   }
 
-  async function pay(plan: 'starter' | 'pro') {
+  async function pay(plan: PlanKey) {
     setErr(null)
     setBusy(plan)
     try {
@@ -191,6 +191,16 @@ export default function UpgradePage() {
             <p className="plan-line" style={{ marginTop: 16 }}>
               ชำระผ่าน PromptPay (สแกน QR + อัปโหลดสลิป) · ระบบตรวจสอบและอัปเกรดอัตโนมัติ · จ่ายรายปีประหยัด 15%
             </p>
+            {/* 🧪 แพ็กเกจทดสอบ ฿1 — ⚠️ ลบบล็อกนี้ (และเงื่อนไข 'test' ใน api/create-charge, verify-charge, punpay-webhook) ก่อนเปิดใช้จริง! */}
+            <section className="form-card" style={{ marginTop: 14, borderStyle: 'dashed' }}>
+              <h3 style={{ margin: '0 0 2px' }}>🧪 ทดสอบระบบชำระเงิน</h3>
+              <p className="plan-line">
+                จ่ายจริง <b>฿1</b> ผ่าน PromptPay → ได้แพ็กเกจ "เริ่มต้น" 1 เดือน (ไว้ทดสอบครบวงจร: QR → สลิป → webhook → อัปเกรด)
+              </p>
+              <button className="btn" disabled={busy !== null} onClick={() => void pay('test')}>
+                {busy === 'test' ? 'กำลังสร้างรายการ…' : 'จ่าย ฿1 เพื่อทดสอบ'}
+              </button>
+            </section>
           </>
         )}
       </div>

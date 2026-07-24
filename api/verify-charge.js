@@ -10,6 +10,8 @@ const YEARLY_DISCOUNT = 0.15
 const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
 function expectedAmount(plan, cycle) {
+  // 🧪 แพ็กเกจทดสอบ ฿1 — ต้องตรงกับ quote() ใน create-charge · ⚠️ ลบก่อนเปิดใช้จริง!
+  if (plan === 'test') return 1
   if (!PRICES[plan] || !['monthly', 'yearly'].includes(cycle)) return null
   // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง
   const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
@@ -101,12 +103,14 @@ export default async function handler(req, res) {
   }
 
   // ── อัปเกรด (idempotent ด้วย charge_id) ผ่าน RPC service-role ──
+  // แพ็กเกจทดสอบ ฿1 → ให้สิทธิ์ 'starter' จริงๆ (จะได้ทดสอบ gating ครบวงจร)
+  const applyPlan = plan === 'test' ? 'starter' : plan
   try {
     const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
     const rpc = await fetch(`${supaUrl}/rest/v1/rpc/apply_payment`, {
       method: 'POST',
       headers: svc,
-      body: JSON.stringify({ p_charge_id: chargeId, p_org: orgId, p_plan: plan, p_months: months, p_amount: want }),
+      body: JSON.stringify({ p_charge_id: chargeId, p_org: orgId, p_plan: applyPlan, p_months: months, p_amount: want }),
     })
     const out = await rpc.json().catch(() => null)
     if (!rpc.ok) {
@@ -115,7 +119,7 @@ export default async function handler(req, res) {
     const row = Array.isArray(out) ? out[0] : out
     return res.status(200).json({
       paid: true,
-      plan,
+      plan: applyPlan,
       applied: row?.applied ?? false, // false = charge นี้เคยอัปเกรดไปแล้ว (กันซ้ำ)
       expires: row?.expires ?? null,
     })
