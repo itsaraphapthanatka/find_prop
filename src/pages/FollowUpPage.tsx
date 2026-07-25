@@ -106,21 +106,37 @@ export default function FollowUpPage() {
     await reload()
   }
 
-  async function setStatus(r: FollowUp, status: 'pending' | 'done') {
-    let result: string | null = null
-    if (status === 'done') {
-      // ถามผลตอนปิดนัด — กดยกเลิก = ไม่ปิดนัด · เว้นว่างได้
-      const answer = window.prompt(`ผลการติดตาม "${r.title}" เป็นยังไง?\n(เช่น โทรไม่รับ / เจ้าของยอมลดเหลือ 320,000 / ลูกค้าขอเลื่อน)`, r.result ?? '')
-      if (answer === null) return
-      result = answer.trim() || null
-    }
+  async function markDone(r: FollowUp) {
+    // ถามผลตอนปิดนัด — กดยกเลิก = ไม่ปิดนัด · เว้นว่างได้
+    const answer = window.prompt(`ผลการติดตาม "${r.title}" เป็นยังไง?\n(เช่น โทรไม่รับ / เจ้าของยอมลดเหลือ 320,000 / ลูกค้าขอเลื่อน)`, '')
+    if (answer === null) return
     setBusyId(r.id)
     const { error } = await supabase
       .from('follow_ups')
-      .update({ status, result, done_at: status === 'done' ? new Date().toISOString() : null })
+      .update({ status: 'done', result: answer.trim() || null, done_at: new Date().toISOString() })
       .eq('id', r.id)
     setBusyId(null)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
+    else await reload()
+  }
+
+  /** ตามต่อ = สร้าง "นัดใหม่" เพิ่มเข้าไป — ประวัติเดิมคงอยู่ ไม่ถูกแก้/ลบ */
+  async function followAgain(r: FollowUp) {
+    const reason = window.prompt(
+      `ตามต่อ "${r.title}" — ครั้งนี้จะทำอะไร/เพราะอะไร?\n(เช่น ลองโทรช่วงเย็น / เจ้าของให้โทรกลับอาทิตย์หน้า)\nนัดใหม่ครบกำหนดพรุ่งนี้ — เว้นว่างได้`,
+      '',
+    )
+    if (reason === null) return
+    const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
+    setBusyId(r.id)
+    const { error } = await supabase.from('follow_ups').insert({
+      title: r.title,
+      note: reason.trim() || null,
+      due_date: tomorrow,
+      property_id: r.property_id,
+    })
+    setBusyId(null)
+    if (error) alert(`สร้างนัดตามต่อไม่สำเร็จ: ${error.message}`)
     else await reload()
   }
 
@@ -266,12 +282,17 @@ export default function FollowUpPage() {
                     </div>
                     <div className="row-btns" style={{ flexShrink: 0 }}>
                       {r.status === 'pending' ? (
-                        <button className="btn sm primary" disabled={busyId === r.id} onClick={() => void setStatus(r, 'done')}>
+                        <button className="btn sm primary" disabled={busyId === r.id} onClick={() => void markDone(r)}>
                           ✓ เสร็จ
                         </button>
                       ) : (
-                        <button className="btn sm" disabled={busyId === r.id} onClick={() => void setStatus(r, 'pending')}>
-                          ↩ ติดตามต่อ
+                        <button
+                          className="btn sm"
+                          disabled={busyId === r.id}
+                          title="สร้างนัดใหม่เพิ่ม — ประวัติรายการนี้คงอยู่ ไม่ถูกแก้"
+                          onClick={() => void followAgain(r)}
+                        >
+                          ↩ ตามต่อ
                         </button>
                       )}
                       <button className="btn sm danger" disabled={busyId === r.id} onClick={() => void remove(r)}>
