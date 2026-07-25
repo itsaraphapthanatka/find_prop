@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { createCharge, verifyCharge, fetchPlanPrices, DEFAULT_PRICES, type PlanKey, type PlanPrices } from '../lib/payments'
+import { onTrial } from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
 const PLANS = [
@@ -154,7 +155,12 @@ export default function UpgradePage() {
         ) : (
           <>
             <p className="plan-line" style={{ marginTop: 0 }}>
-              แพ็กเกจปัจจุบัน: <span className="role-badge">{org?.plan === 'pro' ? 'Pro' : org?.plan === 'starter' ? 'เริ่มต้น' : 'ยังไม่ได้เลือก'}</span>
+              แพ็กเกจปัจจุบัน:{' '}
+              <span className="role-badge">
+                {onTrial(org)
+                  ? `ทดลองใช้ ${org?.trial_plan === 'pro' ? 'Pro' : 'เริ่มต้น'} ถึง ${new Date(org!.trial_expires_at!).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })}`
+                  : org?.plan === 'pro' ? 'Pro' : org?.plan === 'starter' ? 'เริ่มต้น' : 'ยังไม่ได้เลือก'}
+              </span>
             </p>
             <div style={{ display: 'inline-flex', gap: 4, padding: 4, border: '1px solid var(--line)', borderRadius: 999, marginBottom: 18 }}>
               {(['monthly', 'yearly'] as const).map((c) => (

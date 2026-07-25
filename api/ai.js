@@ -3,6 +3,8 @@
 // env ฝั่งเซิร์ฟเวอร์ (AI_API_KEY — ไม่มี prefix VITE_) และก่อน forward จะตรวจว่า
 // ผู้เรียกเป็นผู้ใช้ที่ล็อกอินกับ Supabase ของแอปจริง กันคนนอกยืมใช้ LLM ฟรี
 
+import { effectivePlan, isProPlan } from './_lib/plan.js'
+
 const MAX_BODY_CHARS = 120_000
 
 export default async function handler(req, res) {
@@ -58,9 +60,13 @@ export default async function handler(req, res) {
       const orgId = (prof?.is_super ? prof?.impersonate_org_id : null) || prof?.org_id
       let pro = false
       if (orgId) {
-        const oRes = await fetch(`${supaUrl}/rest/v1/organizations?id=eq.${orgId}&select=plan`, { headers: svcAuth })
+        // นับช่วงทดลองใช้เป็นแพ็กเกจจริงด้วย (effectivePlan)
+        const oRes = await fetch(
+          `${supaUrl}/rest/v1/organizations?id=eq.${orgId}&select=plan,trial_plan,trial_expires_at`,
+          { headers: svcAuth },
+        )
         const org = ((await oRes.json().catch(() => [])) || [])[0]
-        pro = org?.plan === 'pro' || org?.plan === 'enterprise'
+        pro = isProPlan(effectivePlan(org))
       }
       if (!pro) {
         return res.status(403).json({ error: 'ฟีเจอร์ AI เปิดใช้เฉพาะแพ็กเกจ Pro — อัปเกรดเพื่อใช้งาน' })

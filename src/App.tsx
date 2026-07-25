@@ -20,7 +20,7 @@ import Assistant from './components/Assistant'
 import ReviewPanel from './components/ReviewPanel'
 import TourOverlay from './components/TourOverlay'
 import UpgradeNotice from './components/UpgradeNotice'
-import { planAccess } from './lib/plan'
+import { planAccess, effectivePlan } from './lib/plan'
 import { buildTourSteps, startTour } from './lib/tour'
 import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
@@ -161,7 +161,8 @@ export default function App() {
   const isAdmin = profile.role === 'admin'
   const impersonating = Boolean(isSuper && profile.impersonate_org_id)
   // สิทธิ์ตามแพ็กเกจ — super (โหมดภาพรวม) = เต็ม · สวมสิทธิ์/ปกติ = ตามแพ็กเกจองค์กร
-  const access = planAccess(isSuper && !impersonating ? 'enterprise' : org?.plan)
+  // แพ็กเกจที่มีผลจริง (รวมช่วงทดลองใช้) — ตรงกับฝั่งเซิร์ฟเวอร์ org_effective_plan
+  const access = planAccess(isSuper && !impersonating ? 'enterprise' : effectivePlan(org))
 
   async function exitImpersonation() {
     await supabase.rpc('super_impersonate', { p_org: null })

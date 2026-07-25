@@ -1,4 +1,5 @@
-import { useAuth } from './auth'
+import { useAuth, type Organization } from './auth'
+import { supabase } from './supabase'
 
 // ลิมิตแพ็กเกจ Free (ต้องตรงกับฝั่งเซิร์ฟเวอร์ใน supabase/plan-gating.sql)
 export const FREE_MAX_PROPERTIES = 10
@@ -29,9 +30,46 @@ export function planAccess(plan?: string | null): PlanAccess {
   }
 }
 
+/** แพ็กเกจที่มีผลจริงตอนนี้ — จ่ายจริง > ช่วงทดลองยังไม่หมด > free (ตรงกับ org_effective_plan ใน supabase/trial.sql) */
+export function effectivePlan(org?: Organization | null): string {
+  if (!org) return 'free'
+  if (org.plan && org.plan !== 'free') return org.plan
+  const today = new Date().toISOString().slice(0, 10)
+  if (org.trial_expires_at && org.trial_expires_at >= today) return org.trial_plan || 'free'
+  return 'free'
+}
+
+/** กำลังอยู่ในช่วงทดลองใช้ (ยังไม่ได้จ่ายจริง) หรือไม่ */
+export function onTrial(org?: Organization | null): boolean {
+  if (!org || (org.plan && org.plan !== 'free')) return false
+  const today = new Date().toISOString().slice(0, 10)
+  return Boolean(org.trial_plan && org.trial_expires_at && org.trial_expires_at >= today)
+}
+
 /** สิทธิ์ของผู้ใช้ปัจจุบัน — super (โหมดภาพรวม) เข้าถึงทุกอย่าง · สวมสิทธิ์ = ตามแพ็กเกจองค์กรนั้น */
 export function usePlanAccess(): PlanAccess {
   const { org, profile } = useAuth()
   if (profile?.is_super && !profile?.impersonate_org_id) return planAccess('enterprise')
-  return planAccess(org?.plan)
+  return planAccess(effectivePlan(org))
+}
+
+// ── ตั้งค่าทดลองใช้ (app_settings key 'trial') — super admin แก้ได้จากหน้า Super Admin ──
+export interface TrialSetting {
+  days: number // 0 = ปิดช่วงทดลอง
+  plan: 'starter' | 'pro'
+}
+export const DEFAULT_TRIAL: TrialSetting = { days: 14, plan: 'pro' }
+
+/** โหลดตั้งค่าทดลองใช้ — ไม่ throw (ตาราง/แถวยังไม่มี → ใช้ค่ามาตรฐาน) */
+export async function fetchTrialSetting(): Promise<TrialSetting> {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'trial').maybeSingle()
+    const v = (data?.value ?? null) as { days?: number; plan?: string } | null
+    if (!v) return DEFAULT_TRIAL
+    const days = Number(v.days)
+    const plan = v.plan === 'starter' ? 'starter' : 'pro'
+    return { days: Number.isFinite(days) && days >= 0 ? days : DEFAULT_TRIAL.days, plan }
+  } catch {
+    return DEFAULT_TRIAL
+  }
 }

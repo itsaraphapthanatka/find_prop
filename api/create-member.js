@@ -3,6 +3,8 @@
 // จึงไม่ติด "email rate limit" ของ SMTP ในตัว Supabase และลูกทีมล็อกอินได้ทันที
 // ความปลอดภัย: ตรวจว่าผู้เรียกเป็นแอดมิน/super จริง แล้วดึงเข้า "องค์กรของผู้เรียก" เท่านั้น
 
+import { effectivePlan, isProPlan } from './_lib/plan.js'
+
 export default async function handler(req, res) {
   const ALLOWED_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost:5173']
   const origin = req.headers.origin
@@ -57,10 +59,14 @@ export default async function handler(req, res) {
   if (!targetOrg) return res.status(400).json({ error: 'ยังไม่ได้เลือกองค์กร (super ต้องสวมสิทธิ์องค์กรก่อน)' })
 
   // แพ็กเกจ Free จำกัดลูกทีม 2 คน (super ไม่ติดลิมิต) — บังคับก่อนสร้างบัญชี
+  // นับช่วงทดลองใช้เป็นแพ็กเกจจริงด้วย (effectivePlan)
   if (!isSuper) {
-    const oRes = await fetch(`${url}/rest/v1/organizations?id=eq.${targetOrg}&select=plan`, { headers: svc })
+    const oRes = await fetch(
+      `${url}/rest/v1/organizations?id=eq.${targetOrg}&select=plan,trial_plan,trial_expires_at`,
+      { headers: svc },
+    )
     const orgRow = ((await oRes.json().catch(() => [])) || [])[0]
-    const pro = orgRow?.plan === 'pro' || orgRow?.plan === 'enterprise'
+    const pro = isProPlan(effectivePlan(orgRow))
     if (!pro) {
       const mRes = await fetch(`${url}/rest/v1/profiles?org_id=eq.${targetOrg}&select=id`, { headers: svc })
       const members = (await mRes.json().catch(() => [])) || []

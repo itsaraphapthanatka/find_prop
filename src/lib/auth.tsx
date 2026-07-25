@@ -23,6 +23,8 @@ export interface Organization {
   plan?: string
   sub_status?: string
   sub_expires_at?: string | null
+  trial_plan?: string | null       // แพ็กเกจช่วงทดลองใช้ (supabase/trial.sql)
+  trial_expires_at?: string | null // วันสุดท้ายของช่วงทดลอง — หมดแล้วตกเป็น free (ไม่ล็อกองค์กร)
 }
 
 /** องค์กรใช้งานได้มั้ย (ไม่ถูกระงับ + ยังไม่หมดอายุ) — ตรรกะเดียวกับ org_ok ในฐานข้อมูล */

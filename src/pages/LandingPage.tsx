@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPlanPrices, DEFAULT_PRICES, type PlanPrices } from '../lib/payments'
+import { fetchTrialSetting, DEFAULT_TRIAL } from '../lib/plan'
 import {
   IconChart,
   IconCompare,
@@ -33,7 +34,8 @@ const GALLERY = [
 const FEATURES = [
   {
     title: 'สมัครเองใช้ได้ทันที',
-    desc: 'กดสมัครด้วยอีเมลหรือ Google ตั้งองค์กรของทีมได้เองใน 1 นาที ไม่ต้องรอทีมงานเปิดบัญชี — ทดลองฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต',
+    // {trial} ถูกแทนด้วยข้อความจริงตอน render (จำนวนวันมาจากตั้งค่าใน Super Admin)
+    desc: 'กดสมัครด้วยอีเมลหรือ Google ตั้งองค์กรของทีมได้เองใน 1 นาที ไม่ต้องรอทีมงานเปิดบัญชี — {trial} ไม่ต้องผูกบัตรเครดิต',
     icon: <IconUser size={22} />,
   },
   {
@@ -102,7 +104,7 @@ const PLANS = [
       'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มบันทึก',
       'ใช้ได้ทั้งเว็บและแอปมือถือ',
     ],
-    cta: 'ทดลองฟรี 14 วัน',
+    cta: '{trial}',
     featured: false,
   },
   {
@@ -115,7 +117,7 @@ const PLANS = [
       'Dashboard + นำเข้า Excel/CSV',
       'แผนเยี่ยมชม + แจ้งเตือนถึงมือถือ',
     ],
-    cta: 'ทดลองฟรี 14 วัน',
+    cta: '{trial}',
     featured: true,
   },
 ]
@@ -138,7 +140,7 @@ const COMPARE: { label: string; free: boolean | string; pro: boolean | string }[
 ]
 
 const STEPS = [
-  { n: '1', title: 'สมัครใน 1 นาที', desc: 'กดสมัครด้วยอีเมลหรือ Google แล้วตั้งชื่อองค์กรของทีม — ทดลองใช้ฟรี 14 วันทันที ไม่ต้องรอใคร' },
+  { n: '1', title: 'สมัครใน 1 นาที', desc: 'กดสมัครด้วยอีเมลหรือ Google แล้วตั้งชื่อองค์กรของทีม — {trial}ทันที ไม่ต้องรอใคร' },
   { n: '2', title: 'เพิ่มทรัพย์ + เชิญทีม', desc: 'เพิ่มทรัพย์เองหรือนำเข้าจาก Excel/CSV (Pro) แล้วเชิญลูกทีมด้วยลิงก์ทางอีเมล' },
   { n: '3', title: 'ใช้ได้เลยทั้งทีม', desc: 'ทำงานพร้อมกันทั้งคอมและมือถือ พร้อมแผนที่ แผนพาชม เอกสารเสนอลูกค้า และผู้ช่วย AI' },
 ]
@@ -210,9 +212,15 @@ export default function LandingPage() {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
   // ราคาจริงจากตาราง plan_prices (super admin ตั้งเอง) — ระหว่างโหลด/พลาดใช้ราคามาตรฐาน
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
+  // จำนวนวันทดลองใช้จริงจากตั้งค่า (super admin) — 0 = ปิดช่วงทดลอง
+  const [trialDays, setTrialDays] = useState(DEFAULT_TRIAL.days)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
+    void fetchTrialSetting().then((t) => setTrialDays(t.days))
   }, [])
+  const trialTxt = trialDays > 0 ? `ทดลองฟรี ${trialDays} วัน` : 'สมัครใช้งานฟรี'
+  // แทน {trial} ในข้อความจาก FEATURES/STEPS/PLANS
+  const tt = (s: string) => s.replace('{trial}', trialTxt)
   // % ประหยัดเมื่อจ่ายรายปี (คำนวณจากราคาจริงของแพ็กเกจเริ่มต้น)
   const savePct = Math.max(0, Math.round((1 - prices.starter.yearly / (prices.starter.monthly * 12)) * 100))
   useEffect(() => {
@@ -257,7 +265,7 @@ export default function LandingPage() {
             </p>
             <div className="ld-cta-row">
               <button className="btn primary ld-cta" onClick={goSignup}>
-                ทดลองฟรี 14 วัน
+                {trialTxt}
               </button>
               <button className="btn ld-cta" onClick={goLogin}>
                 เข้าสู่ระบบ
@@ -269,7 +277,7 @@ export default function LandingPage() {
                 <span style={{ background: '#0d9488' }}>บ</span>
                 <span style={{ background: '#d97706' }}>ค</span>
               </div>
-              <small>ทีมนายหน้าอสังหาฯ ใช้จริง<br /><b>ทดลองฟรี 14 วัน</b> · ไม่ต้องผูกบัตรเครดิต · ยกเลิกได้ทุกเมื่อ</small>
+              <small>ทีมนายหน้าอสังหาฯ ใช้จริง<br /><b>{trialTxt}</b> · ไม่ต้องผูกบัตรเครดิต · ยกเลิกได้ทุกเมื่อ</small>
             </div>
           </div>
           <div className="ld-hero-visual">
@@ -311,7 +319,7 @@ export default function LandingPage() {
             <div key={f.title} className="ld-card">
               <div className="ld-icon">{f.icon}</div>
               <h3>{f.title}</h3>
-              <p>{f.desc}</p>
+              <p>{tt(f.desc)}</p>
             </div>
           ))}
         </div>
@@ -333,8 +341,11 @@ export default function LandingPage() {
 
       <section className="ld-section" id="pricing">
         <span className="ld-kicker">แพ็กเกจ</span>
-        <h2>ราคาโปร่งใส ทดลองฟรี 14 วัน</h2>
-        <p className="ld-lead">สมัครแล้วทดลองใช้ฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีถูกกว่า</p>
+        <h2>{trialDays > 0 ? `ราคาโปร่งใส ทดลองฟรี ${trialDays} วัน` : 'ราคาโปร่งใส'}</h2>
+        <p className="ld-lead">
+          {trialDays > 0 ? `สมัครแล้วทดลองใช้ฟรี ${trialDays} วัน ` : 'สมัครใช้งานได้ทันที '}
+          ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีถูกกว่า
+        </p>
         <div className="ld-billing" role="group" aria-label="รอบการชำระเงิน">
           <button type="button" className={billing === 'monthly' ? 'on' : ''} onClick={() => setBilling('monthly')}>รายเดือน</button>
           <button type="button" className={billing === 'yearly' ? 'on' : ''} onClick={() => setBilling('yearly')}>
@@ -361,7 +372,7 @@ export default function LandingPage() {
                   {p.points.map((pt) => <li key={pt}>{pt}</li>)}
                 </ul>
                 <button className={`btn ld-cta ${p.featured ? 'primary' : ''}`} onClick={goSignup}>
-                  {p.cta}
+                  {tt(p.cta)}
                 </button>
               </div>
             )
@@ -407,7 +418,7 @@ export default function LandingPage() {
             <div key={s.n} className="ld-step">
               <div className="ld-step-n">{s.n}</div>
               <h3>{s.title}</h3>
-              <p>{s.desc}</p>
+              <p>{tt(s.desc)}</p>
             </div>
           ))}
         </div>
@@ -415,10 +426,13 @@ export default function LandingPage() {
 
       <section className="ld-contact" id="contact">
         <h2>พร้อมยกระดับทีมของคุณหรือยัง?</h2>
-        <p>ทดลองใช้ฟรี 14 วันแล้วเริ่มได้ทันที — หรือถ้ามีคำถาม/อยากให้ช่วยย้ายข้อมูลเดิม ทักทีมงานได้เลย ไม่มีค่าใช้จ่าย</p>
+        <p>
+          {trialDays > 0 ? `ทดลองใช้ฟรี ${trialDays} วันแล้วเริ่มได้ทันที` : 'สมัครแล้วเริ่มได้ทันที'}
+          {' '}— หรือถ้ามีคำถาม/อยากให้ช่วยย้ายข้อมูลเดิม ทักทีมงานได้เลย ไม่มีค่าใช้จ่าย
+        </p>
         <div className="ld-cta-row">
           <button className="btn primary ld-cta" onClick={goSignup}>
-            ทดลองฟรี 14 วัน
+            {trialTxt}
           </button>
           <a className="btn ld-cta on-dark" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
             LINE {CONTACT.lineId}
