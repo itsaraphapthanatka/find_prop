@@ -148,13 +148,35 @@ export default function App() {
   if (!profile || (!profile.active && !isSuper)) {
     return <PendingScreen email={session.user.email} onSignOut={() => void signOut()} />
   }
-  // องค์กรถูกระงับ/หมดอายุ → ใช้งานไม่ได้ (super admin ไม่ติดล็อกนี้)
+  // องค์กรถูกระงับ/หมดอายุ/หมดช่วงทดลอง → ใช้งานไม่ได้ (super admin ไม่ติดล็อกนี้)
   if (!isSuper && profile.org_id && !orgOk(org)) {
-    const expired = Boolean(
-      org?.sub_expires_at && org.sub_expires_at < new Date().toISOString().slice(0, 10),
-    )
+    const today = new Date().toISOString().slice(0, 10)
+    const suspended = org?.sub_status === 'suspended'
+    const subExpired = Boolean(org?.sub_expires_at && org.sub_expires_at < today)
+    // แอดมินองค์กร + ล็อกเพราะ "หมดอายุ/หมดทดลอง" (ไม่ใช่โดนระงับ) → จ่ายเงินต่อเองได้เลย
+    if (!suspended && profile.role === 'admin') {
+      return (
+        <div style={{ maxWidth: 980, margin: '0 auto', padding: '20px 16px 40px' }}>
+          <div style={{
+            background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 12,
+            padding: '12px 16px', fontSize: 14.5, lineHeight: 1.5, marginBottom: 6,
+          }}>
+            ⏰ องค์กร <b>{org?.name}</b> {subExpired ? 'แพ็กเกจหมดอายุแล้ว' : 'หมดช่วงทดลองใช้แล้ว'} —
+            เลือกแพ็กเกจด้านล่างเพื่อใช้งานต่อ (ข้อมูลทั้งหมดยังอยู่ครบ กลับมาทันทีหลังชำระเงิน)
+          </div>
+          <UpgradePage />
+          <div style={{ textAlign: 'center', marginTop: 4 }}>
+            <button className="btn sm" onClick={() => void signOut()}>ออกจากระบบ</button>
+          </div>
+        </div>
+      )
+    }
     return (
-      <SuspendedScreen orgName={org?.name} expired={expired} onSignOut={() => void signOut()} />
+      <SuspendedScreen
+        orgName={org?.name}
+        reason={suspended ? 'suspended' : subExpired ? 'expired' : 'trial_ended'}
+        onSignOut={() => void signOut()}
+      />
     )
   }
 

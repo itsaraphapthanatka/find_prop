@@ -24,14 +24,18 @@ export interface Organization {
   sub_status?: string
   sub_expires_at?: string | null
   trial_plan?: string | null       // แพ็กเกจช่วงทดลองใช้ (supabase/trial.sql)
-  trial_expires_at?: string | null // วันสุดท้ายของช่วงทดลอง — หมดแล้วตกเป็น free (ไม่ล็อกองค์กร)
+  trial_expires_at?: string | null // วันสุดท้ายของช่วงทดลอง — หมดแล้วล็อกองค์กรจนกว่าจะเลือกแพ็กเกจ
 }
 
-/** องค์กรใช้งานได้มั้ย (ไม่ถูกระงับ + ยังไม่หมดอายุ) — ตรรกะเดียวกับ org_ok ในฐานข้อมูล */
+/** องค์กรใช้งานได้มั้ย (ไม่ถูกระงับ + sub ไม่หมดอายุ + ช่วงทดลองไม่หมด) — ตรรกะเดียวกับ org_ok ในฐานข้อมูล */
 export function orgOk(org: Organization | null): boolean {
   if (!org) return false
   if (org.sub_status === 'suspended') return false
-  if (org.sub_expires_at && org.sub_expires_at < new Date().toISOString().slice(0, 10)) return false
+  const today = new Date().toISOString().slice(0, 10)
+  if (org.sub_expires_at && org.sub_expires_at < today) return false
+  // หมดช่วงทดลองโดยยังไม่เคยจ่าย (plan ยังเป็น free) → ล็อกจนกว่าจะเลือกแพ็กเกจ
+  // (trial_expires_at เป็น null = org ที่ไม่เคยได้ trial → ใช้ได้ในลิมิต Free ตามเดิม)
+  if ((org.plan ?? 'free') === 'free' && org.trial_expires_at && org.trial_expires_at < today) return false
   return true
 }
 

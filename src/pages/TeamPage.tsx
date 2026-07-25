@@ -245,7 +245,7 @@ export default function TeamPage() {
                 {onTrial(org) ? `ทดลองใช้ ${org.trial_plan === 'pro' ? 'Pro' : 'เริ่มต้น'}` : org.plan}
               </span>
               {onTrial(org)
-                ? ` · ใช้ได้ถึง ${new Date(org.trial_expires_at!).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })} (หมดแล้วกลับเป็น Free อัตโนมัติ)`
+                ? ` · ใช้ได้ถึง ${new Date(org.trial_expires_at!).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })} (หมดแล้วต้องเลือกแพ็กเกจเพื่อใช้งานต่อ)`
                 : org.sub_expires_at
                   ? ` · ใช้ได้ถึง ${new Date(org.sub_expires_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}`
                   : ' · ไม่มีวันหมดอายุ'}

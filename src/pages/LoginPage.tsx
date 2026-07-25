@@ -280,16 +280,26 @@ export function JoinOrgScreen({
 }
 
 export function SuspendedScreen({
-  orgName, expired, onSignOut,
-}: { orgName?: string; expired: boolean; onSignOut: () => void }) {
+  orgName, reason, onSignOut,
+}: { orgName?: string; reason: 'suspended' | 'expired' | 'trial_ended'; onSignOut: () => void }) {
+  // 'suspended' = super ระงับ → ติดต่อผู้ดูแลระบบ · 'expired'/'trial_ended' = เรื่องเงิน →
+  // ลูกทีมเห็นจอนี้ (แอดมินองค์กรไม่มาถึงจอนี้ — App.tsx พาไปหน้าเลือกแพ็กเกจ/จ่ายเงินแทน)
+  const title =
+    reason === 'suspended' ? 'ถูกระงับการใช้งานชั่วคราว'
+      : reason === 'expired' ? 'แพ็กเกจหมดอายุแล้ว'
+        : 'หมดช่วงทดลองใช้แล้ว'
+  const hint =
+    reason === 'suspended'
+      ? 'กรุณาติดต่อผู้ดูแลระบบเพื่อเปิดใช้งาน แล้วเข้าสู่ระบบใหม่อีกครั้ง'
+      : 'แจ้งแอดมินของทีมคุณให้เข้าสู่ระบบเพื่อเลือกแพ็กเกจ/ต่ออายุ — ข้อมูลทั้งหมดยังอยู่ครบ'
   return (
     <div className="auth-page">
       <div className="auth-card">
         <Brand />
         <p className="sub" style={{ marginTop: 14 }}>
-          องค์กร <b>{orgName}</b> {expired ? 'หมดอายุการใช้งานแล้ว' : 'ถูกระงับการใช้งานชั่วคราว'}
+          องค์กร <b>{orgName}</b> {title}
           <br />
-          กรุณาติดต่อผู้ดูแลระบบเพื่อต่ออายุ/เปิดใช้งาน แล้วเข้าสู่ระบบใหม่อีกครั้ง
+          {hint}
         </p>
         <button className="btn" onClick={onSignOut}>ออกจากระบบ</button>
       </div>
