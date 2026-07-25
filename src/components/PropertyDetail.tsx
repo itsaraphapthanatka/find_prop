@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import type { Property } from '../types'
 import { LABELS, formatDate, formatNumber } from '../labels'
 import { useAuth } from '../lib/auth'
+import { usePlanAccess } from '../lib/plan'
+import { supabase } from '../lib/supabase'
 import { IconClose, IconPhone, IconSms } from './icons'
 import LocationPicker from './LocationPicker'
 
@@ -26,6 +29,115 @@ function ChipList({ label, values }: { label: string; values: string[] | null })
   )
 }
 
+interface FuRow {
+  id: string
+  title: string
+  due_date: string
+  status: 'pending' | 'done'
+  note: string | null
+}
+
+/** นัดติดตามของทรัพย์แปลงนี้ — ลิสต์ + เพิ่มเร็ว + ติ๊กเสร็จ (ข้อมูลเต็มอยู่ที่เมนู "นัดติดตาม") */
+function FollowUpSection({ propertyId }: { propertyId: string }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [rows, setRows] = useState<FuRow[]>([])
+  const [installed, setInstalled] = useState(true) // false = ยังไม่ได้รัน follow-ups.sql
+  const [title, setTitle] = useState('')
+  const [dueDate, setDueDate] = useState(today)
+  const [busy, setBusy] = useState(false)
+
+  async function reload() {
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .select('id, title, due_date, status, note')
+      .eq('property_id', propertyId)
+      .order('status')
+      .order('due_date')
+    if (error) {
+      if (error.message.includes('follow_ups')) setInstalled(false)
+      return
+    }
+    setRows((data ?? []) as FuRow[])
+  }
+  useEffect(() => {
+    void reload()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propertyId])
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim() || busy) return
+    setBusy(true)
+    const { error } = await supabase
+      .from('follow_ups')
+      .insert({ title: title.trim(), due_date: dueDate, property_id: propertyId })
+    setBusy(false)
+    if (error) alert(`เพิ่มนัดไม่สำเร็จ: ${error.message}`)
+    else {
+      setTitle('')
+      setDueDate(today)
+      await reload()
+    }
+  }
+
+  async function toggle(r: FuRow) {
+    setBusy(true)
+    const next = r.status === 'pending' ? 'done' : 'pending'
+    const { error } = await supabase
+      .from('follow_ups')
+      .update({ status: next, done_at: next === 'done' ? new Date().toISOString() : null })
+      .eq('id', r.id)
+    setBusy(false)
+    if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
+    else await reload()
+  }
+
+  if (!installed) return null
+  const done = rows.filter((r) => r.status === 'done')
+  const pending = rows.filter((r) => r.status === 'pending')
+  return (
+    <>
+      <div className="section-title">นัดติดตาม{pending.length > 0 && ` (${pending.length} รอทำ)`}</div>
+      {[...pending, ...done.slice(0, 3)].map((r) => {
+        const overdue = r.status === 'pending' && r.due_date < today
+        return (
+          <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+            <input
+              type="checkbox"
+              checked={r.status === 'done'}
+              disabled={busy}
+              onChange={() => void toggle(r)}
+              style={{ marginTop: 3, flexShrink: 0 }}
+              title={r.status === 'done' ? 'กลับมาติดตามต่อ' : 'ทำเสร็จแล้ว'}
+            />
+            <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
+              <span style={{ textDecoration: r.status === 'done' ? 'line-through' : 'none' }}>{r.title}</span>
+              {r.note && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
+              <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600, color: overdue ? 'var(--danger)' : 'var(--muted)' }}>
+                {overdue ? `เกินกำหนด ${formatDate(r.due_date)}` : r.due_date === today && r.status === 'pending' ? 'วันนี้' : formatDate(r.due_date)}
+              </span>
+            </div>
+          </div>
+        )
+      })}
+      {rows.length === 0 && (
+        <div style={{ fontSize: 13, color: 'var(--muted)', padding: '2px 0 6px' }}>ยังไม่มีนัดของทรัพย์นี้</div>
+      )}
+      <form onSubmit={(e) => void add(e)} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          placeholder="เพิ่มนัด เช่น โทรตามเจ้าของ"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={{ flex: '1 1 150px' }}
+        />
+        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ flex: '0 1 140px' }} />
+        <button type="submit" className="btn sm primary" disabled={busy || !title.trim()}>เพิ่ม</button>
+      </form>
+    </>
+  )
+}
+
 interface Props {
   property: Property
   onClose: () => void
@@ -35,6 +147,7 @@ interface Props {
 
 export default function PropertyDetail({ property: p, onClose, onEdit, onDelete }: Props) {
   const { profile } = useAuth()
+  const access = usePlanAccess()
   // ป้ายองค์กรเฉพาะ super โหมดภาพรวม — ตอนสวมสิทธิ์มุมมองเหมือนสมาชิกจริง
   const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
   const pics = p.photos?.length ? p.photos : p.photo_url ? [p.photo_url] : []
@@ -139,6 +252,9 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
             )}
           />
           <Field label={LABELS.notes} value={p.notes} />
+
+          {/* นัดติดตาม = ฟีเจอร์ Pro — แพ็กเกจอื่นไม่โชว์ section นี้ (สอดคล้อง route /followups) */}
+          {access.followUps && <FollowUpSection propertyId={p.id} />}
         </div>
       </aside>
     </>
