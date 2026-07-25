@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { FREE_MAX_MEMBERS, usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
+import { FREE_MAX_MEMBERS, usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, onTrial } from '../lib/plan'
 
 // สมาชิก = membership (ใครอยู่ org นี้) + ข้อมูลโปรไฟล์ (ชื่อ/อีเมล) · id = user_id
 type MemberRow = {
@@ -240,10 +240,15 @@ export default function TeamPage() {
           </form>
           {org?.plan && (
             <p className="plan-line">
-              แพ็กเกจ: <span className="role-badge">{org.plan}</span>
-              {org.sub_expires_at
-                ? ` · ใช้ได้ถึง ${new Date(org.sub_expires_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}`
-                : ' · ไม่มีวันหมดอายุ'}
+              แพ็กเกจ:{' '}
+              <span className="role-badge">
+                {onTrial(org) ? `ทดลองใช้ ${org.trial_plan === 'pro' ? 'Pro' : 'เริ่มต้น'}` : org.plan}
+              </span>
+              {onTrial(org)
+                ? ` · ใช้ได้ถึง ${new Date(org.trial_expires_at!).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })} (หมดแล้วกลับเป็น Free อัตโนมัติ)`
+                : org.sub_expires_at
+                  ? ` · ใช้ได้ถึง ${new Date(org.sub_expires_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}`
+                  : ' · ไม่มีวันหมดอายุ'}
             </p>
           )}
         </section>

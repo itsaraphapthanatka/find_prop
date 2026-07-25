@@ -25,9 +25,20 @@ interface OrgOverview {
   plan: string
   sub_status: string
   sub_expires_at: string | null
+  trial_plan?: string | null       // ต้องรัน supabase/super-overview-trial.sql ถึงจะมีค่า
+  trial_expires_at?: string | null
   created_at: string
   member_count: number
   property_count: number
+}
+
+// องค์กรกำลังอยู่ในช่วงทดลองใช้ (ยังไม่ได้จ่ายจริง)
+function onTrialRow(o: OrgOverview): boolean {
+  return (
+    o.plan === 'free' &&
+    Boolean(o.trial_plan) &&
+    Boolean(o.trial_expires_at && o.trial_expires_at >= new Date().toISOString().slice(0, 10))
+  )
 }
 
 const PLANS = ['free', 'starter', 'pro', 'enterprise']
@@ -663,6 +674,12 @@ export default function SuperAdminPage() {
                         >
                           {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
                         </select>
+                        {onTrialRow(o) && (
+                          <div className="td-sub" style={{ color: 'var(--purple)' }}>
+                            🧪 ทดลอง {o.trial_plan === 'pro' ? 'Pro' : 'เริ่มต้น'} ถึง{' '}
+                            {new Date(o.trial_expires_at!).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })}
+                          </div>
+                        )}
                       </td>
                       <td data-label="หมดอายุ">
                         <input

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
+import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, onTrial } from '../lib/plan'
 
 const roleLabel = (r: string) => (r === 'admin' ? 'แอดมิน' : 'ลูกทีม')
 
@@ -153,10 +153,15 @@ export default function ProfilePage() {
             )}
           </ul>
           <p className="plan-line" style={{ marginTop: 10 }}>
-            แพ็กเกจองค์กรปัจจุบัน: <span className="role-badge">{access.pro ? 'Pro' : 'Free'}</span>
-            {access.pro && org?.sub_expires_at
-              ? ` · ใช้ได้ถึง ${new Date(org.sub_expires_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}`
-              : ''}
+            แพ็กเกจองค์กรปัจจุบัน:{' '}
+            <span className="role-badge">
+              {onTrial(org) ? `ทดลองใช้ ${org?.trial_plan === 'pro' ? 'Pro' : 'เริ่มต้น'}` : access.pro ? 'Pro' : 'Free'}
+            </span>
+            {onTrial(org)
+              ? ` · ใช้ได้ถึง ${new Date(org!.trial_expires_at!).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}`
+              : access.pro && org?.sub_expires_at
+                ? ` · ใช้ได้ถึง ${new Date(org.sub_expires_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}`
+                : ''}
           </p>
         </section>
 
