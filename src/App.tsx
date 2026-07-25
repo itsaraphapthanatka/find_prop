@@ -11,6 +11,7 @@ import SuperAdminPage from './pages/SuperAdminPage'
 import LogsPage from './pages/LogsPage'
 import ProfilePage from './pages/ProfilePage'
 import UpgradePage from './pages/UpgradePage'
+import FollowUpPage from './pages/FollowUpPage'
 
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
@@ -26,7 +27,7 @@ import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { isInstalledApp } from './lib/native'
-import { IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
+import { IconBell, IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
 function NavText({ full, short }: { full: string; short?: string }) {
@@ -293,6 +294,7 @@ export default function App() {
           <NavLink to="/" end data-tour="nav-list"><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
           <NavLink to="/dashboard" data-tour="nav-dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>
           <NavLink to="/plans" data-tour="nav-plans"><IconRoute /><NavText full="แผนเยี่ยมชม" short="แผนเยี่ยม" /></NavLink>
+          <NavLink to="/followups"><IconBell /><NavText full="นัดติดตาม" short="ติดตาม" /></NavLink>
           {((isAdmin && profile.org_id) || impersonating) && (
             <NavLink to="/team" data-tour="nav-team"><IconUsers /><NavText full="ทีม" /></NavLink>
           )}
@@ -309,6 +311,7 @@ export default function App() {
             <Route path="/new" element={<FormPage key={location.pathname} />} />
             <Route path="/edit/:id" element={<FormPage key={location.pathname} />} />
             <Route path="/plans" element={access.visitPlans ? <PlansPage /> : <UpgradeNotice feature="แผนเยี่ยมชม" />} />
+            <Route path="/followups" element={<FollowUpPage />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route
               path="/import"

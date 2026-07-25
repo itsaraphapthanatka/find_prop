@@ -1,4 +1,4 @@
-// ส่งแจ้งเตือนแผนเยี่ยมชมของ "พรุ่งนี้" (เวลาไทย) ไปยังสมาชิกองค์กรผ่าน FCM
+// ส่งแจ้งเตือน (1) แผนเยี่ยมชมของ "พรุ่งนี้" (2) นัดติดตามที่ครบกำหนด "วันนี้" — เวลาไทย ผ่าน FCM
 // รันอัตโนมัติโดย Vercel Cron ทุก 07:00 น. ไทย (ดู "crons" ใน vercel.json)
 // ทดสอบเอง: GET /api/push-cron?test=1 พร้อม header  Authorization: Bearer <CRON_SECRET>
 //
@@ -78,6 +78,7 @@ export default async function handler(req, res) {
       jobs.push({ token: t.token, title: 'HOB — ทดสอบแจ้งเตือน', body: 'ระบบแจ้งเตือนทำงานแล้ว 🎉' })
     }
   } else {
+    const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10) // วันนี้ เวลาไทย
     const tomorrow = new Date(Date.now() + (7 + 24) * 3600e3).toISOString().slice(0, 10) // พรุ่งนี้ เวลาไทย
     const plans = await sb(
       `visit_plans?select=org_id,title,customer_name,stops&visit_date=eq.${tomorrow}`,
@@ -95,8 +96,28 @@ export default async function handler(req, res) {
         }
       }
     }
+    // นัดติดตาม (follow_ups) ที่ครบกำหนด "วันนี้" — สรุปเป็น 1 ข้อความต่อองค์กร
+    // (ตารางยังไม่ถูกสร้าง → ไม่ใช่ array → ข้ามไปเงียบๆ ไม่ทำให้ cron ล้ม)
+    const fus = await sb(`follow_ups?select=org_id,title&status=eq.pending&due_date=eq.${today}`)
+    if (Array.isArray(fus) && fus.length > 0) {
+      const byOrg = new Map()
+      for (const f of fus) {
+        if (!f.org_id) continue
+        const arr = byOrg.get(f.org_id) ?? []
+        arr.push(f.title)
+        byOrg.set(f.org_id, arr)
+      }
+      for (const [orgId, titles] of byOrg) {
+        const body = titles.length === 1 ? titles[0] : `${titles[0]} และอีก ${titles.length - 1} รายการ`
+        for (const t of tokens) {
+          if (t.org_id === orgId) {
+            jobs.push({ token: t.token, title: `วันนี้ครบกำหนดติดตาม ${titles.length} นัด`, body })
+          }
+        }
+      }
+    }
   }
-  if (jobs.length === 0) return res.status(200).json({ sent: 0, note: 'ไม่มีแผนเยี่ยมชมพรุ่งนี้' })
+  if (jobs.length === 0) return res.status(200).json({ sent: 0, note: 'ไม่มีแผนเยี่ยมชมพรุ่งนี้/นัดติดตามวันนี้' })
 
   const accessToken = await fcmAccessToken(sa)
   let sent = 0
