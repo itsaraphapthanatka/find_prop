@@ -37,6 +37,35 @@ async function authedPost<T>(path: string, body: unknown): Promise<T> {
 // 'test' = แพ็กเกจทดสอบ ฿1 (ได้สิทธิ์ 'เริ่มต้น' 1 เดือน) — ⚠️ ลบก่อนเปิดใช้จริง
 export type PlanKey = 'starter' | 'pro' | 'test'
 
+// ── ราคาแพ็กเกจ — super admin ตั้งได้จากหน้า Super Admin (ตาราง plan_prices) ──
+export interface PlanPrice { monthly: number; yearly: number }
+export type PlanPrices = Record<'starter' | 'pro', PlanPrice>
+// fallback ถ้าตารางยังไม่ถูกสร้าง/โหลดไม่สำเร็จ — ต้องตรงกับ api/_lib/prices.js
+export const DEFAULT_PRICES: PlanPrices = {
+  starter: { monthly: 990, yearly: 10098 },
+  pro: { monthly: 1290, yearly: 13158 },
+}
+
+/** โหลดราคาจริงจาก DB — ไม่ throw (ใช้ fallback แทน) เพื่อไม่ให้หน้าราคาพังเพราะเน็ต/ตารางยังไม่มี */
+export async function fetchPlanPrices(): Promise<PlanPrices> {
+  try {
+    const { data } = await supabase.from('plan_prices').select('plan,monthly,yearly')
+    const out: PlanPrices = {
+      starter: { ...DEFAULT_PRICES.starter },
+      pro: { ...DEFAULT_PRICES.pro },
+    }
+    for (const r of data ?? []) {
+      const key = r.plan as keyof PlanPrices
+      if (out[key] && Number(r.monthly) > 0 && Number(r.yearly) > 0) {
+        out[key] = { monthly: Number(r.monthly), yearly: Number(r.yearly) }
+      }
+    }
+    return out
+  } catch {
+    return DEFAULT_PRICES
+  }
+}
+
 /** สร้างรายการชำระเงิน → คืน checkout_url ให้พาผู้ใช้ไปจ่าย (ยอดเงินคำนวณฝั่งเซิร์ฟเวอร์) */
 export function createCharge(plan: PlanKey, cycle: 'monthly' | 'yearly'): Promise<Charge> {
   return authedPost<Charge>('create-charge', { plan, cycle })

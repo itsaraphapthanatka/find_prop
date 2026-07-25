@@ -8,24 +8,20 @@
 //  4) การ "อัปเกรดแพ็กเกจ" ไม่ได้ทำที่นี่ — ทำใน api/verify-charge.js ก็ต่อเมื่อ
 //     ยืนยันกับ PunPay แล้วว่าจ่ายจริง (กัน client โกหกว่าจ่ายแล้ว)
 //
-// ราคาต้องตรงกับหน้า landing/docs — จ่ายรายปีลด 15%
+// ราคาอ่านจากตาราง plan_prices (super admin ตั้งเอง) — fallback ราคามาตรฐานใน api/_lib/prices.js
 
-const PRICES = {
-  starter: 990,  // แพ็กเกจ "เริ่มต้น"
-  pro: 1290,     // แพ็กเกจ Pro
-}
-const YEARLY_DISCOUNT = 0.15
+import { fetchPlanPrices } from './_lib/prices.js'
 
-// คืนยอดเงิน (บาท) + จำนวนเดือน จาก (plan, cycle) — ไม่รู้จัก = null
-function quote(plan, cycle) {
+// คืนยอดเงิน (บาท) + จำนวนเดือน จาก (plan, cycle, ราคาจาก DB) — ไม่รู้จัก = null
+function quote(plan, cycle, prices) {
   // 🧪 แพ็กเกจทดสอบ ฿1 — จ่ายจริงผ่าน PromptPay ยอดต่ำสุด แล้วได้สิทธิ์ "เริ่มต้น" 1 เดือน
   // ⚠️ ลบทั้งบล็อกนี้ (และการ์ดทดสอบใน UpgradePage + เงื่อนไข 'test' ใน verify-charge/webhook) ก่อนเปิดใช้จริง!
   if (plan === 'test') return { amount: 1, months: 1 }
-  const monthly = PRICES[plan]
-  if (!monthly) return null
+  const p = prices[plan]
+  if (!p) return null
   let out
-  if (cycle === 'monthly') out = { amount: monthly, months: 1 }
-  else if (cycle === 'yearly') out = { amount: Math.round(monthly * 12 * (1 - YEARLY_DISCOUNT)), months: 12 }
+  if (cycle === 'monthly') out = { amount: p.monthly, months: 1 }
+  else if (cycle === 'yearly') out = { amount: p.yearly, months: 12 }
   else return null
   // โหมดทดสอบชั่วคราว: ตั้ง env PUNPAY_TEST_AMOUNT (เช่น 1) → บังคับยอดเป็นค่านั้น · ⚠️ ลบ env นี้ก่อนขึ้นจริง!
   const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
@@ -92,7 +88,8 @@ export default async function handler(req, res) {
 
   // ── รับ plan/cycle จาก client แล้วคำนวณยอดเอง (ไม่รับ amount จาก client) ──
   const { plan, cycle } = req.body || {}
-  const q = quote(plan, cycle)
+  const prices = await fetchPlanPrices(supaUrl, anonKey)
+  const q = quote(plan, cycle, prices)
   if (!q) {
     return res.status(400).json({ error: 'plan/cycle ไม่ถูกต้อง (plan: starter|pro|test, cycle: monthly|yearly)' })
   }

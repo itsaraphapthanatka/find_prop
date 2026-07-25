@@ -5,18 +5,20 @@
 //   • ตรวจว่า charge เป็นขององค์กรผู้เรียก (metadata.org_id) + ยอด/แพ็กเกจตรงกับที่คำนวณเอง
 //   • อัปเกรดผ่าน RPC apply_payment (service-role) — กันอัปเกรดซ้ำด้วย charge_id (idempotent)
 
-const PRICES = { starter: 990, pro: 1290 }
-const YEARLY_DISCOUNT = 0.15
+import { fetchPlanPrices } from './_lib/prices.js'
+
 const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
-function expectedAmount(plan, cycle) {
+// ยอดที่ควรจ่าย ตามราคาปัจจุบันใน DB — หมายเหตุ: ถ้า super เปลี่ยนราคาระหว่างที่มี QR ค้างอยู่
+// รายการเก่า (ราคาเดิม) จะตรวจไม่ผ่าน ต้องกดสร้างรายการใหม่ (QR หมดอายุใน 1 ชม. อยู่แล้ว)
+function expectedAmount(plan, cycle, prices) {
   // 🧪 แพ็กเกจทดสอบ ฿1 — ต้องตรงกับ quote() ใน create-charge · ⚠️ ลบก่อนเปิดใช้จริง!
   if (plan === 'test') return 1
-  if (!PRICES[plan] || !['monthly', 'yearly'].includes(cycle)) return null
+  if (!prices[plan] || !['monthly', 'yearly'].includes(cycle)) return null
   // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง
   const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
   if (testAmt > 0) return testAmt
-  return cycle === 'yearly' ? Math.round(PRICES[plan] * 12 * (1 - YEARLY_DISCOUNT)) : PRICES[plan]
+  return cycle === 'yearly' ? prices[plan].yearly : prices[plan].monthly
 }
 
 export default async function handler(req, res) {
@@ -97,7 +99,8 @@ export default async function handler(req, res) {
   if (meta.org_id !== orgId) {
     return res.status(403).json({ error: 'รายการนี้ไม่ใช่ขององค์กรคุณ' })
   }
-  const want = expectedAmount(plan, cycle)
+  const prices = await fetchPlanPrices(supaUrl, serviceKey)
+  const want = expectedAmount(plan, cycle, prices)
   if (want === null || Number(charge.amount) !== want || ![1, 12].includes(months)) {
     return res.status(400).json({ error: 'ข้อมูลแพ็กเกจ/ยอดเงินไม่ถูกต้อง' })
   }

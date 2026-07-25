@@ -13,18 +13,19 @@ import crypto from 'crypto'
 
 export const config = { api: { bodyParser: false } }
 
-const PRICES = { starter: 990, pro: 1290 }
-const YEARLY_DISCOUNT = 0.15
+import { fetchPlanPrices } from './_lib/prices.js'
+
 const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
-function expectedAmount(plan, cycle) {
+// ยอดที่ควรจ่าย ตามราคาปัจจุบันใน DB — ต้องตรงกับ verify-charge
+function expectedAmount(plan, cycle, prices) {
   // 🧪 แพ็กเกจทดสอบ ฿1 — ต้องตรงกับ quote() ใน create-charge · ⚠️ ลบก่อนเปิดใช้จริง!
   if (plan === 'test') return 1
-  if (!PRICES[plan] || !['monthly', 'yearly'].includes(cycle)) return null
+  if (!prices[plan] || !['monthly', 'yearly'].includes(cycle)) return null
   // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง
   const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
   if (testAmt > 0) return testAmt
-  return cycle === 'yearly' ? Math.round(PRICES[plan] * 12 * (1 - YEARLY_DISCOUNT)) : PRICES[plan]
+  return cycle === 'yearly' ? prices[plan].yearly : prices[plan].monthly
 }
 
 function readRawBody(req) {
@@ -83,7 +84,8 @@ export default async function handler(req, res) {
     if (!paid) return res.status(200).json({ ok: true, note: 'ยังไม่จ่าย' })
 
     const meta = c.metadata || {}
-    const want = expectedAmount(meta.plan, meta.cycle)
+    const prices = await fetchPlanPrices(supaUrl, serviceKey)
+    const want = expectedAmount(meta.plan, meta.cycle, prices)
     const months = Number(meta.months)
     if (!meta.org_id || want === null || Number(c.amount) !== want || ![1, 12].includes(months)) {
       return res.status(200).json({ ok: true, note: 'metadata/ยอดไม่ตรง' })

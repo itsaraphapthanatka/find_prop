@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { createCharge, verifyCharge, type PlanKey } from '../lib/payments'
+import { createCharge, verifyCharge, fetchPlanPrices, DEFAULT_PRICES, type PlanKey, type PlanPrices } from '../lib/payments'
 
-const YEARLY_DISCOUNT = 0.15
+// ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
 const PLANS = [
   {
     key: 'starter' as const,
     name: 'เริ่มต้น',
-    price: 990,
     points: ['ทรัพย์ไม่จำกัด', 'ลูกทีมไม่จำกัด', 'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์ม', 'เอกสารเปรียบเทียบ + แอปมือถือ'],
     featured: false,
   },
   {
     key: 'pro' as const,
     name: 'Pro',
-    price: 1290,
     points: ['ทุกอย่างในเริ่มต้น', 'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)', 'Dashboard + นำเข้า Excel/CSV', 'แผนเยี่ยมชม + แจ้งเตือน'],
     featured: true,
   },
@@ -34,10 +32,18 @@ export default function UpgradePage() {
   const [status, setStatus] = useState('')
   const [done, setDone] = useState<{ plan: string; expires: string | null } | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
   const pollRef = useRef<number | null>(null)
 
-  const perMonth = (m: number) => (cycle === 'yearly' ? Math.round(m * (1 - YEARLY_DISCOUNT)) : m)
-  const yearTotal = (m: number) => Math.round(m * 12 * (1 - YEARLY_DISCOUNT))
+  useEffect(() => {
+    void fetchPlanPrices().then(setPrices)
+  }, [])
+
+  const perMonth = (p: { monthly: number; yearly: number }) =>
+    cycle === 'yearly' ? Math.round(p.yearly / 12) : p.monthly
+  // % ประหยัดเมื่อจ่ายรายปี เทียบจ่ายรายเดือน 12 ครั้ง (คำนวณจากราคาจริง)
+  const yearSavePct = (p: { monthly: number; yearly: number }) =>
+    Math.max(0, Math.round((1 - p.yearly / (p.monthly * 12)) * 100))
 
   function stopPoll() {
     if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null }
@@ -163,7 +169,7 @@ export default function UpgradePage() {
                   }}
                   onClick={() => setCycle(c)}
                 >
-                  {c === 'monthly' ? 'รายเดือน' : 'รายปี −15%'}
+                  {c === 'monthly' ? 'รายเดือน' : `รายปี −${yearSavePct(prices.starter)}%`}
                 </button>
               ))}
             </div>
@@ -173,11 +179,13 @@ export default function UpgradePage() {
                 <section key={p.key} className="form-card" style={p.featured ? { borderColor: 'var(--purple)' } : undefined}>
                   <h3 style={{ margin: '0 0 2px' }}>{p.name}{p.featured && ' ⭐'}</h3>
                   <p style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', margin: '4px 0 0' }}>
-                    ฿{perMonth(p.price).toLocaleString()}
+                    ฿{perMonth(prices[p.key]).toLocaleString()}
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>/เดือน</span>
                   </p>
                   <p className="plan-line">
-                    {cycle === 'yearly' ? `เรียกเก็บ ฿${yearTotal(p.price).toLocaleString()}/ปี` : `จ่ายรายปีเหลือ ฿${Math.round(p.price * (1 - YEARLY_DISCOUNT)).toLocaleString()}/เดือน`}
+                    {cycle === 'yearly'
+                      ? `เรียกเก็บ ฿${prices[p.key].yearly.toLocaleString()}/ปี (ประหยัด ${yearSavePct(prices[p.key])}%)`
+                      : `จ่ายรายปีเหลือ ฿${Math.round(prices[p.key].yearly / 12).toLocaleString()}/เดือน`}
                   </p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: 7, fontSize: 14 }}>
                     {p.points.map((pt) => <li key={pt}>✓ {pt}</li>)}
@@ -189,7 +197,7 @@ export default function UpgradePage() {
               ))}
             </div>
             <p className="plan-line" style={{ marginTop: 16 }}>
-              ชำระผ่าน PromptPay (สแกน QR + อัปโหลดสลิป) · ระบบตรวจสอบและอัปเกรดอัตโนมัติ · จ่ายรายปีประหยัด 15%
+              ชำระผ่าน PromptPay (สแกน QR + อัปโหลดสลิป) · ระบบตรวจสอบและอัปเกรดอัตโนมัติ · จ่ายรายปีถูกกว่า
             </p>
             {/* 🧪 แพ็กเกจทดสอบ ฿1 — ⚠️ ลบบล็อกนี้ (และเงื่อนไข 'test' ใน api/create-charge, verify-charge, punpay-webhook) ก่อนเปิดใช้จริง! */}
             <section className="form-card" style={{ marginTop: 14, borderStyle: 'dashed' }}>

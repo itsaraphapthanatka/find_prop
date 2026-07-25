@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { fetchPlanPrices, DEFAULT_PRICES, type PlanPrices } from '../lib/payments'
 import {
   IconChart,
   IconCompare,
@@ -92,8 +93,8 @@ const TRUST = [
 
 const PLANS = [
   {
+    key: 'starter' as const,
     name: 'เริ่มต้น',
-    price: 990,
     tag: 'ทีมเล็ก เริ่มต้นใช้งาน',
     points: [
       'ทรัพย์ไม่จำกัด',
@@ -105,8 +106,8 @@ const PLANS = [
     featured: false,
   },
   {
+    key: 'pro' as const,
     name: 'Pro',
-    price: 1290,
     tag: 'ทีมที่กำลังเติบโต',
     points: [
       'ทรัพย์และลูกทีม ไม่จำกัด',
@@ -207,6 +208,13 @@ export default function LandingPage() {
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
+  // ราคาจริงจากตาราง plan_prices (super admin ตั้งเอง) — ระหว่างโหลด/พลาดใช้ราคามาตรฐาน
+  const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
+  useEffect(() => {
+    void fetchPlanPrices().then(setPrices)
+  }, [])
+  // % ประหยัดเมื่อจ่ายรายปี (คำนวณจากราคาจริงของแพ็กเกจเริ่มต้น)
+  const savePct = Math.max(0, Math.round((1 - prices.starter.yearly / (prices.starter.monthly * 12)) * 100))
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -326,17 +334,18 @@ export default function LandingPage() {
       <section className="ld-section" id="pricing">
         <span className="ld-kicker">แพ็กเกจ</span>
         <h2>ราคาโปร่งใส ทดลองฟรี 14 วัน</h2>
-        <p className="ld-lead">สมัครแล้วทดลองใช้ฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีประหยัด 15%</p>
+        <p className="ld-lead">สมัครแล้วทดลองใช้ฟรี 14 วัน ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีถูกกว่า</p>
         <div className="ld-billing" role="group" aria-label="รอบการชำระเงิน">
           <button type="button" className={billing === 'monthly' ? 'on' : ''} onClick={() => setBilling('monthly')}>รายเดือน</button>
           <button type="button" className={billing === 'yearly' ? 'on' : ''} onClick={() => setBilling('yearly')}>
-            รายปี <span className="save">−15%</span>
+            รายปี <span className="save">−{savePct}%</span>
           </button>
         </div>
         <div className="ld-pricing">
           {PLANS.map((p) => {
-            const perMonth = billing === 'yearly' ? Math.round(p.price * 0.85) : p.price
-            const yearTotal = billing === 'yearly' ? Math.round(p.price * 12 * 0.85) : null
+            const pr = prices[p.key]
+            const perMonth = billing === 'yearly' ? Math.round(pr.yearly / 12) : pr.monthly
+            const yearTotal = billing === 'yearly' ? pr.yearly : null
             return (
               <div key={p.name} className={`ld-price-card ${p.featured ? 'featured' : ''}`}>
                 {p.featured && <span className="ld-price-badge">คุ้มสุด</span>}
@@ -346,7 +355,7 @@ export default function LandingPage() {
                   <span className="cur">฿</span>{perMonth.toLocaleString()}<span className="per">/เดือน</span>
                 </div>
                 <p className="ld-price-note">
-                  {yearTotal ? `เรียกเก็บ ฿${yearTotal.toLocaleString()}/ปี` : 'จ่ายรายปีเหลือ ฿' + Math.round(p.price * 0.85).toLocaleString() + '/เดือน'}
+                  {yearTotal ? `เรียกเก็บ ฿${yearTotal.toLocaleString()}/ปี` : 'จ่ายรายปีเหลือ ฿' + Math.round(pr.yearly / 12).toLocaleString() + '/เดือน'}
                 </p>
                 <ul>
                   {p.points.map((pt) => <li key={pt}>{pt}</li>)}
