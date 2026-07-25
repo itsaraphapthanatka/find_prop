@@ -20,13 +20,15 @@ const SPEAK_KEY = 'hob-assistant-speak'
 const CONTEXT_MSGS = 6 // จำนวนข้อความย้อนหลังที่ส่งให้โมเดล
 
 interface AssistantAction {
-  type: 'add_stop' | 'remove_stop' | 'create_plan' | 'open_compare'
+  type: 'add_stop' | 'remove_stop' | 'create_plan' | 'open_compare' | 'create_followup'
   plan?: string // อ้างแผนด้วยรหัสย่อ "P1" (กัน AI พิมพ์ uuid ผิด)
   codes?: string[]
   title?: string
   customer_name?: string | null
   visit_date?: string | null
   requirement?: string | null
+  due_date?: string | null // create_followup: วันครบกำหนด (null = วันนี้)
+  note?: string | null
 }
 
 interface ChatMsg {
@@ -43,7 +45,7 @@ const SUGGESTIONS = [
   'มีทรัพย์อะไรว่างให้เช่าบ้างตอนนี้',
   'โกดังแถวบางพลี งบไม่เกิน 100,000 มีไหม',
   'ทรัพย์ไหนมีเครนบ้าง',
-  'สรุปแผนเยี่ยมชมที่มีอยู่ให้หน่อย',
+  'มีนัดติดตามอะไรค้างบ้าง',
 ]
 
 /** ประวัติจากเครื่อง — ตัด action ค้างทิ้ง (ข้อมูลแผน/ทรัพย์อาจเปลี่ยนไปแล้ว) */
@@ -79,6 +81,22 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
   const { items, reload: reloadProps } = useProperties()
   const { plans, reload: reloadPlans } = usePlans()
   const navigate = useNavigate()
+
+  // นัดติดตามที่ยังไม่เสร็จ — ให้ AI ตอบ/สร้างนัดได้ (ตารางยังไม่ติดตั้ง = ลิสต์ว่าง ไม่พัง)
+  const [followUps, setFollowUps] = useState<{ title: string; due_date: string; property_id: string | null }[]>([])
+  async function reloadFollowUps() {
+    const { data } = await supabase
+      .from('follow_ups')
+      .select('title, due_date, property_id')
+      .eq('status', 'pending')
+      .order('due_date')
+      .limit(30)
+    setFollowUps((data ?? []) as typeof followUps)
+  }
+  useEffect(() => {
+    void reloadFollowUps()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [msgs, setMsgs] = useState<ChatMsg[]>(loadHistory)
   const [input, setInput] = useState('')
@@ -131,16 +149,22 @@ ${catalog}
 แผนเยี่ยมชมลูกค้า (รหัสแผน | ชื่อแผน | ลูกค้า | วันนัด | จุดแวะ | requirement):
 ${plansBrief}
 
+นัดติดตามที่ยังไม่เสร็จ (ครบกำหนด | เรื่อง | ทรัพย์):
+${followUps
+  .map((f) => `${f.due_date} | ${f.title} | ${(f.property_id && byId.get(f.property_id)?.code) || '-'}`)
+  .join('\n') || '(ไม่มีนัดค้าง)'}
+
 กติกาการตอบ (ต้องทำทุกข้อ):
 1. ตอบเป็น JSON object เดียวเท่านั้น: {"reply":"ข้อความตอบ","properties":[],"action":null,"action_label":null}
 2. reply ภาษาไทย สั้นกระชับ เป็นกันเอง ไม่ใช้ markdown
 3. เรื่องทรัพย์/แผนตอบจากข้อมูลด้านบนเท่านั้น ห้ามแต่งข้อมูลเอง ถ้าไม่พบให้บอกตรงๆ
 4. เมื่อพูดถึงทรัพย์ ใส่รหัสทรัพย์ลง properties (ไม่เกิน 6) เพื่อให้แอปแสดงการ์ดให้ผู้ใช้กด
-5. ใส่ action เฉพาะเมื่อผู้ใช้สั่งให้ทำจริงๆ และใช้ได้ 4 แบบนี้เท่านั้น (ห้ามคิดแบบอื่น):
+5. ใส่ action เฉพาะเมื่อผู้ใช้สั่งให้ทำจริงๆ และใช้ได้ 5 แบบนี้เท่านั้น (ห้ามคิดแบบอื่น):
    {"type":"add_stop","plan":"P1","codes":["รหัสทรัพย์"]} = เพิ่มทรัพย์เข้ารูทของแผน
    {"type":"remove_stop","plan":"P1","codes":["รหัสทรัพย์"]} = เอาทรัพย์ออกจากรูท
    {"type":"create_plan","title":"ชื่อแผน","customer_name":null,"visit_date":"YYYY-MM-DD หรือ null","requirement":null,"codes":[]} = สร้างแผนเยี่ยมชมใหม่
    {"type":"open_compare","codes":["รหัส 2-4 ตัว"]} = เปิดหน้าเปรียบเทียบทรัพย์
+   {"type":"create_followup","title":"เรื่องที่ต้องติดตาม","due_date":"YYYY-MM-DD หรือ null = วันนี้","note":null,"codes":["รหัสทรัพย์ที่เกี่ยว ถ้ามี"]} = สร้างนัดติดตาม (โทรตาม/ทวงเอกสาร/ตามลูกค้า-เจ้าของ)
    และใส่ action_label ข้อความสั้นๆ สำหรับปุ่มยืนยัน — ระบบจะให้ผู้ใช้กดยืนยันก่อนทำจริงเสมอ
 6. คำถามความรู้ทั่วไปด้านอสังหาฯ ตอบได้ แต่เรื่องกฎหมาย/ภาษี ให้แนะนำตรวจกับผู้เชี่ยวชาญเพิ่มเติม${trimmed ? `
 7. รายการทรัพย์ด้านบนถูกคัดมาเฉพาะที่เกี่ยวข้อง — ถ้าไม่พบสิ่งที่ผู้ใช้ถาม ห้ามสรุปว่า "ไม่มีในระบบ" ให้บอกว่าไม่พบในรายการที่คัดมา และแนะนำให้ระบุประเภท/ทำเล/รหัสให้ชัดขึ้น` : ''}`
@@ -168,6 +192,13 @@ ${plansBrief}
     if (act.type === 'open_compare') {
       if (codes.length < 2) return null
       return { action: { ...act, codes: codes.slice(0, 4) }, label: fallbackLabel || `เปิดเปรียบเทียบ ${codes.slice(0, 4).join(' · ')}` }
+    }
+    if (act.type === 'create_followup') {
+      if (!act.title?.trim()) return null
+      return {
+        action: { ...act, codes },
+        label: fallbackLabel || `เพิ่มนัดติดตาม "${act.title.trim()}"${codes[0] ? ` (${codes[0]})` : ''}`,
+      }
     }
     return null
   }
@@ -221,6 +252,29 @@ ${plansBrief}
         logActivity('ai.assistant', (a.codes ?? []).join(', '), { type: a.type })
         done(`✅ เปิดหน้าเปรียบเทียบ ${(a.codes ?? []).join(', ')} แล้ว`)
         onClose()
+        return
+      }
+      if (a.type === 'create_followup') {
+        const today = new Date().toISOString().slice(0, 10)
+        const dateOk = a.due_date && /^\d{4}-\d{2}-\d{2}$/.test(a.due_date) ? a.due_date : today
+        const { error } = await supabase.from('follow_ups').insert({
+          title: a.title!.trim(),
+          due_date: dateOk,
+          note: a.note?.trim() || null,
+          property_id: a.codes?.[0] ? (byCode.get(a.codes[0])?.id ?? null) : null,
+        })
+        if (error) {
+          throw new Error(
+            error.message.includes('follow_ups')
+              ? 'ยังไม่ได้ติดตั้งระบบนัดติดตาม — รัน supabase/follow-ups.sql ก่อน'
+              : error.message,
+          )
+        }
+        await reloadFollowUps()
+        logActivity('ai.assistant', a.title!.trim(), { type: a.type })
+        done(
+          `✅ เพิ่มนัดติดตาม "${a.title!.trim()}" ครบกำหนด ${new Date(dateOk).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })} แล้ว — ดูได้ที่เมนูนัดติดตาม`,
+        )
         return
       }
       if (a.type === 'create_plan') {
@@ -280,8 +334,8 @@ ${plansBrief}
         <div className="assist-body" ref={bodyRef}>
           {msgs.length === 0 && (
             <div className="assist-welcome">
-              <p>สวัสดีครับ ถามเรื่องทรัพย์ในระบบ แผนเยี่ยมชม หรือสั่งงานได้เลย
-                เช่น "เพิ่ม JKP01 เข้ารูทคุณสมชาย"</p>
+              <p>สวัสดีครับ ถามเรื่องทรัพย์ แผนเยี่ยมชม นัดติดตาม หรือสั่งงานได้เลย
+                เช่น "เพิ่ม JKP01 เข้ารูทคุณสมชาย" หรือ "นัดโทรตามเจ้าของ JKP01 พรุ่งนี้"</p>
               <div className="assist-suggest">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} className="chip-toggle" onClick={() => void send(s)}>{s}</button>
