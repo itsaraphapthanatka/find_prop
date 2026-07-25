@@ -154,10 +154,16 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
                 {overdue ? `เกินกำหนด ${formatDate(r.due_date)}` : r.due_date === today ? 'วันนี้' : formatDate(r.due_date)}
               </span>
               {closing?.id === r.id && (
-                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div
+                  style={{
+                    display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center',
+                    background: 'var(--purple-subtle)', borderRadius: 10, padding: '10px 12px',
+                  }}
+                >
                   <input
                     autoFocus
                     type="text"
+                    className="date-input"
                     placeholder="ผลเป็นยังไง? เช่น โทรไม่รับ"
                     value={closing.result}
                     onChange={(e) => setClosing({ ...closing, result: e.target.value })}
@@ -166,12 +172,12 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
                   <button className="btn sm primary" disabled={busy} onClick={() => void saveClose(r, 'end')}>
                     จบเรื่อง
                   </button>
+                  <span style={{ fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>ตามต่อวันที่</span>
                   <input
                     type="date"
+                    className="date-input"
                     value={closing.nextDate}
                     onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
-                    style={{ width: 130 }}
-                    title="วันที่ตามต่อรอบถัดไป"
                   />
                   <button className="btn sm" disabled={busy} onClick={() => void saveClose(r, 'again')}>
                     ตามต่อ
@@ -194,12 +200,18 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
       >
         <input
           type="text"
+          className="date-input"
           placeholder="เช่น โทรตามเจ้าของเรื่องลดราคา"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           style={{ flex: '1 1 170px' }}
         />
-        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ flex: '0 1 140px' }} />
+        <input
+          type="date"
+          className="date-input"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
         <button type="submit" className="btn sm primary" disabled={busy || !title.trim()}>เพิ่มนัด</button>
         <button
           type="button"

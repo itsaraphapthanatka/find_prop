@@ -296,24 +296,30 @@ export default function FollowUpPage() {
                         <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{names.get(r.created_by)}</div>
                       )}
                       {closing?.id === r.id && (
-                        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div
+                          style={{
+                            display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center',
+                            background: 'var(--purple-subtle)', borderRadius: 10, padding: '10px 12px',
+                          }}
+                        >
                           <input
                             autoFocus
                             type="text"
-                            placeholder="ผลเป็นยังไง? เช่น โทรไม่รับ / เจ้าของยอมลด"
+                            className="date-input"
+                            placeholder="ผลเป็นยังไง? เช่น โทรไม่รับ"
                             value={closing.result}
                             onChange={(e) => setClosing({ ...closing, result: e.target.value })}
-                            style={{ flex: '1 1 220px' }}
+                            style={{ flex: '1 1 200px' }}
                           />
                           <button className="btn sm primary" disabled={busyId === r.id} onClick={() => void saveClose(r, 'end')}>
                             จบเรื่อง
                           </button>
-                          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>หรือตามต่อวันที่</span>
+                          <span style={{ fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>ตามต่อวันที่</span>
                           <input
                             type="date"
+                            className="date-input"
                             value={closing.nextDate}
                             onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
-                            style={{ width: 140 }}
                           />
                           <button className="btn sm" disabled={busyId === r.id} onClick={() => void saveClose(r, 'again')}>
                             ตามต่อ
