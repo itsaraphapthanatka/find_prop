@@ -7,6 +7,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY  จาก Supabase → Settings → API (service_role)
 //   CRON_SECRET              สตริงสุ่มยาวๆ — Vercel จะแนบให้ cron เองอัตโนมัติ
 import crypto from 'node:crypto'
+import { effectivePlan, isProPlan } from './_lib/plan.js'
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url')
 
@@ -97,12 +98,16 @@ export default async function handler(req, res) {
       }
     }
     // นัดติดตาม (follow_ups) ที่ครบกำหนด "วันนี้" — สรุปเป็น 1 ข้อความต่อองค์กร
+    // เฉพาะองค์กรที่เป็น Pro จริงตอนนี้ (นัดติดตาม = ฟีเจอร์ Pro · รวมช่วงทดลองใช้)
     // (ตารางยังไม่ถูกสร้าง → ไม่ใช่ array → ข้ามไปเงียบๆ ไม่ทำให้ cron ล้ม)
-    const fus = await sb(`follow_ups?select=org_id,title&status=eq.pending&due_date=eq.${today}`)
+    const fus = await sb(
+      `follow_ups?select=org_id,title,organizations(plan,trial_plan,trial_expires_at)&status=eq.pending&due_date=eq.${today}`,
+    )
     if (Array.isArray(fus) && fus.length > 0) {
       const byOrg = new Map()
       for (const f of fus) {
         if (!f.org_id) continue
+        if (!isProPlan(effectivePlan(f.organizations))) continue
         const arr = byOrg.get(f.org_id) ?? []
         arr.push(f.title)
         byOrg.set(f.org_id, arr)

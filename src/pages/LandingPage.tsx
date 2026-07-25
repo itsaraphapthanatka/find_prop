@@ -115,7 +115,7 @@ const PLANS = [
       'ทรัพย์และลูกทีม ไม่จำกัด',
       'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)',
       'Dashboard + นำเข้า Excel/CSV',
-      'แผนเยี่ยมชม + แจ้งเตือนถึงมือถือ',
+      'แผนเยี่ยมชม + นัดติดตาม + แจ้งเตือนถึงมือถือ',
     ],
     cta: '{trial}',
     featured: true,
@@ -137,6 +137,7 @@ const COMPARE: { label: string; free: boolean | string; pro: boolean | string }[
   { label: 'ผู้ช่วย AI (พูดกรอก/แชท/วิเคราะห์)', free: false, pro: true },
   { label: 'นำเข้า Excel/CSV', free: false, pro: true },
   { label: 'แผนเยี่ยมชม (จัดรูท + แจ้งเตือน)', free: false, pro: true },
+  { label: 'นัดติดตามลูกค้า/เจ้าของ + แจ้งเตือน', free: false, pro: true },
 ]
 
 const STEPS = [

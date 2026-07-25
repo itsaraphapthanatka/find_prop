@@ -11,6 +11,7 @@ export interface PlanAccess {
   maxMembers: number | null
   dashboard: boolean // สรุปภาพรวม
   visitPlans: boolean // แผนเยี่ยมชม
+  followUps: boolean // นัดติดตาม
   ai: boolean // ผู้ช่วย/กรอกฟอร์ม/วิเคราะห์
   importCsv: boolean // นำเข้า Excel/CSV
 }
@@ -25,6 +26,7 @@ export function planAccess(plan?: string | null): PlanAccess {
     maxMembers: unlimited ? null : FREE_MAX_MEMBERS,
     dashboard: pro,
     visitPlans: pro,
+    followUps: pro,
     ai: pro,
     importCsv: pro,
   }

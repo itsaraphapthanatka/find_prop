@@ -311,7 +311,7 @@ export default function App() {
             <Route path="/new" element={<FormPage key={location.pathname} />} />
             <Route path="/edit/:id" element={<FormPage key={location.pathname} />} />
             <Route path="/plans" element={access.visitPlans ? <PlansPage /> : <UpgradeNotice feature="แผนเยี่ยมชม" />} />
-            <Route path="/followups" element={<FollowUpPage />} />
+            <Route path="/followups" element={access.followUps ? <FollowUpPage /> : <UpgradeNotice feature="นัดติดตาม" />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route
               path="/import"
