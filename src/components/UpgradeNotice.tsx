@@ -1,10 +1,16 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
 
 /** หน้าจอ "ฟีเจอร์นี้เฉพาะ Pro" — โชว์แทนหน้าที่ถูกล็อกสำหรับแพ็กเกจ Free */
 export default function UpgradeNotice({ feature }: { feature: string }) {
   const { profile } = useAuth()
   const isAdmin = profile?.role === 'admin'
+  const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
+  useEffect(() => {
+    void fetchReferralSetting().then(setRefSet)
+  }, [])
   return (
     <div className="empty-state" style={{ maxWidth: 460, margin: '48px auto', textAlign: 'center' }}>
       <div style={{ fontSize: 44, marginBottom: 8 }}>🔒</div>
@@ -18,7 +24,7 @@ export default function UpgradeNotice({ feature }: { feature: string }) {
         marginBottom: 16, padding: '10px 14px', borderRadius: 10,
         background: 'var(--purple-subtle)', color: 'var(--purple)', fontSize: 13.5,
       }}>
-        🎁 <b>ชวนเพื่อน 2 คน = Pro ฟรี 30 วัน</b> (สะสมได้)
+        🎁 <b>ชวนเพื่อน {refSet.need} คน = Pro ฟรี {refSet.days} วัน</b> (สะสมได้)
         {isAdmin && <> — รับลิงก์ชวนที่เมนู “ทีม”</>}
       </div>
       {isAdmin && (

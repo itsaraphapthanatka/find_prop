@@ -167,7 +167,7 @@ export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOu
       setBusy(false)
       return
     }
-    // ถ้ามาจากลิงก์ชวนเพื่อน → ผูกกับองค์กรผู้ชวน (ผู้ชวนจะได้รางวัลเมื่อครบ 2 คน)
+    // ถ้ามาจากลิงก์ชวนเพื่อน → ผูกกับองค์กรผู้ชวน (ผู้ชวนได้รางวัลเมื่อครบตามเกณฑ์ใน app_settings 'referral')
     let ref: string | null = null
     try { ref = localStorage.getItem('hop_ref') } catch { /* ข้าม */ }
     if (ref) {

@@ -30,7 +30,7 @@ export default function ListPage({ search }: { search: string }) {
   function addProperty() {
     if (!access.pro && items.length >= FREE_MAX_PROPERTIES) {
       alert(
-        `แพ็กเกจ Free เพิ่มทรัพย์ได้สูงสุด ${FREE_MAX_PROPERTIES} รายการ\n\nอัปเกรดเป็น Pro หรือชวนเพื่อน 2 คน รับ Pro ฟรี 30 วัน (เมนู "ทีม")`,
+        `แพ็กเกจ Free เพิ่มทรัพย์ได้สูงสุด ${FREE_MAX_PROPERTIES} รายการ\n\nอัปเกรดเป็น Pro หรือชวนเพื่อนรับ Pro ฟรี (เมนู "ทีม")`,
       )
       return
     }

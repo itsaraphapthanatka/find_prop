@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { usePlanAccess } from '../lib/plan'
+import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
 
 const roleLabel = (r: string) => (r === 'admin' ? 'แอดมิน' : 'ลูกทีม')
 
@@ -42,7 +42,12 @@ export default function ProfilePage() {
 
   const shareBase = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
   const refLink = refStat ? `${shareBase}/#/login?ref=${refStat.code}` : ''
-  const toNext = refStat ? 2 - (refStat.referred_count % 2) : 2
+  // เกณฑ์ชวนเพื่อน (super admin ตั้งได้) + อีกกี่คนถึงได้รางวัลรอบถัดไป
+  const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
+  useEffect(() => {
+    void fetchReferralSetting().then(setRefSet)
+  }, [])
+  const toNext = refStat ? refSet.need - (refStat.referred_count % refSet.need) : refSet.need
 
   if (!profile) return null
 
@@ -160,7 +165,7 @@ export default function ProfilePage() {
           <section className="form-card">
             <h3>ชวนเพื่อน รับ Pro ฟรี 🎁</h3>
             <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75 }}>
-              ชวนเพื่อนสมัคร HOP แล้วสร้างองค์กรของตัวเอง ครบทุก <b>2 คน</b> องค์กรคุณได้ <b>Pro เพิ่ม 30 วัน</b> (สะสมได้)
+              ชวนเพื่อนสมัคร HOP แล้วสร้างองค์กรของตัวเอง ครบทุก <b>{refSet.need} คน</b> องค์กรคุณได้ <b>Pro เพิ่ม {refSet.days} วัน</b> (สะสมได้)
             </p>
             <div className="org-row">
               <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
@@ -172,9 +177,9 @@ export default function ProfilePage() {
               </button>
             </div>
             <p className="plan-line" style={{ marginTop: 12 }}>
-              ชวนสำเร็จแล้ว <b>{refStat.referred_count}</b> คน · อีก <b>{toNext}</b> คนได้ Pro +30 วัน
+              ชวนสำเร็จแล้ว <b>{refStat.referred_count}</b> คน · อีก <b>{toNext}</b> คนได้ Pro +{refSet.days} วัน
               {refStat.rewards_granted > 0 && (
-                <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง (Pro +{refStat.rewards_granted * 30} วัน)</>
+                <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง</>
               )}
             </p>
           </section>

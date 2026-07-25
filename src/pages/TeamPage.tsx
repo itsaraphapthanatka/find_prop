@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { FREE_MAX_MEMBERS, usePlanAccess } from '../lib/plan'
+import { FREE_MAX_MEMBERS, usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
 
 // สมาชิก = membership (ใครอยู่ org นี้) + ข้อมูลโปรไฟล์ (ชื่อ/อีเมล) · id = user_id
 type MemberRow = {
@@ -104,8 +104,12 @@ export default function TeamPage() {
   // ลิงก์ชวนเพื่อนต้องชี้ไป "เว็บ" เสมอ (ในแอป origin เป็น capacitor://localhost)
   const shareBase = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
   const refLink = refStat ? `${shareBase}/#/login?ref=${refStat.code}` : ''
-  // อีกกี่คนถึงได้รางวัลรอบถัดไป (ครบทุก 2 คน)
-  const toNext = refStat ? 2 - (refStat.referred_count % 2) : 2
+  // เกณฑ์ชวนเพื่อน (super admin ตั้งได้) + อีกกี่คนถึงได้รางวัลรอบถัดไป
+  const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
+  useEffect(() => {
+    void fetchReferralSetting().then(setRefSet)
+  }, [])
+  const toNext = refStat ? refSet.need - (refStat.referred_count % refSet.need) : refSet.need
   // แพ็กเกจ Free จำกัดลูกทีม (นับรวมทุกคนในองค์กร)
   const atMemberLimit = !access.pro && members.length >= FREE_MAX_MEMBERS
 
@@ -248,7 +252,7 @@ export default function TeamPage() {
           <section className="form-card">
             <h3>ชวนเพื่อน รับ Pro ฟรี 🎁</h3>
             <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75 }}>
-              ชวนเพื่อนสมัคร HOP แล้วสร้างองค์กรของตัวเอง ครบทุก <b>2 คน</b> องค์กรคุณได้ <b>Pro เพิ่ม 30 วัน</b> (สะสมได้)
+              ชวนเพื่อนสมัคร HOP แล้วสร้างองค์กรของตัวเอง ครบทุก <b>{refSet.need} คน</b> องค์กรคุณได้ <b>Pro เพิ่ม {refSet.days} วัน</b> (สะสมได้)
             </p>
             <div className="org-row">
               <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
@@ -263,9 +267,9 @@ export default function TeamPage() {
               )}
             </div>
             <p className="plan-line" style={{ marginTop: 12 }}>
-              ชวนสำเร็จแล้ว <b>{refStat.referred_count}</b> คน · อีก <b>{toNext}</b> คนได้ Pro +30 วัน
+              ชวนสำเร็จแล้ว <b>{refStat.referred_count}</b> คน · อีก <b>{toNext}</b> คนได้ Pro +{refSet.days} วัน
               {refStat.rewards_granted > 0 && (
-                <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง (Pro +{refStat.rewards_granted * 30} วัน)</>
+                <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง</>
               )}
             </p>
           </section>
@@ -281,7 +285,7 @@ export default function TeamPage() {
               background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 10,
               padding: '8px 12px', fontSize: 13, marginBottom: 12, lineHeight: 1.5,
             }}>
-              🔒 แพ็กเกจ Free มีลูกทีมได้สูงสุด {FREE_MAX_MEMBERS} คน — อัปเกรด Pro หรือชวนเพื่อน 2 คน (การ์ดด้านบน) เพื่อเพิ่มได้ไม่จำกัด
+              🔒 แพ็กเกจ Free มีลูกทีมได้สูงสุด {FREE_MAX_MEMBERS} คน — อัปเกรด Pro หรือชวนเพื่อน {refSet.need} คน (การ์ดด้านบน) เพื่อเพิ่มได้ไม่จำกัด
             </div>
           )}
           {inviteErr && <div className="auth-error">{inviteErr}</div>}

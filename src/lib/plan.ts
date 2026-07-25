@@ -60,6 +60,30 @@ export interface TrialSetting {
 }
 export const DEFAULT_TRIAL: TrialSetting = { days: 14, plan: 'pro' }
 
+// ── เกณฑ์ชวนเพื่อน (app_settings key 'referral') — super admin แก้ได้จากหน้า Super Admin ──
+export interface ReferralSetting {
+  need: number // ชวนครบกี่คนต่อ 1 รอบรางวัล
+  days: number // ได้ Pro ฟรีกี่วันต่อรอบ
+}
+export const DEFAULT_REFERRAL: ReferralSetting = { need: 2, days: 30 }
+
+/** โหลดเกณฑ์ชวนเพื่อน — ไม่ throw (ตาราง/แถวยังไม่มี → ใช้ค่ามาตรฐาน) */
+export async function fetchReferralSetting(): Promise<ReferralSetting> {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'referral').maybeSingle()
+    const v = (data?.value ?? null) as { need?: number; days?: number } | null
+    if (!v) return DEFAULT_REFERRAL
+    const need = Number(v.need)
+    const days = Number(v.days)
+    return {
+      need: Number.isInteger(need) && need >= 1 ? need : DEFAULT_REFERRAL.need,
+      days: Number.isInteger(days) && days >= 1 ? days : DEFAULT_REFERRAL.days,
+    }
+  } catch {
+    return DEFAULT_REFERRAL
+  }
+}
+
 /** โหลดตั้งค่าทดลองใช้ — ไม่ throw (ตาราง/แถวยังไม่มี → ใช้ค่ามาตรฐาน) */
 export async function fetchTrialSetting(): Promise<TrialSetting> {
   try {

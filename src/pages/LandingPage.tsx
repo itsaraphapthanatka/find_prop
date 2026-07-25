@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPlanPrices, DEFAULT_PRICES, type PlanPrices } from '../lib/payments'
-import { fetchTrialSetting, DEFAULT_TRIAL } from '../lib/plan'
+import { fetchTrialSetting, DEFAULT_TRIAL, fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
 import {
   IconChart,
   IconCompare,
@@ -214,9 +214,12 @@ export default function LandingPage() {
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
   // จำนวนวันทดลองใช้จริงจากตั้งค่า (super admin) — 0 = ปิดช่วงทดลอง
   const [trialDays, setTrialDays] = useState(DEFAULT_TRIAL.days)
+  // เกณฑ์ชวนเพื่อน (super admin ตั้งได้)
+  const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
     void fetchTrialSetting().then((t) => setTrialDays(t.days))
+    void fetchReferralSetting().then(setRefSet)
   }, [])
   const trialTxt = trialDays > 0 ? `ทดลองฟรี ${trialDays} วัน` : 'สมัครใช้งานฟรี'
   // แทน {trial} ในข้อความจาก FEATURES/STEPS/PLANS
@@ -404,8 +407,8 @@ export default function LandingPage() {
         <div className="ld-referral">
           <span className="ld-referral-emoji">🎁</span>
           <div>
-            <b>ชวนเพื่อน 2 คน รับ Pro ฟรี 30 วัน</b>
-            <span>เพื่อนสมัครแล้วเปิดองค์กรของตัวเอง ครบทุก 2 คน องค์กรคุณได้ Pro เพิ่ม 30 วัน — สะสมได้ไม่จำกัด</span>
+            <b>ชวนเพื่อน {refSet.need} คน รับ Pro ฟรี {refSet.days} วัน</b>
+            <span>เพื่อนสมัครแล้วเปิดองค์กรของตัวเอง ครบทุก {refSet.need} คน องค์กรคุณได้ Pro เพิ่ม {refSet.days} วัน — สะสมได้ไม่จำกัด</span>
           </div>
         </div>
       </section>
