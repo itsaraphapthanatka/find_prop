@@ -12,6 +12,7 @@ interface FollowUp {
   note: string | null
   due_date: string
   status: 'pending' | 'done'
+  result: string | null // ผลการติดตาม เช่น "โทรไม่รับ"
   done_at: string | null
   created_by: string | null
   created_at: string
@@ -81,15 +82,17 @@ export default function FollowUpPage() {
     .sort((a, b) => (b.done_at ?? '').localeCompare(a.done_at ?? ''))
   const shown = tab === 'due' ? due : tab === 'upcoming' ? upcoming : done
 
-  async function addFollowUp(e: React.FormEvent) {
-    e.preventDefault()
+  /** เพิ่มนัดล่วงหน้า (pending) หรือบันทึกสิ่งที่ทำไปแล้วลงประวัติทันที (done) */
+  async function addFollowUp(mode: 'pending' | 'done') {
     if (!title.trim()) return
     setSaving(true)
     const { error } = await supabase.from('follow_ups').insert({
       title: title.trim(),
-      due_date: dueDate,
+      due_date: mode === 'done' ? today : dueDate,
       property_id: propertyId || null,
       note: note.trim() || null,
+      status: mode,
+      done_at: mode === 'done' ? new Date().toISOString() : null,
     })
     setSaving(false)
     if (error) {
@@ -104,10 +107,17 @@ export default function FollowUpPage() {
   }
 
   async function setStatus(r: FollowUp, status: 'pending' | 'done') {
+    let result: string | null = null
+    if (status === 'done') {
+      // ถามผลตอนปิดนัด — กดยกเลิก = ไม่ปิดนัด · เว้นว่างได้
+      const answer = window.prompt(`ผลการติดตาม "${r.title}" เป็นยังไง?\n(เช่น โทรไม่รับ / เจ้าของยอมลดเหลือ 320,000 / ลูกค้าขอเลื่อน)`, r.result ?? '')
+      if (answer === null) return
+      result = answer.trim() || null
+    }
     setBusyId(r.id)
     const { error } = await supabase
       .from('follow_ups')
-      .update({ status, done_at: status === 'done' ? new Date().toISOString() : null })
+      .update({ status, result, done_at: status === 'done' ? new Date().toISOString() : null })
       .eq('id', r.id)
     setBusyId(null)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
@@ -137,7 +147,12 @@ export default function FollowUpPage() {
       <div className="team-wrap">
         <section className="form-card">
           <h3>เพิ่มนัดติดตาม</h3>
-          <form onSubmit={(e) => void addFollowUp(e)}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void addFollowUp('pending')
+            }}
+          >
             <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div className="form-field" style={{ flex: '2 1 220px', marginBottom: 0 }}>
                 <label>เรื่องที่ต้องติดตาม *</label>
@@ -170,6 +185,15 @@ export default function FollowUpPage() {
               </div>
               <button className="btn primary" type="submit" disabled={saving}>
                 {saving ? 'กำลังเพิ่ม…' : 'เพิ่มนัด'}
+              </button>
+              <button
+                className="btn"
+                type="button"
+                disabled={saving || !title.trim()}
+                title='บันทึกสิ่งที่ทำไปแล้วลงประวัติทันที เช่น "โทรไปไม่รับ" (ไม่ต้องตั้งนัด)'
+                onClick={() => void addFollowUp('done')}
+              >
+                บันทึกผลเลย
               </button>
             </div>
           </form>
@@ -231,6 +255,9 @@ export default function FollowUpPage() {
                           </Link>
                         )}
                       </div>
+                      {r.result && (
+                        <div style={{ fontSize: 13, color: 'var(--purple)', fontWeight: 600, marginTop: 2 }}>→ {r.result}</div>
+                      )}
                       {r.note && <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{r.note}</div>}
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
                         {(r.created_by && names.get(r.created_by)) || ''}

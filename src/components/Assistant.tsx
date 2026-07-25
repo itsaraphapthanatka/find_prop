@@ -82,16 +82,29 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
   const { plans, reload: reloadPlans } = usePlans()
   const navigate = useNavigate()
 
-  // นัดติดตามที่ยังไม่เสร็จ — ให้ AI ตอบ/สร้างนัดได้ (ตารางยังไม่ติดตั้ง = ลิสต์ว่าง ไม่พัง)
+  // นัดติดตามค้าง + ประวัติผลล่าสุด — ให้ AI ตอบ ("เคยคุยกับเจ้าของว่ายังไง") และสร้างนัดได้
+  // (ตารางยังไม่ติดตั้ง = ลิสต์ว่าง ไม่พัง)
   const [followUps, setFollowUps] = useState<{ title: string; due_date: string; property_id: string | null }[]>([])
+  const [fuHistory, setFuHistory] = useState<
+    { title: string; result: string | null; done_at: string | null; property_id: string | null }[]
+  >([])
   async function reloadFollowUps() {
-    const { data } = await supabase
-      .from('follow_ups')
-      .select('title, due_date, property_id')
-      .eq('status', 'pending')
-      .order('due_date')
-      .limit(30)
-    setFollowUps((data ?? []) as typeof followUps)
+    const [pend, hist] = await Promise.all([
+      supabase
+        .from('follow_ups')
+        .select('title, due_date, property_id')
+        .eq('status', 'pending')
+        .order('due_date')
+        .limit(30),
+      supabase
+        .from('follow_ups')
+        .select('title, result, done_at, property_id')
+        .eq('status', 'done')
+        .order('done_at', { ascending: false })
+        .limit(20),
+    ])
+    setFollowUps((pend.data ?? []) as typeof followUps)
+    setFuHistory((hist.data ?? []) as typeof fuHistory)
   }
   useEffect(() => {
     void reloadFollowUps()
@@ -153,6 +166,14 @@ ${plansBrief}
 ${followUps
   .map((f) => `${f.due_date} | ${f.title} | ${(f.property_id && byId.get(f.property_id)?.code) || '-'}`)
   .join('\n') || '(ไม่มีนัดค้าง)'}
+
+ประวัติการติดตามล่าสุด (วันที่ทำ | เรื่อง | ผลที่ได้ | ทรัพย์) — ใช้ตอบว่าเคยตาม/คุยอะไรไปแล้ว:
+${fuHistory
+  .map(
+    (f) =>
+      `${(f.done_at ?? '').slice(0, 10)} | ${f.title} | ${f.result || '-'} | ${(f.property_id && byId.get(f.property_id)?.code) || '-'}`,
+  )
+  .join('\n') || '(ยังไม่มีประวัติ)'}
 
 กติกาการตอบ (ต้องทำทุกข้อ):
 1. ตอบเป็น JSON object เดียวเท่านั้น: {"reply":"ข้อความตอบ","properties":[],"action":null,"action_label":null}

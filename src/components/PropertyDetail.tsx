@@ -35,6 +35,8 @@ interface FuRow {
   due_date: string
   status: 'pending' | 'done'
   note: string | null
+  result: string | null // ผลการติดตาม เช่น "โทรไม่รับ" "เจ้าของยอมลด 5%"
+  done_at: string | null
 }
 
 /** นัดติดตามของทรัพย์แปลงนี้ — ลิสต์ + เพิ่มเร็ว + ติ๊กเสร็จ (ข้อมูลเต็มอยู่ที่เมนู "นัดติดตาม") */
@@ -49,9 +51,8 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
   async function reload() {
     const { data, error } = await supabase
       .from('follow_ups')
-      .select('id, title, due_date, status, note')
+      .select('id, title, due_date, status, note, result, done_at')
       .eq('property_id', propertyId)
-      .order('status')
       .order('due_date')
     if (error) {
       if (error.message.includes('follow_ups')) setInstalled(false)
@@ -64,15 +65,19 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId])
 
-  async function add(e: React.FormEvent) {
-    e.preventDefault()
+  /** เพิ่มนัดล่วงหน้า (pending) หรือบันทึกสิ่งที่ทำไปแล้ว (done ทันที เช่น "โทรไม่รับ") */
+  async function add(mode: 'pending' | 'done') {
     if (!title.trim() || busy) return
     setBusy(true)
-    const { error } = await supabase
-      .from('follow_ups')
-      .insert({ title: title.trim(), due_date: dueDate, property_id: propertyId })
+    const { error } = await supabase.from('follow_ups').insert({
+      title: title.trim(),
+      due_date: mode === 'done' ? today : dueDate,
+      property_id: propertyId,
+      status: mode,
+      done_at: mode === 'done' ? new Date().toISOString() : null,
+    })
     setBusy(false)
-    if (error) alert(`เพิ่มนัดไม่สำเร็จ: ${error.message}`)
+    if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
     else {
       setTitle('')
       setDueDate(today)
@@ -81,11 +86,20 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
   }
 
   async function toggle(r: FuRow) {
-    setBusy(true)
     const next = r.status === 'pending' ? 'done' : 'pending'
+    let result: string | null = r.result
+    if (next === 'done') {
+      // ถามผลตอนปิดนัด — กดยกเลิก = ไม่ปิดนัด · เว้นว่างได้ (เสร็จแบบไม่บันทึกผล)
+      const answer = window.prompt(`ผลการติดตาม "${r.title}" เป็นยังไง?\n(เช่น โทรไม่รับ / เจ้าของยอมลดเหลือ 320,000 / ลูกค้าขอเลื่อน)`, r.result ?? '')
+      if (answer === null) return
+      result = answer.trim() || null
+    } else {
+      result = null // กลับมาติดตามต่อ = ล้างผลเดิม
+    }
+    setBusy(true)
     const { error } = await supabase
       .from('follow_ups')
-      .update({ status: next, done_at: next === 'done' ? new Date().toISOString() : null })
+      .update({ status: next, result, done_at: next === 'done' ? new Date().toISOString() : null })
       .eq('id', r.id)
     setBusy(false)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
@@ -93,47 +107,96 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
   }
 
   if (!installed) return null
-  const done = rows.filter((r) => r.status === 'done')
   const pending = rows.filter((r) => r.status === 'pending')
+  const done = rows
+    .filter((r) => r.status === 'done')
+    .sort((a, b) => (b.done_at ?? '').localeCompare(a.done_at ?? ''))
   return (
     <>
       <div className="section-title">นัดติดตาม{pending.length > 0 && ` (${pending.length} รอทำ)`}</div>
-      {[...pending, ...done.slice(0, 3)].map((r) => {
-        const overdue = r.status === 'pending' && r.due_date < today
+      {pending.map((r) => {
+        const overdue = r.due_date < today
         return (
           <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
             <input
               type="checkbox"
-              checked={r.status === 'done'}
+              checked={false}
               disabled={busy}
               onChange={() => void toggle(r)}
               style={{ marginTop: 3, flexShrink: 0 }}
-              title={r.status === 'done' ? 'กลับมาติดตามต่อ' : 'ทำเสร็จแล้ว'}
+              title="ทำเสร็จแล้ว (ระบบจะถามผลการติดตาม)"
             />
             <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
-              <span style={{ textDecoration: r.status === 'done' ? 'line-through' : 'none' }}>{r.title}</span>
+              {r.title}
               {r.note && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
               <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600, color: overdue ? 'var(--danger)' : 'var(--muted)' }}>
-                {overdue ? `เกินกำหนด ${formatDate(r.due_date)}` : r.due_date === today && r.status === 'pending' ? 'วันนี้' : formatDate(r.due_date)}
+                {overdue ? `เกินกำหนด ${formatDate(r.due_date)}` : r.due_date === today ? 'วันนี้' : formatDate(r.due_date)}
               </span>
             </div>
           </div>
         )
       })}
-      {rows.length === 0 && (
-        <div style={{ fontSize: 13, color: 'var(--muted)', padding: '2px 0 6px' }}>ยังไม่มีนัดของทรัพย์นี้</div>
+      {pending.length === 0 && (
+        <div style={{ fontSize: 13, color: 'var(--muted)', padding: '2px 0 6px' }}>ไม่มีนัดค้างของทรัพย์นี้</div>
       )}
-      <form onSubmit={(e) => void add(e)} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          void add('pending')
+        }}
+        style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}
+      >
         <input
           type="text"
-          placeholder="เพิ่มนัด เช่น โทรตามเจ้าของ"
+          placeholder="เช่น โทรตามเจ้าของเรื่องลดราคา"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={{ flex: '1 1 150px' }}
+          style={{ flex: '1 1 170px' }}
         />
         <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ flex: '0 1 140px' }} />
-        <button type="submit" className="btn sm primary" disabled={busy || !title.trim()}>เพิ่ม</button>
+        <button type="submit" className="btn sm primary" disabled={busy || !title.trim()}>เพิ่มนัด</button>
+        <button
+          type="button"
+          className="btn sm"
+          disabled={busy || !title.trim()}
+          title='บันทึกสิ่งที่ทำไปแล้วลงประวัติทันที เช่น "โทรไปไม่รับ" (ไม่ต้องตั้งนัด)'
+          onClick={() => void add('done')}
+        >
+          บันทึกผลเลย
+        </button>
       </form>
+
+      {done.length > 0 && (
+        <>
+          <div className="section-title">ประวัติการติดตาม ({done.length})</div>
+          {done.slice(0, 10).map((r) => (
+            <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+              <span style={{ flexShrink: 0, fontSize: 12, color: 'var(--muted)', marginTop: 2, whiteSpace: 'nowrap' }}>
+                {formatDate(r.done_at ?? r.due_date)}
+              </span>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
+                {r.title}
+                {r.result && <span style={{ color: 'var(--purple)', fontWeight: 600 }}> → {r.result}</span>}
+                {r.note && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
+              </div>
+              <button
+                className="btn sm"
+                disabled={busy}
+                style={{ flexShrink: 0 }}
+                title="เอากลับมาเป็นนัดค้าง (ล้างผลเดิม)"
+                onClick={() => void toggle(r)}
+              >
+                ↩
+              </button>
+            </div>
+          ))}
+          {done.length > 10 && (
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', padding: '4px 0' }}>
+              และอีก {done.length - 10} รายการ — ดูทั้งหมดที่เมนู "นัดติดตาม"
+            </div>
+          )}
+        </>
+      )}
     </>
   )
 }
