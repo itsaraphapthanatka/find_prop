@@ -85,32 +85,38 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
     }
   }
 
-  async function markDone(r: FuRow) {
-    // ถามผลตอนปิดนัด — กดยกเลิก = ไม่ปิดนัด · เว้นว่างได้ (เสร็จแบบไม่บันทึกผล)
-    const answer = window.prompt(`ผลการติดตาม "${r.title}" เป็นยังไง?\n(เช่น โทรไม่รับ / เจ้าของยอมลดเหลือ 320,000 / ลูกค้าขอเลื่อน)`, '')
-    if (answer === null) return
+  // แผงปิดนัดแบบ inline: พิมพ์ผลครั้งเดียว → เลือก "จบเรื่อง" หรือ "ตามต่อ" (ไม่มี popup)
+  const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
+  const [closing, setClosing] = useState<{ id: string; result: string; nextDate: string } | null>(null)
+
+  /** ปิดนัดด้วยผลที่พิมพ์ไว้ — mode 'again' = สร้างนัดรอบถัดไปให้ด้วย (ประวัติเดิมคงอยู่เสมอ) */
+  async function saveClose(r: FuRow, mode: 'end' | 'again') {
+    if (!closing || closing.id !== r.id) return
     setBusy(true)
     const { error } = await supabase
       .from('follow_ups')
-      .update({ status: 'done', result: answer.trim() || null, done_at: new Date().toISOString() })
+      .update({ status: 'done', result: closing.result.trim() || null, done_at: new Date().toISOString() })
       .eq('id', r.id)
+    if (!error && mode === 'again') {
+      await supabase.from('follow_ups').insert({
+        title: r.title,
+        due_date: closing.nextDate || tomorrow,
+        property_id: propertyId,
+      })
+    }
     setBusy(false)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
-    else await reload()
+    else {
+      setClosing(null)
+      await reload()
+    }
   }
 
-  /** ตามต่อ = สร้าง "นัดใหม่" เพิ่มเข้าไป — ประวัติเดิมคงอยู่ ไม่ถูกแก้/ลบ */
+  /** ตามต่อจากประวัติ = คลิกเดียว สร้างนัดใหม่ครบกำหนดพรุ่งนี้ — รายการเดิมไม่ถูกแตะ */
   async function followAgain(r: FuRow) {
-    const reason = window.prompt(
-      `ตามต่อ "${r.title}" — ครั้งนี้จะทำอะไร/เพราะอะไร?\n(เช่น ลองโทรช่วงเย็น / เจ้าของให้โทรกลับอาทิตย์หน้า)\nนัดใหม่ครบกำหนดพรุ่งนี้ — เว้นว่างได้`,
-      '',
-    )
-    if (reason === null) return
-    const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
     setBusy(true)
     const { error } = await supabase.from('follow_ups').insert({
       title: r.title,
-      note: reason.trim() || null,
       due_date: tomorrow,
       property_id: propertyId,
     })
@@ -133,18 +139,45 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
           <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
             <input
               type="checkbox"
-              checked={false}
+              checked={closing?.id === r.id}
               disabled={busy}
-              onChange={() => void markDone(r)}
+              onChange={() =>
+                setClosing(closing?.id === r.id ? null : { id: r.id, result: '', nextDate: tomorrow })
+              }
               style={{ marginTop: 3, flexShrink: 0 }}
-              title="ทำเสร็จแล้ว (ระบบจะถามผลการติดตาม)"
+              title="ทำเสร็จแล้ว (บันทึกผลด้านล่าง)"
             />
             <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
               {r.title}
-              {r.note && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
+              {r.note && r.note !== r.result && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
               <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600, color: overdue ? 'var(--danger)' : 'var(--muted)' }}>
                 {overdue ? `เกินกำหนด ${formatDate(r.due_date)}` : r.due_date === today ? 'วันนี้' : formatDate(r.due_date)}
               </span>
+              {closing?.id === r.id && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="ผลเป็นยังไง? เช่น โทรไม่รับ"
+                    value={closing.result}
+                    onChange={(e) => setClosing({ ...closing, result: e.target.value })}
+                    style={{ flex: '1 1 150px' }}
+                  />
+                  <button className="btn sm primary" disabled={busy} onClick={() => void saveClose(r, 'end')}>
+                    จบเรื่อง
+                  </button>
+                  <input
+                    type="date"
+                    value={closing.nextDate}
+                    onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
+                    style={{ width: 130 }}
+                    title="วันที่ตามต่อรอบถัดไป"
+                  />
+                  <button className="btn sm" disabled={busy} onClick={() => void saveClose(r, 'again')}>
+                    ตามต่อ
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )
@@ -190,13 +223,13 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
               <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
                 {r.title}
                 {r.result && <span style={{ color: 'var(--purple)', fontWeight: 600 }}> → {r.result}</span>}
-                {r.note && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
+                {r.note && r.note !== r.result && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
               </div>
               <button
                 className="btn sm"
                 disabled={busy}
                 style={{ flexShrink: 0 }}
-                title="ตามต่อ = สร้างนัดใหม่เพิ่ม (ประวัติรายการนี้คงอยู่ ไม่ถูกแก้)"
+                title="สร้างนัดใหม่ครบกำหนดพรุ่งนี้ทันที — ประวัติรายการนี้คงอยู่"
                 onClick={() => void followAgain(r)}
               >
                 ตามต่อ

@@ -38,6 +38,9 @@ export default function FollowUpPage() {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('due')
   const [busyId, setBusyId] = useState<string | null>(null)
+  // แผงปิดนัดแบบ inline: พิมพ์ผลครั้งเดียว → เลือก "จบเรื่อง" หรือ "ตามต่อ" (ไม่มี popup)
+  const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
+  const [closing, setClosing] = useState<{ id: string; result: string; nextDate: string } | null>(null)
 
   // ฟอร์มเพิ่มนัดใหม่
   const [title, setTitle] = useState('')
@@ -86,11 +89,13 @@ export default function FollowUpPage() {
   async function addFollowUp(mode: 'pending' | 'done') {
     if (!title.trim()) return
     setSaving(true)
+    // "บันทึกผลเลย" = ลงประวัติทันที — ช่องโน้ตกลายเป็น "ผลที่ได้" · เพิ่มนัดปกติ = โน้ตแนบนัด
     const { error } = await supabase.from('follow_ups').insert({
       title: title.trim(),
       due_date: mode === 'done' ? today : dueDate,
       property_id: propertyId || null,
-      note: note.trim() || null,
+      note: mode === 'pending' ? note.trim() || null : null,
+      result: mode === 'done' ? note.trim() || null : null,
       status: mode,
       done_at: mode === 'done' ? new Date().toISOString() : null,
     })
@@ -106,38 +111,43 @@ export default function FollowUpPage() {
     await reload()
   }
 
-  async function markDone(r: FollowUp) {
-    // ถามผลตอนปิดนัด — กดยกเลิก = ไม่ปิดนัด · เว้นว่างได้
-    const answer = window.prompt(`ผลการติดตาม "${r.title}" เป็นยังไง?\n(เช่น โทรไม่รับ / เจ้าของยอมลดเหลือ 320,000 / ลูกค้าขอเลื่อน)`, '')
-    if (answer === null) return
+  /** ปิดนัดด้วยผลที่พิมพ์ไว้ — mode 'again' = สร้างนัดรอบถัดไปให้ด้วย (ประวัติเดิมคงอยู่เสมอ) */
+  async function saveClose(r: FollowUp, mode: 'end' | 'again') {
+    if (!closing || closing.id !== r.id) return
     setBusyId(r.id)
     const { error } = await supabase
       .from('follow_ups')
-      .update({ status: 'done', result: answer.trim() || null, done_at: new Date().toISOString() })
+      .update({ status: 'done', result: closing.result.trim() || null, done_at: new Date().toISOString() })
       .eq('id', r.id)
+    if (!error && mode === 'again') {
+      await supabase.from('follow_ups').insert({
+        title: r.title,
+        due_date: closing.nextDate || tomorrow,
+        property_id: r.property_id,
+      })
+    }
     setBusyId(null)
     if (error) alert(`บันทึกไม่สำเร็จ: ${error.message}`)
-    else await reload()
+    else {
+      setClosing(null)
+      await reload()
+    }
   }
 
-  /** ตามต่อ = สร้าง "นัดใหม่" เพิ่มเข้าไป — ประวัติเดิมคงอยู่ ไม่ถูกแก้/ลบ */
+  /** ตามต่อจากประวัติ = คลิกเดียว สร้างนัดใหม่ครบกำหนดพรุ่งนี้ — รายการเดิมไม่ถูกแตะ */
   async function followAgain(r: FollowUp) {
-    const reason = window.prompt(
-      `ตามต่อ "${r.title}" — ครั้งนี้จะทำอะไร/เพราะอะไร?\n(เช่น ลองโทรช่วงเย็น / เจ้าของให้โทรกลับอาทิตย์หน้า)\nนัดใหม่ครบกำหนดพรุ่งนี้ — เว้นว่างได้`,
-      '',
-    )
-    if (reason === null) return
-    const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
     setBusyId(r.id)
     const { error } = await supabase.from('follow_ups').insert({
       title: r.title,
-      note: reason.trim() || null,
       due_date: tomorrow,
       property_id: r.property_id,
     })
     setBusyId(null)
     if (error) alert(`สร้างนัดตามต่อไม่สำเร็จ: ${error.message}`)
-    else await reload()
+    else {
+      setTab('upcoming')
+      await reload()
+    }
   }
 
   async function remove(r: FollowUp) {
@@ -196,8 +206,13 @@ export default function FollowUpPage() {
                 </select>
               </div>
               <div className="form-field" style={{ flex: '2 1 200px', marginBottom: 0 }}>
-                <label>โน้ต</label>
-                <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
+                <label>โน้ต / ผลที่ได้ (เมื่อกดบันทึกผลเลย)</label>
+                <input
+                  type="text"
+                  placeholder="เช่น โทรไม่รับ"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
               </div>
               <button className="btn primary" type="submit" disabled={saving}>
                 {saving ? 'กำลังเพิ่ม…' : 'เพิ่มนัด'}
@@ -260,36 +275,69 @@ export default function FollowUpPage() {
                         color: overdue ? 'var(--danger)' : dueToday ? 'var(--purple)' : 'var(--muted)',
                       }}
                     >
-                      {overdue ? `เกินกำหนด · ${fmtDate(r.due_date)}` : dueToday ? 'วันนี้' : fmtDate(r.due_date)}
+                      {r.status === 'done'
+                        ? fmtDate(r.done_at ?? r.due_date)
+                        : overdue ? `เกินกำหนด · ${fmtDate(r.due_date)}` : dueToday ? 'วันนี้' : fmtDate(r.due_date)}
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, textDecoration: r.status === 'done' ? 'line-through' : 'none' }}>
+                      <div style={{ fontWeight: 600 }}>
                         {r.title}
+                        {r.result && <span style={{ color: 'var(--purple)' }}> → {r.result}</span>}
                         {p && (
                           <Link to={`/edit/${p.id}`} className="role-badge" style={{ marginLeft: 8, textDecoration: 'none' }}>
                             {p.code}
                           </Link>
                         )}
                       </div>
-                      {r.result && (
-                        <div style={{ fontSize: 13, color: 'var(--purple)', fontWeight: 600, marginTop: 2 }}>→ {r.result}</div>
+                      {r.note && r.note !== r.result && (
+                        <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{r.note}</div>
                       )}
-                      {r.note && <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{r.note}</div>}
-                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                        {(r.created_by && names.get(r.created_by)) || ''}
-                        {r.status === 'done' && r.done_at ? ` · เสร็จเมื่อ ${fmtDate(r.done_at)}` : ''}
-                      </div>
+                      {r.created_by && names.get(r.created_by) && (
+                        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{names.get(r.created_by)}</div>
+                      )}
+                      {closing?.id === r.id && (
+                        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="ผลเป็นยังไง? เช่น โทรไม่รับ / เจ้าของยอมลด"
+                            value={closing.result}
+                            onChange={(e) => setClosing({ ...closing, result: e.target.value })}
+                            style={{ flex: '1 1 220px' }}
+                          />
+                          <button className="btn sm primary" disabled={busyId === r.id} onClick={() => void saveClose(r, 'end')}>
+                            จบเรื่อง
+                          </button>
+                          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>หรือตามต่อวันที่</span>
+                          <input
+                            type="date"
+                            value={closing.nextDate}
+                            onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
+                            style={{ width: 140 }}
+                          />
+                          <button className="btn sm" disabled={busyId === r.id} onClick={() => void saveClose(r, 'again')}>
+                            ตามต่อ
+                          </button>
+                          <button className="btn sm" onClick={() => setClosing(null)}>ยกเลิก</button>
+                        </div>
+                      )}
                     </div>
                     <div className="row-btns" style={{ flexShrink: 0 }}>
                       {r.status === 'pending' ? (
-                        <button className="btn sm primary" disabled={busyId === r.id} onClick={() => void markDone(r)}>
-                          ✓ เสร็จ
-                        </button>
+                        closing?.id !== r.id && (
+                          <button
+                            className="btn sm primary"
+                            disabled={busyId === r.id}
+                            onClick={() => setClosing({ id: r.id, result: '', nextDate: tomorrow })}
+                          >
+                            ✓ เสร็จ
+                          </button>
+                        )
                       ) : (
                         <button
                           className="btn sm"
                           disabled={busyId === r.id}
-                          title="สร้างนัดใหม่เพิ่ม — ประวัติรายการนี้คงอยู่ ไม่ถูกแก้"
+                          title="สร้างนัดใหม่ครบกำหนดพรุ่งนี้ทันที — ประวัติรายการนี้คงอยู่"
                           onClick={() => void followAgain(r)}
                         >
                           ↩ ตามต่อ
