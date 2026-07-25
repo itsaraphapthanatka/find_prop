@@ -11,11 +11,12 @@
 // ราคาอ่านจากตาราง plan_prices (super admin ตั้งเอง) — fallback ราคามาตรฐานใน api/_lib/prices.js
 
 import { fetchPlanPrices } from './_lib/prices.js'
+import { paymentTestEnabled } from './_lib/settings.js'
 
 // คืนยอดเงิน (บาท) + จำนวนเดือน จาก (plan, cycle, ราคาจาก DB) — ไม่รู้จัก = null
 function quote(plan, cycle, prices) {
   // 🧪 แพ็กเกจทดสอบ ฿1 — จ่ายจริงผ่าน PromptPay ยอดต่ำสุด แล้วได้สิทธิ์ "เริ่มต้น" 1 เดือน
-  // ⚠️ ลบทั้งบล็อกนี้ (และการ์ดทดสอบใน UpgradePage + เงื่อนไข 'test' ใน verify-charge/webhook) ก่อนเปิดใช้จริง!
+  // เปิด-ปิดจากหน้า Super Admin (app_settings 'payment_test') — เช็คใน handler ก่อนถึงตรงนี้
   if (plan === 'test') return { amount: 1, months: 1 }
   const p = prices[plan]
   if (!p) return null
@@ -88,6 +89,10 @@ export default async function handler(req, res) {
 
   // ── รับ plan/cycle จาก client แล้วคำนวณยอดเอง (ไม่รับ amount จาก client) ──
   const { plan, cycle } = req.body || {}
+  // แพ็กเกจทดสอบ ฿1 สร้างได้เฉพาะตอนสวิตช์เปิด (super admin ควบคุม) — ปิด = ปฏิเสธตั้งแต่สร้าง
+  if (plan === 'test' && !(await paymentTestEnabled(supaUrl, anonKey))) {
+    return res.status(400).json({ error: 'โหมดทดสอบระบบชำระเงินถูกปิดอยู่' })
+  }
   const prices = await fetchPlanPrices(supaUrl, anonKey)
   const q = quote(plan, cycle, prices)
   if (!q) {

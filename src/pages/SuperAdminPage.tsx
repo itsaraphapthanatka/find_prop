@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth'
 import { formatDate } from '../labels'
 import { listReviews, setReviewMode, useReviewMode, type ReviewRow } from '../lib/review'
 import { fetchTrialSetting, fetchReferralSetting, type TrialSetting } from '../lib/plan'
+import { fetchPaymentTestEnabled } from '../lib/payments'
 
 // จัดกลุ่มรีวิวของผู้รีวิวคนหนึ่งตาม "หัวข้อ" (flow) — คงลำดับที่พบครั้งแรก
 function groupByFlow(rows: ReviewRow[]): [string, ReviewRow[]][] {
@@ -116,6 +117,34 @@ export default function SuperAdminPage() {
           : `บันทึกไม่สำเร็จ: ${error.message}`,
       )
     }
+  }
+
+  // สวิตช์แพ็กเกจทดสอบ ฿1 (app_settings key 'payment_test') — ปิดก่อนเปิดตัวจริง
+  const [payTest, setPayTest] = useState<boolean | null>(null) // null = ยังโหลดไม่เสร็จ
+  const [payTestBusy, setPayTestBusy] = useState(false)
+  useEffect(() => {
+    void fetchPaymentTestEnabled().then(setPayTest)
+  }, [])
+
+  async function togglePayTest() {
+    if (payTest === null) return
+    const next = !payTest
+    setPayTestBusy(true)
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'payment_test',
+      value: { enabled: next },
+      updated_at: new Date().toISOString(),
+    })
+    setPayTestBusy(false)
+    if (error) {
+      alert(
+        error.message.includes('app_settings')
+          ? 'ยังไม่ได้ติดตั้งตารางตั้งค่า — รัน supabase/app-settings-jsonb-fix.sql และ payment-test-toggle.sql ก่อน'
+          : `สลับไม่สำเร็จ: ${error.message}`,
+      )
+      return
+    }
+    setPayTest(next)
   }
 
   // เกณฑ์ชวนเพื่อน (app_settings key 'referral') — ครบ N คน ได้ Pro D วัน
@@ -509,6 +538,26 @@ export default function SuperAdminPage() {
               </span>
             </div>
           )}
+        </section>
+
+        <section className="form-card">
+          <h3>ทดสอบระบบชำระเงิน (แพ็กเกจ ฿1)</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            เปิดแล้วหน้าอัปเกรดจะมีการ์ด "จ่าย ฿1 เพื่อทดสอบ" (ได้แพ็กเกจเริ่มต้น 1 เดือนจริง) ·
+            <b> ปิดก่อนเปิดตัวจริง</b> ไม่งั้นใครก็จ่าย ฿1 ได้แพ็กเกจ — รายการที่จ่ายค้างก่อนปิดยังตรวจสอบ/อัปเกรดได้ ไม่มีเงินค้าง
+          </p>
+          <div className="org-row" style={{ alignItems: 'center' }}>
+            <button
+              className={`btn ${payTest ? 'danger' : 'primary'}`}
+              disabled={payTestBusy || payTest === null}
+              onClick={() => void togglePayTest()}
+            >
+              {payTestBusy ? 'กำลังสลับ…' : payTest ? 'ปิดโหมดทดสอบ' : 'เปิดโหมดทดสอบ'}
+            </button>
+            <span className={`status-pill ${payTest ? 'on' : ''}`}>
+              {payTest === null ? 'กำลังโหลด…' : payTest ? 'เปิดอยู่' : 'ปิดอยู่'}
+            </span>
+          </div>
         </section>
 
         <section className="form-card">

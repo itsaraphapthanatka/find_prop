@@ -19,7 +19,8 @@ const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
 // ยอดที่ควรจ่าย ตามราคาปัจจุบันใน DB — ต้องตรงกับ verify-charge
 function expectedAmount(plan, cycle, prices) {
-  // 🧪 แพ็กเกจทดสอบ ฿1 — ต้องตรงกับ quote() ใน create-charge · ⚠️ ลบก่อนเปิดใช้จริง!
+  // 🧪 แพ็กเกจทดสอบ ฿1 — สร้างได้เฉพาะตอนสวิตช์ payment_test เปิด (เช็คใน create-charge)
+  // ที่นี่ "ยอมรับเสมอ" เพื่อให้รายการที่จ่ายค้างอยู่ก่อนปิดสวิตช์ยังอัปเกรดได้ ไม่มีเงินค้าง
   if (plan === 'test') return 1
   if (!prices[plan] || !['monthly', 'yearly'].includes(cycle)) return null
   // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง

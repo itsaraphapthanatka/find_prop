@@ -46,6 +46,20 @@ export const DEFAULT_PRICES: PlanPrices = {
   pro: { monthly: 1290, yearly: 13158 },
 }
 
+/** สวิตช์แพ็กเกจทดสอบ ฿1 (app_settings 'payment_test') — super เปิด-ปิดได้ · อ่านพลาด = ปิด */
+export async function fetchPaymentTestEnabled(): Promise<boolean> {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'payment_test').maybeSingle()
+    let v: unknown = data?.value ?? null
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v) } catch { return false }
+    }
+    return Boolean(v && typeof v === 'object' && (v as { enabled?: boolean }).enabled === true)
+  } catch {
+    return false
+  }
+}
+
 /** โหลดราคาจริงจาก DB — ไม่ throw (ใช้ fallback แทน) เพื่อไม่ให้หน้าราคาพังเพราะเน็ต/ตารางยังไม่มี */
 export async function fetchPlanPrices(): Promise<PlanPrices> {
   try {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { createCharge, verifyCharge, fetchPlanPrices, DEFAULT_PRICES, type PlanKey, type PlanPrices } from '../lib/payments'
+import { createCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, DEFAULT_PRICES, type PlanKey, type PlanPrices } from '../lib/payments'
 import { onTrial } from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
@@ -36,8 +36,11 @@ export default function UpgradePage() {
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
   const pollRef = useRef<number | null>(null)
 
+  // การ์ดทดสอบ ฿1 โชว์เฉพาะตอน super เปิดสวิตช์ payment_test (เซิร์ฟเวอร์บังคับซ้ำอีกชั้น)
+  const [testOn, setTestOn] = useState(false)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
+    void fetchPaymentTestEnabled().then(setTestOn)
   }, [])
 
   const perMonth = (p: { monthly: number; yearly: number }) =>
@@ -205,16 +208,18 @@ export default function UpgradePage() {
             <p className="plan-line" style={{ marginTop: 16 }}>
               ชำระผ่าน PromptPay (สแกน QR + อัปโหลดสลิป) · ระบบตรวจสอบและอัปเกรดอัตโนมัติ · จ่ายรายปีถูกกว่า
             </p>
-            {/* 🧪 แพ็กเกจทดสอบ ฿1 — ⚠️ ลบบล็อกนี้ (และเงื่อนไข 'test' ใน api/create-charge, verify-charge, punpay-webhook) ก่อนเปิดใช้จริง! */}
-            <section className="form-card" style={{ marginTop: 14, borderStyle: 'dashed' }}>
-              <h3 style={{ margin: '0 0 2px' }}>🧪 ทดสอบระบบชำระเงิน</h3>
-              <p className="plan-line">
-                จ่ายจริง <b>฿1</b> ผ่าน PromptPay → ได้แพ็กเกจ "เริ่มต้น" 1 เดือน (ไว้ทดสอบครบวงจร: QR → สลิป → webhook → อัปเกรด)
-              </p>
-              <button className="btn" disabled={busy !== null} onClick={() => void pay('test')}>
-                {busy === 'test' ? 'กำลังสร้างรายการ…' : 'จ่าย ฿1 เพื่อทดสอบ'}
-              </button>
-            </section>
+            {/* 🧪 แพ็กเกจทดสอบ ฿1 — โชว์เฉพาะตอน super เปิดสวิตช์ในหน้า Super Admin (ปิดก่อนเปิดตัวจริง) */}
+            {testOn && (
+              <section className="form-card" style={{ marginTop: 14, borderStyle: 'dashed' }}>
+                <h3 style={{ margin: '0 0 2px' }}>🧪 ทดสอบระบบชำระเงิน</h3>
+                <p className="plan-line">
+                  จ่ายจริง <b>฿1</b> ผ่าน PromptPay → ได้แพ็กเกจ "เริ่มต้น" 1 เดือน (ไว้ทดสอบครบวงจร: QR → สลิป → webhook → อัปเกรด)
+                </p>
+                <button className="btn" disabled={busy !== null} onClick={() => void pay('test')}>
+                  {busy === 'test' ? 'กำลังสร้างรายการ…' : 'จ่าย ฿1 เพื่อทดสอบ'}
+                </button>
+              </section>
+            )}
           </>
         )}
       </div>
