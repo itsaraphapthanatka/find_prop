@@ -10,7 +10,7 @@ import { formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import { IconClose, IconLocate, IconPin } from '../components/icons'
 import { getPosition } from '../lib/native'
-import { PROPERTY_STYLE as PIN_STYLE, TYPE_FALLBACK as PIN_FALLBACK } from '../lib/propertyStyle'
+import { DealTag, PROPERTY_STYLE as PIN_STYLE, TYPE_FALLBACK as PIN_FALLBACK } from '../lib/propertyStyle'
 
 // PIN_STYLE / PIN_FALLBACK (สี + glyph ต่อประเภท) ย้ายไปใช้ร่วมกันที่ src/lib/propertyStyle
 // (import ด้านบน) — ปุ่มเลือกประเภทในฟอร์มใช้ชุดเดียวกัน สี/ไอคอนจึงตรงกับหมุดเสมอ
@@ -369,7 +369,7 @@ export default function MapPage() {
                 <Popup>
                   <div className="map-popup">
                     {p.photo_url && <img className="map-popup-img" src={p.photo_url} alt={p.code} />}
-                    <div className="title">{p.code}</div>
+                    <div className="title">{p.code} <DealTag status={p.deal_status} /></div>
                     {isSuper && p.org_name && <div className="hint">องค์กร: {p.org_name}</div>}
                     <div>{[p.property_type, p.listing_type].filter(Boolean).join(' · ')}</div>
                     <div>{[p.district, p.province].filter(Boolean).join(', ')}</div>

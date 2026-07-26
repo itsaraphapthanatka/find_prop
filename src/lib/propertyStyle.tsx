@@ -59,6 +59,16 @@ export const LISTING_COLOR: Record<string, string> = {
 }
 
 /** ป้ายเช่า/ขาย: พื้นสีอ่อน + ตัวอักษรสีประจำค่า (ค่าไม่รู้จัก/ว่าง → ป้ายเริ่มต้น) */
+/** ป้ายสถานะงาน — โชว์เฉพาะตอนปิดงานแล้ว (มีคนเช่า/ขายแล้ว) · เปิดงานอยู่ = ไม่มีป้าย */
+export function DealTag({ status }: { status?: string | null }) {
+  if (status !== 'rented' && status !== 'sold') return null
+  return (
+    <span className="tag" style={{ background: '#374151', color: '#fff' }}>
+      {status === 'rented' ? 'เช่าแล้ว' : 'ขายแล้ว'}
+    </span>
+  )
+}
+
 export function ListingTag({ type }: { type?: string | null }) {
   if (!type) return null
   const c = LISTING_COLOR[type]

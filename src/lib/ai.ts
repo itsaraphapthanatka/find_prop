@@ -55,6 +55,8 @@ export function extractJson<T>(text: string): T | null {
 export function propertyBrief(p: Property): string {
   const parts = [
     p.code,
+    // สถานะปิดงานสำคัญมาก — AI ต้องไม่เสนอทรัพย์ที่เช่า/ขายไปแล้วว่า "ว่าง"
+    p.deal_status === 'rented' ? '⛔ปิดงาน:มีคนเช่าแล้ว' : p.deal_status === 'sold' ? '⛔ปิดงาน:ขายแล้ว' : null,
     [p.property_type, p.listing_type].filter(Boolean).join(' '),
     [p.subdistrict, p.district, p.province].filter(Boolean).join(' '),
   ]
