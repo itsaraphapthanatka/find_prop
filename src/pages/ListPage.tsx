@@ -43,6 +43,7 @@ export default function ListPage({ search }: { search: string }) {
   // ── ตัวกรอง ──
   const [fType, setFType] = useState<string | null>(null)
   const [fListing, setFListing] = useState<string | null>(null)
+  const [fDeal, setFDeal] = useState<string | null>(null)
   const [fProvince, setFProvince] = useState<string | null>(null)
   const [fOrg, setFOrg] = useState<string | null>(null)
   const [priceMin, setPriceMin] = useState('')
@@ -70,7 +71,7 @@ export default function ListPage({ search }: { search: string }) {
     () => Array.from(new Set(items.map((p) => p.org_name).filter((v): v is string => Boolean(v)))).sort(),
     [items],
   )
-  const hasFilter = Boolean(fType || fListing || fProvince || fOrg || priceMin || priceMax)
+  const hasFilter = Boolean(fType || fListing || fDeal || fProvince || fOrg || priceMin || priceMax)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -89,6 +90,8 @@ export default function ListPage({ search }: { search: string }) {
       }
       if (fType && p.property_type !== fType) return false
       if (fListing && p.listing_type !== fListing) return false
+      // ทรัพย์ที่ไม่เคยตั้ง deal_status ถือว่า "ว่าง" (open)
+      if (fDeal && (p.deal_status ?? 'open') !== fDeal) return false
       if (fProvince && p.province !== fProvince) return false
       if (fOrg && p.org_name !== fOrg) return false
       if (min != null || max != null) {
@@ -99,11 +102,12 @@ export default function ListPage({ search }: { search: string }) {
       }
       return true
     })
-  }, [items, search, fType, fListing, fProvince, fOrg, priceMin, priceMax])
+  }, [items, search, fType, fListing, fDeal, fProvince, fOrg, priceMin, priceMax])
 
   function clearFilters() {
     setFType(null)
     setFListing(null)
+    setFDeal(null)
     setFProvince(null)
     setFOrg(null)
     setPriceMin('')
@@ -162,6 +166,21 @@ export default function ListPage({ search }: { search: string }) {
                 onClick={() => setFListing(fListing === o ? null : o)}
               >
                 {o}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="filter-row">
+          <span className="filter-label">สถานะ</span>
+          <div className="chip-select">
+            {([['open', 'ว่าง'], ['rented', 'เช่าแล้ว'], ['sold', 'ขายแล้ว']] as const).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                className={`chip-toggle ${fDeal === v ? 'on' : ''}`}
+                onClick={() => setFDeal(fDeal === v ? null : v)}
+              >
+                {label}
               </button>
             ))}
           </div>
