@@ -59,11 +59,13 @@ export interface Property {
   created_by?: string | null
   /** ชื่อผู้ลงทรัพย์ (จับคู่ตอนอ่านผ่าน org_member_names) — read-only สำหรับแสดงผล */
   created_by_name?: string | null
+  /** สถานะงาน: open = เปิดงานอยู่ · rented = ปิดงาน (มีคนเช่าแล้ว) · sold = ปิดงาน (ขายแล้ว) */
+  deal_status?: 'open' | 'rented' | 'sold' | null
 }
 
 export type PropertyInput = Omit<
   Property,
-  'id' | 'created_at' | 'org_id' | 'org_name' | 'created_by' | 'created_by_name'
+  'id' | 'created_at' | 'org_id' | 'org_name' | 'created_by' | 'created_by_name' | 'deal_status'
 >
 
 /** จุดแวะในรูทเยี่ยมชม (อ้างถึงทรัพย์ด้วย id) */
