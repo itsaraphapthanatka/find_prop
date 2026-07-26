@@ -294,7 +294,7 @@ ${fuHistory
         await reloadFollowUps()
         logActivity('ai.assistant', a.title!.trim(), { type: a.type })
         done(
-          `✅ เพิ่มนัดติดตาม "${a.title!.trim()}" ครบกำหนด ${new Date(dateOk).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })} แล้ว — ดูได้ที่เมนูนัดติดตาม`,
+          `✅ เพิ่มนัดติดตาม "${a.title!.trim()}" ครบกำหนด ${new Date(dateOk).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })} แล้ว — ดูได้ในการ์ดรายละเอียดทรัพย์`,
         )
         return
       }

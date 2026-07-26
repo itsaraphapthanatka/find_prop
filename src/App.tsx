@@ -27,7 +27,7 @@ import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { isInstalledApp } from './lib/native'
-import { IconBell, IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
+import { IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
 function NavText({ full, short }: { full: string; short?: string }) {
@@ -294,7 +294,7 @@ export default function App() {
           <NavLink to="/" end data-tour="nav-list"><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
           <NavLink to="/dashboard" data-tour="nav-dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>
           <NavLink to="/plans" data-tour="nav-plans"><IconRoute /><NavText full="แผนเยี่ยมชม" short="แผนเยี่ยม" /></NavLink>
-          <NavLink to="/followups"><IconBell /><NavText full="นัดติดตาม" short="ติดตาม" /></NavLink>
+          {/* เมนูนัดติดตามถูกปิดไว้ — ใช้งานผ่านการ์ดรายละเอียดทรัพย์/ผู้ช่วย AI (หน้า /followups ยังเข้าตรงได้) */}
           {((isAdmin && profile.org_id) || impersonating) && (
             <NavLink to="/team" data-tour="nav-team"><IconUsers /><NavText full="ทีม" /></NavLink>
           )}

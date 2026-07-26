@@ -112,18 +112,6 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
     }
   }
 
-  /** ตามต่อจากประวัติ = คลิกเดียว สร้างนัดใหม่ครบกำหนดพรุ่งนี้ — รายการเดิมไม่ถูกแตะ */
-  async function followAgain(r: FuRow) {
-    setBusy(true)
-    const { error } = await supabase.from('follow_ups').insert({
-      title: r.title,
-      due_date: tomorrow,
-      property_id: propertyId,
-    })
-    setBusy(false)
-    if (error) alert(`สร้างนัดตามต่อไม่สำเร็จ: ${error.message}`)
-    else await reload()
-  }
 
   if (!installed) return null
   const pending = rows.filter((r) => r.status === 'pending')
@@ -237,20 +225,11 @@ function FollowUpSection({ propertyId }: { propertyId: string }) {
                 {r.result && <span style={{ color: 'var(--purple)', fontWeight: 600 }}> → {r.result}</span>}
                 {r.note && r.note !== r.result && <span style={{ color: 'var(--muted)' }}> — {r.note}</span>}
               </div>
-              <button
-                className="btn sm"
-                disabled={busy}
-                style={{ flexShrink: 0 }}
-                title="สร้างนัดใหม่ครบกำหนดพรุ่งนี้ทันที — ประวัติรายการนี้คงอยู่"
-                onClick={() => void followAgain(r)}
-              >
-                ตามต่อ
-              </button>
             </div>
           ))}
           {done.length > 10 && (
             <div style={{ fontSize: 12.5, color: 'var(--muted)', padding: '4px 0' }}>
-              และอีก {done.length - 10} รายการ — ดูทั้งหมดที่เมนู "นัดติดตาม"
+              และอีก {done.length - 10} รายการก่อนหน้า
             </div>
           )}
         </>
