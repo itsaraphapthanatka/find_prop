@@ -98,15 +98,15 @@ function FollowUpSection({ property }: { property: Property }) {
   const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
   const [closing, setClosing] = useState<{ id: string; result: string; nextDate: string } | null>(null)
 
-  /** บันทึกผลรอบนี้ + สร้างนัดรอบถัดไป — วนไปจนกว่าจะ "ปิดงาน" (ประวัติเดิมคงอยู่เสมอ) */
-  async function saveClose(r: FuRow) {
+  /** บันทึกผลรอบนี้ลงประวัติ — withNext = สร้างนัดรอบถัดไปให้ด้วย (ประวัติเดิมคงอยู่เสมอ) */
+  async function saveClose(r: FuRow, withNext: boolean) {
     if (!closing || closing.id !== r.id) return
     setBusy(true)
     const { error } = await supabase
       .from('follow_ups')
       .update({ status: 'done', result: closing.result.trim() || null, done_at: new Date().toISOString() })
       .eq('id', r.id)
-    if (!error) {
+    if (!error && withNext) {
       await supabase.from('follow_ups').insert({
         title: r.title,
         due_date: closing.nextDate || tomorrow,
@@ -229,7 +229,7 @@ function FollowUpSection({ property }: { property: Property }) {
               {closing?.id === r.id && (
                 <div
                   style={{
-                    display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center',
+                    display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8,
                     background: 'var(--purple-subtle)', borderRadius: 10, padding: '10px 12px',
                   }}
                 >
@@ -240,18 +240,22 @@ function FollowUpSection({ property }: { property: Property }) {
                     placeholder="ผลเป็นยังไง? เช่น โทรไม่รับ"
                     value={closing.result}
                     onChange={(e) => setClosing({ ...closing, result: e.target.value })}
-                    style={{ flex: '1 1 150px' }}
+                    style={{ width: '100%' }}
                   />
-                  <span style={{ fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>ตามต่อวันที่</span>
-                  <input
-                    type="date"
-                    className="date-input"
-                    value={closing.nextDate}
-                    onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
-                  />
-                  <button className="btn sm primary" disabled={busy} onClick={() => void saveClose(r)}>
-                    ตามต่อ
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button className="btn sm" disabled={busy} title="จดผลลงประวัติ ไม่สร้างนัดใหม่" onClick={() => void saveClose(r, false)}>
+                      บันทึกผล
+                    </button>
+                    <button className="btn sm primary" disabled={busy} title="จดผลลงประวัติ + สร้างนัดรอบถัดไป" onClick={() => void saveClose(r, true)}>
+                      บันทึกผล + ตามต่อวันที่
+                    </button>
+                    <input
+                      type="date"
+                      className="date-input"
+                      value={closing.nextDate}
+                      onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
+                    />
+                  </div>
                 </div>
               )}
             </div>

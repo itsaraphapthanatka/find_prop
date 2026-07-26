@@ -298,7 +298,7 @@ export default function FollowUpPage() {
                       {closing?.id === r.id && (
                         <div
                           style={{
-                            display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center',
+                            display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8,
                             background: 'var(--purple-subtle)', borderRadius: 10, padding: '10px 12px',
                           }}
                         >
@@ -309,22 +309,23 @@ export default function FollowUpPage() {
                             placeholder="ผลเป็นยังไง? เช่น โทรไม่รับ"
                             value={closing.result}
                             onChange={(e) => setClosing({ ...closing, result: e.target.value })}
-                            style={{ flex: '1 1 200px' }}
+                            style={{ width: '100%' }}
                           />
-                          <button className="btn sm primary" disabled={busyId === r.id} onClick={() => void saveClose(r, 'end')}>
-                            จบเรื่อง
-                          </button>
-                          <span style={{ fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>ตามต่อวันที่</span>
-                          <input
-                            type="date"
-                            className="date-input"
-                            value={closing.nextDate}
-                            onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
-                          />
-                          <button className="btn sm" disabled={busyId === r.id} onClick={() => void saveClose(r, 'again')}>
-                            ตามต่อ
-                          </button>
-                          <button className="btn sm" onClick={() => setClosing(null)}>ยกเลิก</button>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button className="btn sm" disabled={busyId === r.id} title="จดผลลงประวัติ ไม่สร้างนัดใหม่" onClick={() => void saveClose(r, 'end')}>
+                              บันทึกผล
+                            </button>
+                            <button className="btn sm primary" disabled={busyId === r.id} title="จดผลลงประวัติ + สร้างนัดรอบถัดไป" onClick={() => void saveClose(r, 'again')}>
+                              บันทึกผล + ตามต่อวันที่
+                            </button>
+                            <input
+                              type="date"
+                              className="date-input"
+                              value={closing.nextDate}
+                              onChange={(e) => setClosing({ ...closing, nextDate: e.target.value })}
+                            />
+                            <button className="btn sm" onClick={() => setClosing(null)}>ยกเลิก</button>
+                          </div>
                         </div>
                       )}
                     </div>
