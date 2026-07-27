@@ -390,12 +390,18 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .pick-hint { color: var(--muted); font-size: 12.5px; }
 .pick-map { height: 260px; width: 100%; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 4px; z-index: 0; }
 /* ── review panel (โหมดทดสอบ QA) ── */
-.review-fab { position: fixed; left: 16px; bottom: 16px; z-index: 1200; display: inline-flex; align-items: center; gap: 6px; background: #1c1730; color: #fff; border: none; border-radius: 999px; padding: 10px 16px; font-family: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); cursor: pointer; }
+/* กล่องครอบปุ่มรีวิว — ตัวกำหนดตำแหน่ง (ลากย้ายได้ ตำแหน่งบันทึกใน localStorage) */
+.review-fab-wrap { position: fixed; left: 16px; bottom: 16px; z-index: 1200; touch-action: none; }
+.review-fab { position: relative; display: inline-flex; align-items: center; gap: 6px; background: #1c1730; color: #fff; border: none; border-radius: 999px; padding: 10px 16px; font-family: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); cursor: grab; }
 .review-fab:hover { background: #2a2348; }
 .review-fab .rf-emoji { font-size: 15px; line-height: 1; }
+/* ปุ่มซ่อนชั่วคราว (✕) มุมขวาบนของ FAB */
+.review-fab-x { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: #555; border: 1px solid var(--line); font-size: 11px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.2); padding: 0; }
+.review-fab-x:hover { background: #f3f3f3; color: #111; }
 /* มือถือ: ยกขึ้นเหนือแถบเมนูล่าง + เป็น FAB วงกลม สมมาตรกับปุ่มผู้ช่วย AI */
 @media (max-width: 720px) {
-  .review-fab { bottom: calc(86px + env(safe-area-inset-bottom)); width: 54px; height: 54px; padding: 0; justify-content: center; }
+  .review-fab-wrap { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  .review-fab { width: 54px; height: 54px; padding: 0; justify-content: center; }
   .review-fab .rf-emoji { font-size: 22px; }
   .review-fab .rf-label { display: none; }
 }
