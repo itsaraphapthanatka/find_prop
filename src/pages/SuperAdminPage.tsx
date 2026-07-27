@@ -450,6 +450,7 @@ export default function SuperAdminPage() {
       <div className="view-header">
         <h1>Super Admin <span className="count-badge">{shown.length} องค์กร</span></h1>
         <div className="header-actions">
+          <Link to="/superstats" className="btn">ยอดสมัคร</Link>
           <Link to="/logs" className="btn">ประวัติการใช้งาน</Link>
         </div>
       </div>

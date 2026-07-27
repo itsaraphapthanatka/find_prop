@@ -8,6 +8,7 @@ import PlansPage from './pages/PlansPage'
 import ComparePage from './pages/ComparePage'
 import TeamPage from './pages/TeamPage'
 import SuperAdminPage from './pages/SuperAdminPage'
+import SuperStatsPage from './pages/SuperStatsPage'
 import LogsPage from './pages/LogsPage'
 import ProfilePage from './pages/ProfilePage'
 import UpgradePage from './pages/UpgradePage'
@@ -336,6 +337,10 @@ export default function App() {
             <Route
               path="/super"
               element={isSuper ? <SuperAdminPage /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/superstats"
+              element={isSuper ? <SuperStatsPage /> : <Navigate to="/" replace />}
             />
             <Route
               path="/logs"
