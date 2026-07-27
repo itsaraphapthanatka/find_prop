@@ -111,7 +111,7 @@ export async function fetchContactSetting(): Promise<ContactSetting> {
     const lineId = (v.lineId || DEFAULT_CONTACT.lineId).trim()
     return {
       lineId,
-      lineUrl: (v.lineUrl || `https://line.me/R/ti/p/${encodeURIComponent(lineId)}`).trim(),
+      lineUrl: (v.lineUrl || `https://line.me/R/ti/p/${lineId}`).trim(),
       phone: (v.phone || DEFAULT_CONTACT.phone).trim(),
       email: (v.email || DEFAULT_CONTACT.email).trim(),
     }

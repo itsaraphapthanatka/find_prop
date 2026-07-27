@@ -249,7 +249,7 @@ export default function SuperAdminPage() {
       return
     }
     // ไม่กรอกลิงก์ = สร้างจาก LINE ID ให้อัตโนมัติ
-    const lineUrl = contact.lineUrl.trim() || `https://line.me/R/ti/p/${encodeURIComponent(lineId)}`
+    const lineUrl = contact.lineUrl.trim() || `https://line.me/R/ti/p/${lineId}`
     setContactSaving(true)
     const { error } = await supabase.from('app_settings').upsert({
       key: 'contact',
@@ -721,7 +721,7 @@ export default function SuperAdminPage() {
                       setContact({
                         ...contact,
                         lineId,
-                        lineUrl: auto ? `https://line.me/R/ti/p/${encodeURIComponent(lineId.trim())}` : contact.lineUrl,
+                        lineUrl: auto ? `https://line.me/R/ti/p/${lineId.trim()}` : contact.lineUrl,
                       })
                     }} />
                 </div>
