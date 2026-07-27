@@ -58,6 +58,7 @@ export default function ReviewPanel() {
   const drag = useRef<{
     dx: number; dy: number; sx: number; sy: number
     armed: boolean; moved: boolean; timer: number | null
+    el: HTMLElement; pointerId: number
   } | null>(null)
   const suppressClick = useRef(false)
   const [dragging, setDragging] = useState(false)
@@ -83,10 +84,19 @@ export default function ReviewPanel() {
     return () => el.removeEventListener('touchmove', block)
   })
 
+  // จับ pointer ไว้กับตัวครอบ "เฉพาะตอนเริ่มลากจริง" — ห้าม capture ตั้งแต่กดลง
+  // เพราะ capture ทำให้เบราว์เซอร์ retarget เหตุการณ์ click ไปที่ตัวครอบ ปุ่มเลยกดไม่ติด
+  function capture() {
+    const d = drag.current
+    if (!d) return
+    try { d.el.setPointerCapture(d.pointerId) } catch { /* pointer จบไปแล้ว */ }
+  }
+
   function arm() {
     if (!drag.current) return
     drag.current.armed = true
     setDragging(true)
+    capture()
     try { navigator.vibrate?.(15) } catch { /* อุปกรณ์ไม่รองรับ */ }
   }
 
@@ -99,11 +109,11 @@ export default function ReviewPanel() {
     drag.current = {
       dx: e.clientX - r.left, dy: e.clientY - r.top,
       sx: e.clientX, sy: e.clientY,
-      armed: e.pointerType === 'mouse', // เมาส์ลากได้ทันที
+      armed: e.pointerType === 'mouse', // เมาส์เข้าโหมดลากได้ทันที (แต่ยังไม่ capture จนกว่าจะขยับจริง)
       moved: false,
       timer: e.pointerType === 'mouse' ? null : window.setTimeout(arm, 300),
+      el: e.currentTarget, pointerId: e.pointerId,
     }
-    e.currentTarget.setPointerCapture(e.pointerId)
   }
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     const d = drag.current
@@ -114,8 +124,11 @@ export default function ReviewPanel() {
       if (dist > 10 && d.timer) { window.clearTimeout(d.timer); d.timer = null; drag.current = null }
       return
     }
-    if (!d.moved && dist < 6) return
-    d.moved = true
+    if (!d.moved) {
+      if (dist < 6) return // เมาส์สั่นนิดหน่อยตอนคลิก = ยังถือว่า "กด" ไม่ใช่ลาก
+      d.moved = true
+      capture() // เริ่มลากจริงค่อยจับ pointer — คลิกปกติไม่โดน retarget
+    }
     setPos(clampPos(e.clientX - d.dx, e.clientY - d.dy))
   }
   function onPointerUp() {
