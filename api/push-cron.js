@@ -1,4 +1,5 @@
-// ส่งแจ้งเตือน (1) แผนเยี่ยมชมของ "พรุ่งนี้" (2) นัดติดตามที่ครบกำหนด "วันนี้" — เวลาไทย ผ่าน FCM
+// ส่งแจ้งเตือน (1) แผนเยี่ยมชมของ "พรุ่งนี้" (2) นัดติดตามที่ครบกำหนด "วันนี้"
+// (3) สัญญาเช่าใกล้หมด (ล่วงหน้าตามตั้งค่า 'contract_alert' — มาตรฐาน 60/30 วัน) — เวลาไทย ผ่าน FCM
 // รันอัตโนมัติโดย Vercel Cron ทุก 07:00 น. ไทย (ดู "crons" ใน vercel.json)
 // ทดสอบเอง: GET /api/push-cron?test=1 พร้อม header  Authorization: Bearer <CRON_SECRET>
 //
@@ -8,6 +9,7 @@
 //   CRON_SECRET              สตริงสุ่มยาวๆ — Vercel จะแนบให้ cron เองอัตโนมัติ
 import crypto from 'node:crypto'
 import { effectivePlan, isProPlan } from './_lib/plan.js'
+import { fetchSetting } from './_lib/settings.js'
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url')
 
@@ -121,8 +123,46 @@ export default async function handler(req, res) {
         }
       }
     }
+    // สัญญาเช่าใกล้หมด — แจ้งเมื่อวันสิ้นสุดสัญญาตรงกับ "วันนี้ + N วัน" พอดี (ยิงครั้งเดียวต่อเกณฑ์)
+    // เกณฑ์ N มาจากตั้งค่า super admin (app_settings 'contract_alert' {days:[...]}) — มาตรฐาน 60/30 วัน
+    // เฉพาะองค์กร Pro (รวมช่วงทดลองใช้) เหมือนนัดติดตาม · คอลัมน์ยังไม่มี → ข้ามเงียบๆ ไม่ทำให้ cron ล้ม
+    const alertCfg = await fetchSetting(supaUrl, serviceKey, 'contract_alert')
+    const alertDays = (Array.isArray(alertCfg?.days) ? alertCfg.days : [60, 30])
+      .map(Number)
+      .filter((n) => Number.isInteger(n) && n >= 0 && n <= 365)
+    if (alertDays.length > 0) {
+      const dayAt = (n) => new Date(Date.now() + (7 + n * 24) * 3600e3).toISOString().slice(0, 10)
+      const targets = [...new Set(alertDays.map(dayAt))]
+      const props = await sb(
+        `properties?select=org_id,code,contract_end,organizations(plan,trial_plan,trial_expires_at)` +
+          `&contract_end=in.(${targets.join(',')})`,
+      )
+      if (Array.isArray(props) && props.length > 0) {
+        const byOrg = new Map()
+        for (const p of props) {
+          if (!p.org_id) continue
+          if (!isProPlan(effectivePlan(p.organizations))) continue
+          const left = Math.round((new Date(`${p.contract_end}T00:00:00Z`) - new Date(`${today}T00:00:00Z`)) / 86400e3)
+          const arr = byOrg.get(p.org_id) ?? []
+          arr.push(`${p.code} เหลือ ${left} วัน`)
+          byOrg.set(p.org_id, arr)
+        }
+        for (const [orgId, lines] of byOrg) {
+          const body = lines.length <= 3 ? lines.join(' · ') : `${lines.slice(0, 3).join(' · ')} และอีก ${lines.length - 3} รายการ`
+          for (const t of tokens) {
+            if (t.org_id === orgId) {
+              jobs.push({
+                token: t.token,
+                title: `⏰ สัญญาเช่าใกล้หมด ${lines.length} รายการ`,
+                body: `${body} — ได้เวลาคุยต่อสัญญา/หาผู้เช่าใหม่`,
+              })
+            }
+          }
+        }
+      }
+    }
   }
-  if (jobs.length === 0) return res.status(200).json({ sent: 0, note: 'ไม่มีแผนเยี่ยมชมพรุ่งนี้/นัดติดตามวันนี้' })
+  if (jobs.length === 0) return res.status(200).json({ sent: 0, note: 'ไม่มีแผนเยี่ยมชมพรุ่งนี้/นัดติดตามวันนี้/สัญญาใกล้หมดตามเกณฑ์' })
 
   const accessToken = await fcmAccessToken(sa)
   let sent = 0

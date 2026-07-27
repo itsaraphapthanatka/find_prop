@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { Property, PropertyInput } from '../types'
 import { LABELS, OPTIONS, formatNumber } from '../labels'
-import { ARRAY_FIELDS, IMPORT_FIELDS, NUM_FIELDS, convertValue } from './importProps'
+import { ARRAY_FIELDS, DATE_FIELDS, IMPORT_FIELDS, NUM_FIELDS, convertValue } from './importProps'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -69,6 +69,12 @@ export function propertyBrief(p: Property): string {
     parts.push(`${p.bedrooms ?? '?'} นอน ${p.bathrooms ?? '?'} น้ำ`)
   if (p.floors) parts.push(p.floors)
   if (p.furniture) parts.push(`เฟอร์ฯ ${p.furniture}`)
+  // สัญญาเช่าใกล้หมด = โอกาสต่อสัญญา/หาผู้เช่าใหม่ — AI ควรหยิบมาเตือนได้
+  if (p.contract_end) {
+    const dLeft = Math.ceil((new Date(`${p.contract_end}T00:00:00`).getTime() - Date.now()) / 86400e3)
+    if (dLeft < 0) parts.push(`⏰สัญญาหมดแล้ว (${p.contract_end})`)
+    else if (dLeft <= 60) parts.push(`⏰สัญญาเหลือ ${dLeft} วัน (${p.contract_end})`)
+  }
   if (p.land_area) parts.push(`ที่ดิน ${p.land_area}`)
   if (p.building_height != null) parts.push(`สูง ${formatNumber(p.building_height)} ม.`)
   if (p.floor_load) parts.push(`พื้นรับ ${p.floor_load}`)
@@ -90,7 +96,7 @@ function fieldGuide(): string {
         ? 'ตัวเลขล้วน'
         : ARRAY_FIELDS.has(f)
           ? 'array ของข้อความ'
-          : f === 'record_date'
+          : DATE_FIELDS.has(f)
             ? 'วันที่ YYYY-MM-DD'
             : 'ข้อความ'
       return `${f} | ${LABELS[f]} | ${kind}${opts ? ` | ตัวเลือกแนะนำ: ${opts.join(', ')}` : ''}`
@@ -169,6 +175,7 @@ export function propertyDetailText(p: Property): string {
     line('คุณสมบัติ', p.features?.join(', ')),
     line('เหมาะกับการใช้งาน', p.usages?.join(', ')),
     line('สัญญา/มัดจำ/ล่วงหน้า', [p.contract_period, p.deposit, p.advance_rent].filter(Boolean).join(' / ')),
+    line('วันสิ้นสุดสัญญาเช่า', p.contract_end),
     line('ค่าส่วนกลาง', p.common_fee),
     line('ใกล้เคียง', p.nearby),
     line('เอกสารสิทธิ์', p.documents?.map((d) => d.name).filter(Boolean).join(', ')),

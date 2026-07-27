@@ -50,6 +50,8 @@ export interface Property {
   contract_period: string | null
   deposit: string | null
   advance_rent: string | null
+  /** วันสิ้นสุดสัญญาเช่าปัจจุบัน (YYYY-MM-DD) — ใช้แจ้งเตือนสัญญาใกล้หมด */
+  contract_end: string | null
   features: string[] | null
   usages: string[] | null
   // ── ฟิลด์ที่อยู่อาศัย (บ้าน/คอนโด) — ดู requirement.md ──

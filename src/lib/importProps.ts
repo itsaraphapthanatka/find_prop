@@ -14,7 +14,7 @@ export const NUM_FIELDS = new Set<keyof PropertyInput>([
   'lat', 'lng',
 ])
 export const ARRAY_FIELDS = new Set<keyof PropertyInput>(['zones', 'features', 'usages', 'appliances'])
-export const DATE_FIELDS = new Set<keyof PropertyInput>(['record_date'])
+export const DATE_FIELDS = new Set<keyof PropertyInput>(['record_date', 'contract_end'])
 
 /** ชื่อเรียกอื่นที่พบบ่อยในไฟล์จริง (นอกเหนือจากป้าย LABELS และชื่อฟิลด์อังกฤษ) */
 const ALIASES: Record<string, keyof PropertyInput> = {

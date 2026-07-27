@@ -81,6 +81,20 @@ export function DealTag({ status }: { status?: string | null }) {
   )
 }
 
+/** ป้ายสัญญาเช่าใกล้หมด — โชว์เมื่อเหลือ ≤60 วันหรือหมดแล้ว (เตือนให้ต่อสัญญา/หาผู้เช่าใหม่) */
+export function ContractTag({ end }: { end?: string | null }) {
+  if (!end) return null
+  const days = Math.ceil((new Date(`${end}T00:00:00`).getTime() - Date.now()) / 86400e3)
+  if (days > 60) return null
+  const expired = days < 0
+  const c = expired ? '#dc2626' : '#d97706' // แดง = หมดแล้ว · ส้ม = ใกล้หมด
+  return (
+    <span className="tag" style={{ background: `${c}22`, color: c }}>
+      {expired ? 'สัญญาหมดแล้ว' : days === 0 ? 'สัญญาหมดวันนี้' : `สัญญาเหลือ ${days} วัน`}
+    </span>
+  )
+}
+
 export function ListingTag({ type }: { type?: string | null }) {
   if (!type) return null
   const c = LISTING_COLOR[type]

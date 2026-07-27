@@ -4,7 +4,7 @@ import { LABELS, formatDate, formatNumber } from '../labels'
 import { useAuth } from '../lib/auth'
 import { usePlanAccess } from '../lib/plan'
 import { supabase } from '../lib/supabase'
-import { DealTag } from '../lib/propertyStyle'
+import { ContractTag, DealTag } from '../lib/propertyStyle'
 import { IconClose, IconPhone, IconSms } from './icons'
 import LocationPicker from './LocationPicker'
 
@@ -346,6 +346,7 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
         <div className="pane-header">
           <h2>{p.code}</h2>
           <DealTag status={p.deal_status} />
+          <ContractTag end={p.contract_end} />
           {isSuper && p.org_name && <span className="tag org">{p.org_name}</span>}
           <button className="btn sm danger" onClick={onDelete}>ลบ</button>
           <button className="btn sm primary" onClick={onEdit}>แก้ไข</button>

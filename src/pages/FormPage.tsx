@@ -59,6 +59,7 @@ const emptyForm: PropertyInput = {
   contract_period: null,
   deposit: null,
   advance_rent: null,
+  contract_end: null,
   features: [],
   usages: [],
   sub_type: null,
@@ -739,6 +740,31 @@ export default function FormPage() {
               <ComboField name="deposit" options={OPTIONS.deposit} {...fp} />
             </div>
             <ComboField name="advance_rent" options={OPTIONS.advance_rent} {...fp} />
+            <div className="form-grid-2">
+              <TextField name="contract_end" type="date" {...fp} />
+              {(() => {
+                // ปุ่มช่วยคำนวณ: เริ่มสัญญาวันนี้ + ระยะสัญญา (เช่น "3 ปี") = วันสิ้นสุด
+                const years = parseInt(form.contract_period ?? '', 10)
+                if (!Number.isInteger(years) || years <= 0) return null
+                return (
+                  <div className="form-field">
+                    <label>&nbsp;</label>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        const d = new Date()
+                        d.setFullYear(d.getFullYear() + years)
+                        set('contract_end', d.toISOString().slice(0, 10))
+                      }}
+                    >
+                      เริ่มสัญญาวันนี้ +{years} ปี
+                    </button>
+                  </div>
+                )
+              })()}
+            </div>
+            <p className="ai-hint">กรอกวันสิ้นสุดสัญญาแล้วระบบแจ้งเตือนทีมล่วงหน้าก่อนสัญญาหมด (โอกาสต่อสัญญา/หาผู้เช่าใหม่)</p>
           </Section>
         )}
 

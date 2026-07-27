@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { formatDate } from '../labels'
 import { listReviews, setReviewMode, useReviewMode, type ReviewRow } from '../lib/review'
-import { fetchTrialSetting, fetchReferralSetting, type TrialSetting } from '../lib/plan'
+import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, type TrialSetting } from '../lib/plan'
 import { fetchPaymentTestEnabled } from '../lib/payments'
 
 // จัดกลุ่มรีวิวของผู้รีวิวคนหนึ่งตาม "หัวข้อ" (flow) — คงลำดับที่พบครั้งแรก
@@ -187,6 +187,42 @@ export default function SuperAdminPage() {
           : `บันทึกไม่สำเร็จ: ${error.message}`,
       )
     }
+  }
+
+  // เกณฑ์แจ้งเตือนสัญญาเช่าใกล้หมด (app_settings key 'contract_alert') — กรอกเป็นวัน คั่นด้วยจุลภาค
+  const [alertDays, setAlertDays] = useState<string | null>(null) // null = ยังโหลดไม่เสร็จ
+  const [alertSaving, setAlertSaving] = useState(false)
+  useEffect(() => {
+    void fetchContractAlertSetting().then((c) => setAlertDays(c.days.join(', ')))
+  }, [])
+
+  async function saveContractAlert() {
+    if (alertDays === null) return
+    const days = alertDays
+      .split(/[,\s]+/)
+      .filter(Boolean)
+      .map(Number)
+    if (days.length === 0 || days.some((n) => !Number.isInteger(n) || n < 0 || n > 365)) {
+      alert('กรอกจำนวนวันล่วงหน้าเป็นเลขจำนวนเต็ม 0–365 คั่นด้วยจุลภาค เช่น "60, 30" (0 = แจ้งวันหมดพอดี)')
+      return
+    }
+    const uniq = [...new Set(days)].sort((a, b) => b - a)
+    setAlertSaving(true)
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'contract_alert',
+      value: { days: uniq },
+      updated_at: new Date().toISOString(),
+    })
+    setAlertSaving(false)
+    if (error) {
+      alert(
+        error.message.includes('app_settings')
+          ? 'ยังไม่ได้ติดตั้งตารางตั้งค่า — รัน supabase/app-settings-jsonb-fix.sql ก่อน'
+          : `บันทึกไม่สำเร็จ: ${error.message}`,
+      )
+      return
+    }
+    setAlertDays(uniq.join(', '))
   }
 
   async function savePrices() {
@@ -603,6 +639,34 @@ export default function SuperAdminPage() {
               </button>
               <span style={{ color: 'var(--muted)', fontSize: 13 }}>
                 ชวนครบทุก {referral.need} คน = Pro +{referral.days} วัน (สะสมได้)
+              </span>
+            </div>
+          )}
+        </section>
+
+        <section className="form-card">
+          <h3>แจ้งเตือนสัญญาเช่าใกล้หมด</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            ทรัพย์ที่กรอก "วันสิ้นสุดสัญญาเช่า" ไว้ ระบบส่งแจ้งเตือนถึงมือถือทีม (07:00) เมื่อเหลือวันตามเกณฑ์พอดี ·
+            เฉพาะองค์กร Pro (รวมช่วงทดลองใช้) เหมือนนัดติดตาม
+          </p>
+          {alertDays === null && <div className="loading">กำลังโหลด…</div>}
+          {alertDays !== null && (
+            <div className="org-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 14 }}>
+                แจ้งล่วงหน้า (วัน, คั่นด้วยจุลภาค){' '}
+                <input
+                  className="date-input" style={{ width: 140 }}
+                  value={alertDays}
+                  placeholder="60, 30"
+                  onChange={(e) => setAlertDays(e.target.value)}
+                />
+              </label>
+              <button className="btn sm primary" disabled={alertSaving} onClick={() => void saveContractAlert()}>
+                {alertSaving ? 'กำลังบันทึก…' : 'บันทึก'}
+              </button>
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>
+                ตอนนี้: แจ้งเมื่อสัญญาเหลือ {alertDays || '—'} วัน
               </span>
             </div>
           )}

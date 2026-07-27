@@ -86,6 +86,26 @@ export async function fetchReferralSetting(): Promise<ReferralSetting> {
   }
 }
 
+// ── แจ้งเตือนสัญญาเช่าใกล้หมด (app_settings key 'contract_alert') — แจ้งล่วงหน้ากี่วันบ้าง ──
+export interface ContractAlertSetting {
+  days: number[] // เช่น [60, 30] = แจ้งตอนเหลือ 60 วัน และอีกครั้งตอนเหลือ 30 วัน
+}
+export const DEFAULT_CONTRACT_ALERT: ContractAlertSetting = { days: [60, 30] }
+
+/** โหลดเกณฑ์แจ้งเตือนสัญญา — ไม่ throw (ตาราง/แถวยังไม่มี → ใช้ค่ามาตรฐาน 60/30 วัน) */
+export async function fetchContractAlertSetting(): Promise<ContractAlertSetting> {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'contract_alert').maybeSingle()
+    const v = (data?.value ?? null) as { days?: unknown } | null
+    const days = Array.isArray(v?.days)
+      ? v.days.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 365)
+      : []
+    return days.length > 0 ? { days } : DEFAULT_CONTRACT_ALERT
+  } catch {
+    return DEFAULT_CONTRACT_ALERT
+  }
+}
+
 /** โหลดตั้งค่าทดลองใช้ — ไม่ throw (ตาราง/แถวยังไม่มี → ใช้ค่ามาตรฐาน) */
 export async function fetchTrialSetting(): Promise<TrialSetting> {
   try {

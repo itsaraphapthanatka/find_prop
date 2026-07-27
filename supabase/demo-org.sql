@@ -1,7 +1,9 @@
 -- ============================================================
--- องค์กรเดโม "Demo Estate" + ทรัพย์ตัวอย่าง 10 รายการ (DM-001…DM-010)
+-- องค์กรเดโม "Demo Estate" + ทรัพย์ตัวอย่าง 14 รายการ (DM-001…DM-014)
+-- 10 รายการเชิงพาณิชย์/อุตสาหกรรม + บ้าน/ทาวน์เฮาส์/คอนโด/ที่ดินเปล่า อย่างละ 1
 -- ใช้ทดสอบมุมมอง super (ป้าย/ตัวกรององค์กร) และเดโมขายแพลตฟอร์ม
 -- รันใน Supabase SQL Editor — รันซ้ำได้ (ล้างทรัพย์ DM-% เดิมก่อนใส่ใหม่)
+-- ⚠️ ต้องรัน residential-fields.sql ก่อน (DM-011…014 ใช้คอลัมน์ชุดใหม่)
 --
 -- เจ้าของทรัพย์เดโม = admin@demo.com (แอดมินของ Demo Estate)
 --   · สร้างบัญชี admin@demo.com ก่อน (หน้า "ทีม" ในแอปตอนสวมสิทธิ์ Demo Estate หรือ Supabase Dashboard)
@@ -130,10 +132,70 @@ begin
      array['พื้นที่สำนักงาน', 'ที่จอดรถ', 'ใกล้ทางด่วน'], array['สำนักงาน'],
      13.9126, 100.5504, 'ข้อมูลเดโมสำหรับทดสอบระบบ');
 
+  -- ── ที่อยู่อาศัย + ที่ดินเปล่า (ฟิลด์ชุดใหม่จาก residential-fields.sql) ──
+
+  -- DM-011 บ้านเดี่ยว (ขาย)
+  insert into public.properties
+    (org_id, code, record_date, pic, lessor_status, lessor_name, phone,
+     property_type, sub_type, listing_type, project_name, subdistrict, district, province, nearby,
+     land_area, usable_area, floors, bedrooms, bathrooms, kitchens, maid_room, parking_spaces,
+     appliances, furniture, common_fee, transfer_fee, sale_price,
+     features, lat, lng, notes)
+  values
+    (v_org, 'DM-011', current_date - 8, 'Demo', 'บุคคล', 'คุณพิมพ์ใจ', '0812340011',
+     'บ้าน', 'บ้านเดี่ยว', 'ขาย', 'เดอะการ์เดน บางนา', 'บางแก้ว', 'บางพลี', 'สมุทรปราการ', 'เมกาบางนา, ทางด่วนวงแหวน',
+     '54 ตร.วา', 180, '2 ชั้น', 3, 3, 1, 'ไม่มี', 2,
+     array['แอร์ 4 เครื่อง', 'เครื่องทำน้ำอุ่น 2 เครื่อง'], 'มีบางส่วน', '40 บาท/ตร.วา', 'คนละครึ่ง (50/50)', 6590000,
+     array['สวน', 'สระว่ายน้ำ', 'รปภ. 24 ชม.', 'กล้องวงจรปิด'],
+     13.6412, 100.6689, 'ข้อมูลเดโมสำหรับทดสอบระบบ');
+
+  -- DM-012 ทาวน์เฮาส์ (เช่า)
+  insert into public.properties
+    (org_id, code, record_date, pic, lessor_status, lessor_name, phone,
+     property_type, sub_type, listing_type, project_name, subdistrict, district, province, nearby,
+     land_area, usable_area, floors, bedrooms, bathrooms, kitchens, maid_room, parking_spaces,
+     appliances, furniture, rent_per_month, contract_period, deposit, advance_rent,
+     features, lat, lng, notes)
+  values
+    (v_org, 'DM-012', current_date - 25, 'Demo', 'บุคคล', 'คุณอนันต์', '0812340012',
+     'บ้าน', 'ทาวน์เฮาส์/ทาวน์โฮม', 'เช่า', 'พฤกษาวิลล์ เทพารักษ์', 'บางพลีใหญ่', 'บางพลี', 'สมุทรปราการ', 'ถนนเทพารักษ์, โรงพยาบาลจุฬารัตน์ 3',
+     '18 ตร.วา', 105, '2 ชั้น', 3, 2, 1, 'ไม่มี', 1,
+     array['แอร์ 2 เครื่อง', 'เครื่องทำน้ำอุ่น 1 เครื่อง'], 'บ้านเปล่า/ห้องเปล่า', 14500, '1 ปี', '2 เดือน', '1 เดือน',
+     array['รปภ. 24 ชม.', 'ใกล้ถนนหลัก'],
+     13.5983, 100.6721, 'ข้อมูลเดโมสำหรับทดสอบระบบ');
+
+  -- DM-013 คอนโด 1 ห้องนอน (เช่า/ขาย)
+  insert into public.properties
+    (org_id, code, record_date, pic, lessor_status, lessor_name, phone,
+     property_type, sub_type, listing_type, project_name, subdistrict, district, province, nearby,
+     usable_area, bathrooms, kitchens, balcony_direction, unit_building, unit_floor, tower_floors, tower_count,
+     appliances, furniture, common_fee, transfer_fee, rent_per_month, sale_price,
+     contract_period, deposit, advance_rent, features, lat, lng, notes)
+  values
+    (v_org, 'DM-013', current_date - 15, 'Demo', 'บุคคล', 'คุณศิริพร', '0812340013',
+     'คอนโด', '1 ห้องนอน', 'เช่า/ขาย', 'เดอะ ริเวอร์ แบริ่ง', 'สำโรงเหนือ', 'เมืองสมุทรปราการ', 'สมุทรปราการ', 'BTS แบริ่ง 300 ม., สุขุมวิท 107',
+     35, 1, 1, 'ตะวันออก', 'อาคาร A', '15', 30, 3,
+     array['แอร์ 2 เครื่อง', 'เครื่องทำน้ำอุ่น', 'ตู้เย็น', 'เครื่องซักผ้า', 'ไมโครเวฟ'], 'มีครบ', '55 บาท/ตร.ม.', 'ผู้ขายรับผิดชอบ 100%', 15000, 3290000,
+     '1 ปี', '2 เดือน', '1 เดือน', array['สระว่ายน้ำ', 'ฟิตเนส', 'สวน', 'รปภ. 24 ชม.'],
+     13.6612, 100.6017, 'ข้อมูลเดโมสำหรับทดสอบระบบ');
+
+  -- DM-014 ที่ดินเปล่า (ขาย)
+  insert into public.properties
+    (org_id, code, record_date, pic, lessor_status, lessor_name, phone,
+     property_type, listing_type, subdistrict, district, province, nearby,
+     land_wxd, land_area, color_zone, far_ratio, osr_ratio, road_frontage, road_width, utilities,
+     transfer_fee, sale_price, usages, lat, lng, notes)
+  values
+    (v_org, 'DM-014', current_date - 40, 'Demo', 'บริษัท', 'คุณวิโรจน์', '0812340014',
+     'ที่ดินเปล่า', 'ขาย', 'บางเพรียง', 'บางบ่อ', 'สมุทรปราการ', 'โรงเรียนวัดบางเพรียง 1.2 กม., ตลาดบางบ่อ 3 กม., ถนนบางนา-ตราด กม.30 2 กม.',
+     '40 x 100 ม.', '2 ไร่ 1 งาน 50 ตร.วา', 'เขียว', '1:1.5', '10%', 'ติด 1 ด้าน', 8, 'มีไฟฟ้า + น้ำประปา',
+     'คนละครึ่ง (50/50)', 13500000, array['บ้านจัดสรร', 'โกดัง', 'เกษตร'],
+     13.5528, 100.7893, 'ข้อมูลเดโมสำหรับทดสอบระบบ');
+
   -- ประทับเจ้าของให้ทรัพย์เดโมทุกชิ้น (ไม่ให้กำพร้า)
   update public.properties set created_by = v_owner
   where org_id = v_org and code like 'DM-%';
 
-  raise notice 'สร้างองค์กร Demo Estate (%) + ทรัพย์ 10 รายการ · เจ้าของ = %',
+  raise notice 'สร้างองค์กร Demo Estate (%) + ทรัพย์ 14 รายการ (รวมบ้าน/ทาวน์เฮาส์/คอนโด/ที่ดินเปล่า) · เจ้าของ = %',
     v_org, coalesce((select email from public.profiles where id = v_owner), '(ยังไม่มี — กำพร้า)');
 end $$;

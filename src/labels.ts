@@ -45,6 +45,7 @@ export const LABELS: Record<keyof PropertyInput, string> = {
   contract_period: 'ระยะ_เวลา_สัญญา',
   deposit: 'ค่าประกัน',
   advance_rent: 'ค่าเช่า_ล่วงหน้า',
+  contract_end: 'วันสิ้นสุดสัญญาเช่า',
   features: 'คุณสมบัติ',
   usages: 'การใช้งาน',
   sub_type: 'ประเภทย่อย',
