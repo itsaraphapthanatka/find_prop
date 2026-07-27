@@ -22,6 +22,9 @@ const ALIASES: Record<string, keyof PropertyInput> = {
   'วันที่บันทึก': 'record_date', 'date': 'record_date',
   'รูปภาพ': 'photo_url', 'photo': 'photo_url', 'image': 'photo_url',
   'เบอร์โทร': 'phone', 'โทรศัพท์': 'phone', 'tel': 'phone',
+  // ชื่อป้ายเดิมยุค "ผู้ให้เช่า" — ไฟล์/เทมเพลตเก่ายังนำเข้าได้
+  'สถานะ_ผู้ให้เช่า': 'lessor_status', 'ชื่อบริษัท_ผู้ให้เช่า': 'lessor_company',
+  'ชื่อผู้ให้เช่า': 'lessor_name', 'เจ้าของ': 'lessor_name', 'ชื่อเจ้าของ': 'lessor_name',
   'ประเภท': 'property_type',
   'เช่าหรือขาย': 'listing_type', 'เช่า/ขาย': 'listing_type',
   'ตำบล': 'subdistrict', 'แขวง': 'subdistrict',

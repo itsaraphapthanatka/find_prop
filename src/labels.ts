@@ -7,9 +7,10 @@ export const LABELS: Record<keyof PropertyInput, string> = {
   photo_url: 'รูป',
   photos: 'รูปภาพ',
   pic: 'PIC',
-  lessor_status: 'สถานะ_ผู้ให้เช่า',
-  lessor_company: 'ชื่อบริษัท_ผู้ให้เช่า',
-  lessor_name: 'ชื่อผู้ให้เช่า',
+  // ฟิลด์ยังชื่อ lessor_* ใน DB (ยุคแรกมีแต่ปล่อยเช่า) แต่ความหมายจริงคือ "เจ้าของทรัพย์" ทั้งเช่าและขาย
+  lessor_status: 'สถานะ_เจ้าของทรัพย์',
+  lessor_company: 'ชื่อบริษัท_เจ้าของทรัพย์',
+  lessor_name: 'ชื่อเจ้าของทรัพย์',
   phone: 'เบอร์โทรติดต่อ',
   deed_no: 'เลขโฉนด',
   property_type: 'ประเภททรัพย์',

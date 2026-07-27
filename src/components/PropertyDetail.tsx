@@ -362,7 +362,7 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.record_date} value={formatDate(p.record_date)} />
           <Field label="ลงโดย" value={p.created_by_name} />
 
-          <div className="section-title">ผู้ให้เช่า</div>
+          <div className="section-title">เจ้าของทรัพย์</div>
           <Field label={LABELS.lessor_status} value={p.lessor_status} />
           <Field label={LABELS.lessor_company} value={p.lessor_company} />
           <Field label={LABELS.lessor_name} value={p.lessor_name} />

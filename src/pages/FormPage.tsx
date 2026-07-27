@@ -563,7 +563,7 @@ export default function FormPage() {
           <TextField name="video_url" type="url" {...fp} />
         </Section>
 
-        <Section title="ผู้ให้เช่า">
+        <Section title="เจ้าของทรัพย์ (ผู้ให้เช่า/ผู้ขาย)">
           <ComboField name="lessor_status" options={OPTIONS.lessor_status} {...fp} />
           <TextField name="lessor_company" {...fp} />
           <div className="form-grid-2">
