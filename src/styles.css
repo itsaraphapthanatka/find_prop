@@ -199,9 +199,10 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 }
 .map-layer-toggle:hover { background: var(--line-soft); }
 @media (max-width: 720px) {
-  /* จอแคบ: แถวเดียวปัดซ้ายขวาได้ · เว้นมุมล่างซ้าย/ขวาให้ปุ่มลอย (รีวิว + ผู้ช่วย AI) ไม่ทับ legend */
+  /* จอแคบ: ชิดซ้าย แถวเดียวปัดซ้ายขวาได้ · เว้นเฉพาะมุมขวาให้ปุ่มผู้ช่วย AI
+     (ปุ่มรีวิวย้าย/ซ่อนได้แล้ว ไม่ต้องกันที่ฝั่งซ้ายอีก) */
   .map-legend {
-    left: 76px; right: 76px; bottom: 24px; max-width: none;
+    left: 10px; right: 76px; bottom: 24px; max-width: none;
     flex-wrap: nowrap; overflow-x: auto; padding: 2px 2px 4px;
     scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
