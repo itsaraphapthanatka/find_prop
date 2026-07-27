@@ -43,9 +43,11 @@ function onTrialRow(o: OrgOverview): boolean {
 
 const PLANS = ['free', 'starter', 'pro', 'enterprise']
 
-// ตั้งราคาแพ็กเกจ (ตาราง plan_prices) — กรอก ฿/เดือน + ส่วนลดรายปี (%) แล้วคำนวณ ฿/ปี ให้อัตโนมัติ
+// ตั้งราคาแพ็กเกจ (ตาราง plan_prices: plan × ระดับโควตาทรัพย์) — กรอก ฿/เดือน + ส่วนลดรายปี (%)
 // เก็บเป็น string ตามช่องกรอก แปลงเลขตอนบันทึก (DB เก็บ monthly + yearly ที่คำนวณแล้ว)
-type PriceEdit = Record<'starter' | 'pro', { monthly: string; discount: string }>
+const PRICE_TIERS = [100, 250, 500] as const
+type PriceTier = (typeof PRICE_TIERS)[number]
+type PriceEdit = Record<'starter' | 'pro', Record<PriceTier, { monthly: string; discount: string }>>
 
 // ฿/ปี จาก (฿/เดือน, ส่วนลด %) — คืน null ถ้ากรอกไม่ครบ/ไม่ถูกต้อง
 function yearlyOf(monthly: string, discount: string): number | null {
@@ -75,22 +77,29 @@ export default function SuperAdminPage() {
   const [priceSaving, setPriceSaving] = useState(false)
 
   async function loadPrices() {
-    const { data, error } = await supabase.from('plan_prices').select('plan,monthly,yearly')
+    const { data, error } = await supabase.from('plan_prices').select('plan,tier,monthly,yearly')
     if (error) {
       setPriceError(
-        error.message.includes('plan_prices')
-          ? 'ยังไม่ได้สร้างตารางราคา — รัน supabase/plan-prices.sql ใน SQL Editor ก่อน'
-          : error.message,
+        error.message.includes('tier')
+          ? 'ตารางราคายังเป็นโครงเก่า — รัน supabase/plan-tiers.sql ใน SQL Editor ก่อน'
+          : error.message.includes('plan_prices')
+            ? 'ยังไม่ได้สร้างตารางราคา — รัน supabase/plan-prices.sql + plan-tiers.sql ใน SQL Editor ก่อน'
+            : error.message,
       )
       return
     }
-    const next: PriceEdit = { starter: { monthly: '', discount: '' }, pro: { monthly: '', discount: '' } }
+    const blank = () => ({ monthly: '', discount: '' })
+    const next: PriceEdit = {
+      starter: { 100: blank(), 250: blank(), 500: blank() },
+      pro: { 100: blank(), 250: blank(), 500: blank() },
+    }
     for (const r of data ?? []) {
       const key = r.plan as 'starter' | 'pro'
-      if (!next[key]) continue
+      const tier = Number(r.tier ?? 500) as PriceTier
+      if (!next[key]?.[tier]) continue
       // แปลง yearly ใน DB กลับเป็น % ส่วนลด สำหรับช่องกรอก
       const pct = Number(r.monthly) > 0 ? Math.round((1 - Number(r.yearly) / (Number(r.monthly) * 12)) * 100) : 0
-      next[key] = { monthly: String(r.monthly), discount: String(Math.max(0, pct)) }
+      next[key][tier] = { monthly: String(r.monthly), discount: String(Math.max(0, pct)) }
     }
     setPriceError(null)
     setPriceEdit(next)
@@ -227,14 +236,17 @@ export default function SuperAdminPage() {
 
   async function savePrices() {
     if (!priceEdit) return
-    const rows = (['starter', 'pro'] as const).map((plan) => ({
-      plan,
-      monthly: Number(priceEdit[plan].monthly),
-      yearly: yearlyOf(priceEdit[plan].monthly, priceEdit[plan].discount) ?? 0,
-      updated_at: new Date().toISOString(),
-    }))
+    const rows = (['starter', 'pro'] as const).flatMap((plan) =>
+      PRICE_TIERS.map((tier) => ({
+        plan,
+        tier,
+        monthly: Number(priceEdit[plan][tier].monthly),
+        yearly: yearlyOf(priceEdit[plan][tier].monthly, priceEdit[plan][tier].discount) ?? 0,
+        updated_at: new Date().toISOString(),
+      })),
+    )
     if (rows.some((r) => !(r.monthly > 0) || !(r.yearly > 0))) {
-      alert('กรุณากรอกราคา ฿/เดือน มากกว่า 0 และส่วนลด 0–99% ให้ครบทุกช่อง')
+      alert('กรุณากรอกราคา ฿/เดือน มากกว่า 0 และส่วนลด 0–99% ให้ครบทุกช่อง (6 แถว)')
       return
     }
     setPriceSaving(true)
@@ -504,37 +516,47 @@ export default function SuperAdminPage() {
               <div className="table-scroll">
                 <table className="data-table">
                   <thead>
-                    <tr><th>แพ็กเกจ</th><th>฿/เดือน</th><th>ส่วนลดรายปี (%)</th><th>฿/ปี (คำนวณให้)</th></tr>
+                    <tr><th>แพ็กเกจ · ระดับ</th><th>฿/เดือน</th><th>ส่วนลดรายปี (%)</th><th>฿/ปี (คำนวณให้)</th></tr>
                   </thead>
                   <tbody>
-                    {(['starter', 'pro'] as const).map((plan) => {
-                      const e = priceEdit[plan]
-                      const yearly = yearlyOf(e.monthly, e.discount)
-                      return (
-                        <tr key={plan}>
-                          <td data-label="แพ็กเกจ" className="td-main">{plan === 'starter' ? 'เริ่มต้น (starter)' : 'Pro'}</td>
-                          <td data-label="฿/เดือน">
-                            <input
-                              type="number" min={1} className="date-input" style={{ width: 110 }}
-                              value={e.monthly}
-                              onChange={(ev) => setPriceEdit({ ...priceEdit, [plan]: { ...e, monthly: ev.target.value } })}
-                            />
-                          </td>
-                          <td data-label="ส่วนลดรายปี (%)">
-                            <input
-                              type="number" min={0} max={99} className="date-input" style={{ width: 90 }}
-                              value={e.discount}
-                              onChange={(ev) => setPriceEdit({ ...priceEdit, [plan]: { ...e, discount: ev.target.value } })}
-                            />
-                          </td>
-                          <td data-label="฿/ปี" style={{ color: yearly == null ? 'var(--danger)' : undefined, fontWeight: 600 }}>
-                            {yearly == null
-                              ? 'กรอกราคา + ส่วนลด 0–99%'
-                              : <>฿{yearly.toLocaleString()}<span style={{ color: 'var(--muted)', fontWeight: 400 }}> (ตกเดือนละ ฿{Math.round(yearly / 12).toLocaleString()})</span></>}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {(['starter', 'pro'] as const).flatMap((plan) =>
+                      PRICE_TIERS.map((tierKey) => {
+                        const e = priceEdit[plan][tierKey]
+                        const yearly = yearlyOf(e.monthly, e.discount)
+                        return (
+                          <tr key={`${plan}-${tierKey}`}>
+                            <td data-label="แพ็กเกจ" className="td-main">
+                              {plan === 'starter' ? 'Basic' : 'Pro'} · ≤{tierKey} ทรัพย์
+                            </td>
+                            <td data-label="฿/เดือน">
+                              <input
+                                type="number" min={1} className="date-input" style={{ width: 110 }}
+                                value={e.monthly}
+                                onChange={(ev) => setPriceEdit({
+                                  ...priceEdit,
+                                  [plan]: { ...priceEdit[plan], [tierKey]: { ...e, monthly: ev.target.value } },
+                                })}
+                              />
+                            </td>
+                            <td data-label="ส่วนลดรายปี (%)">
+                              <input
+                                type="number" min={0} max={99} className="date-input" style={{ width: 90 }}
+                                value={e.discount}
+                                onChange={(ev) => setPriceEdit({
+                                  ...priceEdit,
+                                  [plan]: { ...priceEdit[plan], [tierKey]: { ...e, discount: ev.target.value } },
+                                })}
+                              />
+                            </td>
+                            <td data-label="฿/ปี" style={{ color: yearly == null ? 'var(--danger)' : undefined, fontWeight: 600 }}>
+                              {yearly == null
+                                ? 'กรอกราคา + ส่วนลด 0–99%'
+                                : <>฿{yearly.toLocaleString()}<span style={{ color: 'var(--muted)', fontWeight: 400 }}> (ตกเดือนละ ฿{Math.round(yearly / 12).toLocaleString()})</span></>}
+                            </td>
+                          </tr>
+                        )
+                      }),
+                    )}
                   </tbody>
                 </table>
               </div>

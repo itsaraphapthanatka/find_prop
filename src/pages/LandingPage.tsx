@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchPlanPrices, DEFAULT_PRICES, type PlanPrices } from '../lib/payments'
+import { fetchPlanPrices, DEFAULT_PRICES, TIERS, type PlanPrices, type Tier } from '../lib/payments'
 import { fetchTrialSetting, DEFAULT_TRIAL, fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
 import {
   IconBell,
@@ -102,12 +102,12 @@ const TRUST = [
 const PLANS = [
   {
     key: 'starter' as const,
-    name: 'เริ่มต้น',
-    tag: 'ทีมเล็ก เริ่มต้นใช้งาน',
+    name: 'Basic',
+    tag: 'ครบสำหรับงานฐานข้อมูลทีม',
     points: [
-      'ทรัพย์ไม่จำกัด',
+      'จำนวนทรัพย์ตามระดับที่เลือก',
       'ลูกทีมไม่จำกัด',
-      'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มบันทึก',
+      'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มตามประเภททรัพย์',
       'ใช้ได้ทั้งเว็บและแอปมือถือ',
     ],
     cta: '{trial}',
@@ -118,10 +118,10 @@ const PLANS = [
     name: 'Pro',
     tag: 'ทีมที่กำลังเติบโต',
     points: [
-      'ทรัพย์และลูกทีม ไม่จำกัด',
+      'ทุกอย่างใน Basic + ลูกทีมไม่จำกัด',
       'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)',
       'Dashboard + นำเข้า Excel/CSV',
-      'แผนเยี่ยมชม + นัดติดตาม + แจ้งเตือนถึงมือถือ',
+      'แผนเยี่ยมชม + นัดติดตาม + แจ้งเตือนสัญญาถึงมือถือ',
     ],
     cta: '{trial}',
     featured: true,
@@ -131,7 +131,7 @@ const PLANS = [
 // ตารางเทียบฟีเจอร์ Free vs Pro — ต้องตรงกับ plan.ts + route gating ใน App.tsx
 // (true = มี, false = ไม่มี, string = ค่าที่แสดง) · /compare ไม่ถูกล็อก → Free ก็มีเอกสารเปรียบเทียบ
 const COMPARE: { label: string; free: boolean | string; pro: boolean | string }[] = [
-  { label: 'จำนวนทรัพย์', free: 'ไม่จำกัด', pro: 'ไม่จำกัด' },
+  { label: 'จำนวนทรัพย์', free: 'ตามระดับ (100/250/500)', pro: 'ตามระดับ (100/250/500)' },
   { label: 'จำนวนลูกทีม', free: 'ไม่จำกัด', pro: 'ไม่จำกัด' },
   { label: 'ฐานข้อมูลทรัพย์ + รูปภาพ + เอกสารสิทธิ์', free: true, pro: true },
   { label: 'ฟอร์มตามประเภท (โกดัง/บ้าน/คอนโด/ที่ดิน)', free: true, pro: true },
@@ -221,6 +221,8 @@ export default function LandingPage() {
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
+  // ระดับ = โควตาทรัพย์ (100/250/500) — ราคาทั้งสองแพ็กเปลี่ยนตามระดับ
+  const [tier, setTier] = useState<Tier>(100)
   // ราคาจริงจากตาราง plan_prices (super admin ตั้งเอง) — ระหว่างโหลด/พลาดใช้ราคามาตรฐาน
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
   // จำนวนวันทดลองใช้จริงจากตั้งค่า (super admin) — 0 = ปิดช่วงทดลอง
@@ -235,8 +237,8 @@ export default function LandingPage() {
   const trialTxt = trialDays > 0 ? `ทดลองฟรี ${trialDays} วัน` : 'สมัครใช้งานฟรี'
   // แทน {trial} ในข้อความจาก FEATURES/STEPS/PLANS
   const tt = (s: string) => s.replace('{trial}', trialTxt)
-  // % ประหยัดเมื่อจ่ายรายปี (คำนวณจากราคาจริงของแพ็กเกจเริ่มต้น)
-  const savePct = Math.max(0, Math.round((1 - prices.starter.yearly / (prices.starter.monthly * 12)) * 100))
+  // % ประหยัดเมื่อจ่ายรายปี (คำนวณจากราคาจริงของแพ็ก Basic ระดับที่เลือก)
+  const savePct = Math.max(0, Math.round((1 - prices.starter[tier].yearly / (prices.starter[tier].monthly * 12)) * 100))
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -360,6 +362,13 @@ export default function LandingPage() {
           {trialDays > 0 ? `สมัครแล้วทดลองใช้ฟรี ${trialDays} วัน ` : 'สมัครใช้งานได้ทันที '}
           ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีถูกกว่า
         </p>
+        <div className="ld-billing" role="group" aria-label="ระดับตามจำนวนทรัพย์" style={{ marginBottom: 10 }}>
+          {TIERS.map((t) => (
+            <button key={t} type="button" className={tier === t ? 'on' : ''} onClick={() => setTier(t)}>
+              ≤ {t} ทรัพย์
+            </button>
+          ))}
+        </div>
         <div className="ld-billing" role="group" aria-label="รอบการชำระเงิน">
           <button type="button" className={billing === 'monthly' ? 'on' : ''} onClick={() => setBilling('monthly')}>รายเดือน</button>
           <button type="button" className={billing === 'yearly' ? 'on' : ''} onClick={() => setBilling('yearly')}>
@@ -368,14 +377,14 @@ export default function LandingPage() {
         </div>
         <div className="ld-pricing">
           {PLANS.map((p) => {
-            const pr = prices[p.key]
+            const pr = prices[p.key][tier]
             const perMonth = billing === 'yearly' ? Math.round(pr.yearly / 12) : pr.monthly
             const yearTotal = billing === 'yearly' ? pr.yearly : null
             return (
               <div key={p.name} className={`ld-price-card ${p.featured ? 'featured' : ''}`}>
                 {p.featured && <span className="ld-price-badge">คุ้มสุด</span>}
                 <h3>{p.name}</h3>
-                <p className="ld-price-tag">{p.tag}</p>
+                <p className="ld-price-tag">{p.tag} · ทรัพย์ไม่เกิน {tier} รายการ</p>
                 <div className="ld-price-amt">
                   <span className="cur">฿</span>{perMonth.toLocaleString()}<span className="per">/เดือน</span>
                 </div>
@@ -399,7 +408,7 @@ export default function LandingPage() {
               <thead>
                 <tr>
                   <th>ฟีเจอร์</th>
-                  <th>เริ่มต้น</th>
+                  <th>Basic</th>
                   <th className="pro-col">Pro</th>
                 </tr>
               </thead>
@@ -415,6 +424,9 @@ export default function LandingPage() {
             </table>
           </div>
         </div>
+        <p style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--muted, #6b7280)', margin: '14px 0 0' }}>
+          ทรัพย์มากกว่า 500 รายการ / ต้องการ SLA พิเศษ → <b>Enterprise</b> คุยกับทีมงานเพื่อใบเสนอราคา (LINE {CONTACT.lineId})
+        </p>
         <div className="ld-referral">
           <span className="ld-referral-emoji">🎁</span>
           <div>

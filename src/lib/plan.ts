@@ -1,13 +1,15 @@
 import { useAuth, type Organization } from './auth'
 import { supabase } from './supabase'
 
-// ลิมิตแพ็กเกจ Free (ต้องตรงกับฝั่งเซิร์ฟเวอร์ใน supabase/plan-gating.sql)
-export const FREE_MAX_PROPERTIES = 10
-export const FREE_MAX_MEMBERS = 2
+// ลิมิตแพ็กเกจ Free (ต้องตรงกับฝั่งเซิร์ฟเวอร์ใน supabase/plan-tiers.sql + api/create-member.js)
+export const FREE_MAX_PROPERTIES = 5
+export const FREE_MAX_MEMBERS = 0 // Free ไม่มีลูกทีม
+/** ระดับมาตรฐานเมื่อองค์กรยังไม่มี plan_tier (ลูกค้าเดิม/ช่วงทดลอง) */
+export const DEFAULT_TIER = 500
 
 export interface PlanAccess {
   pro: boolean
-  maxProperties: number | null // null = ไม่จำกัด
+  maxProperties: number | null // null = ไม่จำกัด (enterprise) · Basic/Pro = ตามระดับ 100/250/500
   maxMembers: number | null
   dashboard: boolean // สรุปภาพรวม
   visitPlans: boolean // แผนเยี่ยมชม
@@ -16,14 +18,14 @@ export interface PlanAccess {
   importCsv: boolean // นำเข้า Excel/CSV
 }
 
-export function planAccess(plan?: string | null): PlanAccess {
+export function planAccess(plan?: string | null, tier?: number | null): PlanAccess {
   const pro = plan === 'pro' || plan === 'enterprise'
-  // 'starter' (เริ่มต้น ฿990) = ปลดลิมิตจำนวน (ทรัพย์/ทีมไม่จำกัด) แต่ยังไม่มีฟีเจอร์พรีเมียม
-  const unlimited = pro || plan === 'starter'
+  const paid = pro || plan === 'starter' // 'starter' = แพ็ก Basic (ชื่อคีย์เดิมใน DB)
   return {
     pro,
-    maxProperties: unlimited ? null : FREE_MAX_PROPERTIES,
-    maxMembers: unlimited ? null : FREE_MAX_MEMBERS,
+    // Basic/Pro จำกัดทรัพย์ตามระดับที่ซื้อ (100/250/500) · enterprise ไม่จำกัด · free = 5
+    maxProperties: plan === 'enterprise' ? null : paid ? (tier ?? DEFAULT_TIER) : FREE_MAX_PROPERTIES,
+    maxMembers: paid ? null : FREE_MAX_MEMBERS,
     dashboard: pro,
     visitPlans: pro,
     followUps: pro,
@@ -52,7 +54,7 @@ export function onTrial(org?: Organization | null): boolean {
 export function usePlanAccess(): PlanAccess {
   const { org, profile } = useAuth()
   if (profile?.is_super && !profile?.impersonate_org_id) return planAccess('enterprise')
-  return planAccess(effectivePlan(org))
+  return planAccess(effectivePlan(org), org?.plan_tier)
 }
 
 // ── ตั้งค่าทดลองใช้ (app_settings key 'trial') — super admin แก้ได้จากหน้า Super Admin ──

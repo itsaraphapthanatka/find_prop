@@ -10,15 +10,15 @@
 //
 // ราคาอ่านจากตาราง plan_prices (super admin ตั้งเอง) — fallback ราคามาตรฐานใน api/_lib/prices.js
 
-import { fetchPlanPrices } from './_lib/prices.js'
+import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { paymentTestEnabled } from './_lib/settings.js'
 
-// คืนยอดเงิน (บาท) + จำนวนเดือน จาก (plan, cycle, ราคาจาก DB) — ไม่รู้จัก = null
-function quote(plan, cycle, prices) {
-  // 🧪 แพ็กเกจทดสอบ ฿1 — จ่ายจริงผ่าน PromptPay ยอดต่ำสุด แล้วได้สิทธิ์ "เริ่มต้น" 1 เดือน
+// คืนยอดเงิน (บาท) + จำนวนเดือน จาก (plan, tier, cycle, ราคาจาก DB) — ไม่รู้จัก = null
+function quote(plan, tier, cycle, prices) {
+  // 🧪 แพ็กเกจทดสอบ ฿1 — จ่ายจริงผ่าน PromptPay ยอดต่ำสุด แล้วได้สิทธิ์ Basic ระดับ 100 หนึ่งเดือน
   // เปิด-ปิดจากหน้า Super Admin (app_settings 'payment_test') — เช็คใน handler ก่อนถึงตรงนี้
   if (plan === 'test') return { amount: 1, months: 1 }
-  const p = prices[plan]
+  const p = prices[plan]?.[tier]
   if (!p) return null
   let out
   if (cycle === 'monthly') out = { amount: p.monthly, months: 1 }
@@ -87,27 +87,32 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: 'ตรวจสอบสิทธิ์ไม่สำเร็จ' })
   }
 
-  // ── รับ plan/cycle จาก client แล้วคำนวณยอดเอง (ไม่รับ amount จาก client) ──
+  // ── รับ plan/tier/cycle จาก client แล้วคำนวณยอดเอง (ไม่รับ amount จาก client) ──
   const { plan, cycle } = req.body || {}
+  // ระดับ = โควตาทรัพย์ (100/250/500) · test = ระดับ 100 เสมอ
+  const tier = plan === 'test' ? 100 : Number((req.body || {}).tier)
+  if (plan !== 'test' && !TIERS.includes(tier)) {
+    return res.status(400).json({ error: 'ระดับแพ็กเกจไม่ถูกต้อง (tier: 100|250|500) — ทรัพย์เกิน 500 ติดต่อทีมงาน' })
+  }
   // แพ็กเกจทดสอบ ฿1 สร้างได้เฉพาะตอนสวิตช์เปิด (super admin ควบคุม) — ปิด = ปฏิเสธตั้งแต่สร้าง
   if (plan === 'test' && !(await paymentTestEnabled(supaUrl, anonKey))) {
     return res.status(400).json({ error: 'โหมดทดสอบระบบชำระเงินถูกปิดอยู่' })
   }
   const prices = await fetchPlanPrices(supaUrl, anonKey)
-  const q = quote(plan, cycle, prices)
+  const q = quote(plan, tier, cycle, prices)
   if (!q) {
     return res.status(400).json({ error: 'plan/cycle ไม่ถูกต้อง (plan: starter|pro|test, cycle: monthly|yearly)' })
   }
 
   // reference ไม่ซ้ำ ใช้ผูก charge กับองค์กร/แพ็กเกจ (verify-charge จะอ่าน metadata)
-  const reference = `hop-${orgId}-${plan}-${cycle}-${Date.now()}`
+  const reference = `hop-${orgId}-${plan}${tier}-${cycle}-${Date.now()}`
   const body = {
     amount: q.amount,
     description: plan === 'test'
       ? 'HOP ทดสอบระบบชำระเงิน (฿1)'
-      : `HOP ${plan === 'pro' ? 'Pro' : 'เริ่มต้น'} (${cycle === 'yearly' ? 'รายปี' : 'รายเดือน'})`,
+      : `HOP ${plan === 'pro' ? 'Pro' : 'Basic'} ≤${tier} ทรัพย์ (${cycle === 'yearly' ? 'รายปี' : 'รายเดือน'})`,
     reference,
-    metadata: { org_id: orgId, plan, cycle, months: q.months, source: 'hop' },
+    metadata: { org_id: orgId, plan, tier, cycle, months: q.months, source: 'hop' },
     expires_in: 3600, // QR หมดอายุใน 1 ชม.
     ...(accountId ? { account_id: accountId } : {}),
   }

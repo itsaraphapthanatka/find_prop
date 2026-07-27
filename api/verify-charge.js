@@ -11,15 +11,17 @@ const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
 // ยอดที่ควรจ่าย ตามราคาปัจจุบันใน DB — หมายเหตุ: ถ้า super เปลี่ยนราคาระหว่างที่มี QR ค้างอยู่
 // รายการเก่า (ราคาเดิม) จะตรวจไม่ผ่าน ต้องกดสร้างรายการใหม่ (QR หมดอายุใน 1 ชม. อยู่แล้ว)
-function expectedAmount(plan, cycle, prices) {
+function expectedAmount(plan, tier, cycle, prices) {
   // 🧪 แพ็กเกจทดสอบ ฿1 — สร้างได้เฉพาะตอนสวิตช์ payment_test เปิด (เช็คใน create-charge)
   // ที่นี่ "ยอมรับเสมอ" เพื่อให้รายการที่จ่ายค้างอยู่ก่อนปิดสวิตช์ยังอัปเกรดได้ ไม่มีเงินค้าง
   if (plan === 'test') return 1
-  if (!prices[plan] || !['monthly', 'yearly'].includes(cycle)) return null
+  // รายการยุคก่อนมีระดับ (metadata ไม่มี tier) = ระดับ 500 — ราคาเดิมถูก migrate เป็นแถว tier 500 พอดี
+  const p = prices[plan]?.[Number(tier ?? 500)]
+  if (!p || !['monthly', 'yearly'].includes(cycle)) return null
   // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง
   const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
   if (testAmt > 0) return testAmt
-  return cycle === 'yearly' ? prices[plan].yearly : prices[plan].monthly
+  return cycle === 'yearly' ? p.yearly : p.monthly
 }
 
 export default async function handler(req, res) {
@@ -101,20 +103,21 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'รายการนี้ไม่ใช่ขององค์กรคุณ' })
   }
   const prices = await fetchPlanPrices(supaUrl, serviceKey)
-  const want = expectedAmount(plan, cycle, prices)
+  const want = expectedAmount(plan, meta.tier, cycle, prices)
   if (want === null || Number(charge.amount) !== want || ![1, 12].includes(months)) {
     return res.status(400).json({ error: 'ข้อมูลแพ็กเกจ/ยอดเงินไม่ถูกต้อง' })
   }
 
   // ── อัปเกรด (idempotent ด้วย charge_id) ผ่าน RPC service-role ──
-  // แพ็กเกจทดสอบ ฿1 → ให้สิทธิ์ 'starter' จริงๆ (จะได้ทดสอบ gating ครบวงจร)
+  // แพ็กเกจทดสอบ ฿1 → ให้สิทธิ์ Basic ('starter') ระดับ 100 จริงๆ (จะได้ทดสอบ gating ครบวงจร)
   const applyPlan = plan === 'test' ? 'starter' : plan
+  const applyTier = plan === 'test' ? 100 : Number(meta.tier ?? 500)
   try {
     const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
     const rpc = await fetch(`${supaUrl}/rest/v1/rpc/apply_payment`, {
       method: 'POST',
       headers: svc,
-      body: JSON.stringify({ p_charge_id: chargeId, p_org: orgId, p_plan: applyPlan, p_months: months, p_amount: want }),
+      body: JSON.stringify({ p_charge_id: chargeId, p_org: orgId, p_plan: applyPlan, p_months: months, p_amount: want, p_tier: applyTier }),
     })
     const out = await rpc.json().catch(() => null)
     if (!rpc.ok) {

@@ -185,7 +185,7 @@ export default function App() {
   const impersonating = Boolean(isSuper && profile.impersonate_org_id)
   // สิทธิ์ตามแพ็กเกจ — super (โหมดภาพรวม) = เต็ม · สวมสิทธิ์/ปกติ = ตามแพ็กเกจองค์กร
   // แพ็กเกจที่มีผลจริง (รวมช่วงทดลองใช้) — ตรงกับฝั่งเซิร์ฟเวอร์ org_effective_plan
-  const access = planAccess(isSuper && !impersonating ? 'enterprise' : effectivePlan(org))
+  const access = planAccess(isSuper && !impersonating ? 'enterprise' : effectivePlan(org), org?.plan_tier)
 
   async function exitImpersonation() {
     await supabase.rpc('super_impersonate', { p_org: null })

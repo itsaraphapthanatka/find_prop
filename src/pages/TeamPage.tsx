@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { FREE_MAX_MEMBERS, usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, onTrial } from '../lib/plan'
+import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, onTrial } from '../lib/plan'
 
 // สมาชิก = membership (ใครอยู่ org นี้) + ข้อมูลโปรไฟล์ (ชื่อ/อีเมล) · id = user_id
 type MemberRow = {
@@ -110,8 +110,8 @@ export default function TeamPage() {
     void fetchReferralSetting().then(setRefSet)
   }, [])
   const toNext = refStat ? refSet.need - (refStat.referred_count % refSet.need) : refSet.need
-  // แพ็กเกจ Free จำกัดลูกทีม (นับรวมทุกคนในองค์กร)
-  const atMemberLimit = !access.pro && members.length >= FREE_MAX_MEMBERS
+  // แพ็กเกจ Free ไม่มีลูกทีม — Basic/Pro (รวมช่วงทดลอง) เชิญได้ไม่จำกัด
+  const atMemberLimit = access.maxMembers !== null
 
   async function copyRefLink() {
     try {
@@ -290,7 +290,7 @@ export default function TeamPage() {
               background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 10,
               padding: '8px 12px', fontSize: 13, marginBottom: 12, lineHeight: 1.5,
             }}>
-              🔒 แพ็กเกจ Free มีลูกทีมได้สูงสุด {FREE_MAX_MEMBERS} คน — อัปเกรด Pro หรือชวนเพื่อน {refSet.need} คน (การ์ดด้านบน) เพื่อเพิ่มได้ไม่จำกัด
+              🔒 แพ็กเกจ Free ไม่รองรับลูกทีม — เลือกแพ็กเกจ Basic/Pro เพื่อเชิญทีมได้ไม่จำกัด หรือชวนเพื่อน {refSet.need} คน (การ์ดด้านบน) รับ Pro ฟรี
             </div>
           )}
           {inviteErr && <div className="auth-error">{inviteErr}</div>}

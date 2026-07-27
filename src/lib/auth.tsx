@@ -21,6 +21,8 @@ export interface Organization {
   id: string
   name: string
   plan?: string
+  /** ระดับโควตาทรัพย์ของแพ็กเกจ (100/250/500) — null = ลูกค้าเดิม/ทดลอง ตีความเป็น 500 */
+  plan_tier?: number | null
   sub_status?: string
   sub_expires_at?: string | null
   trial_plan?: string | null       // แพ็กเกจช่วงทดลองใช้ (supabase/trial.sql)

@@ -155,7 +155,7 @@ export default function ProfilePage() {
           <p className="plan-line" style={{ marginTop: 10 }}>
             แพ็กเกจองค์กรปัจจุบัน:{' '}
             <span className="role-badge">
-              {onTrial(org) ? `ทดลองใช้ ${org?.trial_plan === 'pro' ? 'Pro' : 'เริ่มต้น'}` : access.pro ? 'Pro' : 'Free'}
+              {onTrial(org) ? `ทดลองใช้ ${org?.trial_plan === 'pro' ? 'Pro' : 'Basic'}` : access.pro ? 'Pro' : org?.plan === 'starter' ? 'Basic' : 'Free'}
             </span>
             {onTrial(org)
               ? ` · ใช้ได้ถึง ${new Date(org!.trial_expires_at!).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}`

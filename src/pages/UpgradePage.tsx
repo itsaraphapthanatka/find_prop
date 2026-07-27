@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { createCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, DEFAULT_PRICES, type PlanKey, type PlanPrices } from '../lib/payments'
+import { createCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, DEFAULT_PRICES, TIERS, type PlanKey, type PlanPrices, type Tier } from '../lib/payments'
 import { onTrial } from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
+// จำนวนทรัพย์ = ตามระดับที่เลือก (100/250/500) — แสดงใน UI ตัวเลือกระดับ
 const PLANS = [
   {
     key: 'starter' as const,
-    name: 'เริ่มต้น',
-    points: ['ทรัพย์ไม่จำกัด', 'ลูกทีมไม่จำกัด', 'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์ม', 'เอกสารเปรียบเทียบ + แอปมือถือ'],
+    name: 'Basic',
+    points: ['ลูกทีมไม่จำกัด', 'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มตามประเภททรัพย์', 'เอกสารสิทธิ์ + เอกสารเปรียบเทียบ', 'ใช้ได้ทั้งเว็บและแอปมือถือ'],
     featured: false,
   },
   {
     key: 'pro' as const,
     name: 'Pro',
-    points: ['ทุกอย่างในเริ่มต้น', 'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)', 'Dashboard + นำเข้า Excel/CSV', 'แผนเยี่ยมชม + นัดติดตาม + แจ้งเตือน'],
+    points: ['ทุกอย่างใน Basic', 'ผู้ช่วย AI ครบชุด (พูด/ถ่ายรูป/แชท)', 'Dashboard + นำเข้า Excel/CSV', 'แผนเยี่ยมชม + นัดติดตาม + แจ้งเตือนสัญญา'],
     featured: true,
   },
 ]
@@ -28,6 +29,9 @@ export default function UpgradePage() {
   const isAdmin = profile?.role === 'admin' || Boolean(profile?.is_super && profile?.impersonate_org_id)
 
   const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly')
+  // ระดับ = โควตาทรัพย์ — ค่าเริ่มต้นตามระดับปัจจุบันขององค์กร (ไม่มี = เล็กสุด ให้อัปเองตามใช้จริง)
+  const [tier, setTier] = useState<Tier>(() =>
+    (TIERS as number[]).includes(org?.plan_tier ?? 0) ? (org!.plan_tier as Tier) : 100)
   const [busy, setBusy] = useState<string | null>(null)
   const [charge, setCharge] = useState<ActiveCharge | null>(null)
   const [status, setStatus] = useState('')
@@ -45,6 +49,8 @@ export default function UpgradePage() {
 
   const perMonth = (p: { monthly: number; yearly: number }) =>
     cycle === 'yearly' ? Math.round(p.yearly / 12) : p.monthly
+  // ราคาของระดับที่เลือกอยู่
+  const priceOf = (key: 'starter' | 'pro') => prices[key][tier]
   // % ประหยัดเมื่อจ่ายรายปี เทียบจ่ายรายเดือน 12 ครั้ง (คำนวณจากราคาจริง)
   const yearSavePct = (p: { monthly: number; yearly: number }) =>
     Math.max(0, Math.round((1 - p.yearly / (p.monthly * 12)) * 100))
@@ -82,7 +88,7 @@ export default function UpgradePage() {
     setErr(null)
     setBusy(plan)
     try {
-      const c = await createCharge(plan, cycle)
+      const c = await createCharge(plan, tier, cycle)
       setCharge({ charge_id: c.charge_id, checkout_url: c.checkout_url, plan })
       try { localStorage.setItem('hop_charge', c.charge_id) } catch { /* ข้าม */ }
       window.open(c.checkout_url, '_blank', 'noopener')
@@ -138,7 +144,7 @@ export default function UpgradePage() {
             <div style={{ fontSize: 46, marginBottom: 6 }}>🎉</div>
             <h3>อัปเกรดสำเร็จ!</h3>
             <p className="plan-line">
-              องค์กร <b>{org?.name}</b> เป็นแพ็กเกจ <b>{done.plan === 'pro' ? 'Pro' : 'เริ่มต้น'}</b> แล้ว
+              องค์กร <b>{org?.name}</b> เป็นแพ็กเกจ <b>{done.plan === 'pro' ? 'Pro' : 'Basic'}</b> แล้ว
               {done.expires ? ` · ใช้ได้ถึง ${new Date(done.expires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}
             </p>
             <button className="btn primary" onClick={() => navigate('/')}>เริ่มใช้งาน</button>
@@ -162,7 +168,9 @@ export default function UpgradePage() {
               <span className="role-badge">
                 {onTrial(org)
                   ? `ทดลองใช้ ${org?.trial_plan === 'pro' ? 'Pro' : 'เริ่มต้น'} ถึง ${new Date(org!.trial_expires_at!).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })}`
-                  : org?.plan === 'pro' ? 'Pro' : org?.plan === 'starter' ? 'เริ่มต้น' : 'ยังไม่ได้เลือก'}
+                  : org?.plan === 'pro' ? `Pro${org?.plan_tier ? ` ≤${org.plan_tier} ทรัพย์` : ''}`
+                    : org?.plan === 'starter' ? `Basic${org?.plan_tier ? ` ≤${org.plan_tier} ทรัพย์` : ''}`
+                      : org?.plan === 'enterprise' ? 'Enterprise' : 'ยังไม่ได้เลือก'}
               </span>
             </p>
             <div style={{ display: 'inline-flex', gap: 4, padding: 4, border: '1px solid var(--line)', borderRadius: 999, marginBottom: 18 }}>
@@ -178,23 +186,35 @@ export default function UpgradePage() {
                   }}
                   onClick={() => setCycle(c)}
                 >
-                  {c === 'monthly' ? 'รายเดือน' : `รายปี −${yearSavePct(prices.starter)}%`}
+                  {c === 'monthly' ? 'รายเดือน' : `รายปี −${yearSavePct(priceOf('starter'))}%`}
                 </button>
               ))}
             </div>
             {err && <div className="auth-error">{err}</div>}
+            {/* ระดับ = โควตาทรัพย์ในระบบ — ราคาทั้งสองแพ็กเปลี่ยนตามระดับที่เลือก */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>จำนวนทรัพย์ในระบบ</div>
+              <div className="chip-select">
+                {TIERS.map((t) => (
+                  <button key={t} type="button" className={`chip-toggle ${tier === t ? 'on' : ''}`} onClick={() => setTier(t)}>
+                    ไม่เกิน {t} ทรัพย์
+                  </button>
+                ))}
+              </div>
+            </div>
             <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
               {PLANS.map((p) => (
                 <section key={p.key} className="form-card" style={p.featured ? { borderColor: 'var(--purple)' } : undefined}>
                   <h3 style={{ margin: '0 0 2px' }}>{p.name}{p.featured && ' ⭐'}</h3>
                   <p style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', margin: '4px 0 0' }}>
-                    ฿{perMonth(prices[p.key]).toLocaleString()}
+                    ฿{perMonth(priceOf(p.key)).toLocaleString()}
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>/เดือน</span>
                   </p>
                   <p className="plan-line">
+                    ทรัพย์ไม่เกิน {tier} รายการ ·{' '}
                     {cycle === 'yearly'
-                      ? `เรียกเก็บ ฿${prices[p.key].yearly.toLocaleString()}/ปี (ประหยัด ${yearSavePct(prices[p.key])}%)`
-                      : `จ่ายรายปีเหลือ ฿${Math.round(prices[p.key].yearly / 12).toLocaleString()}/เดือน`}
+                      ? `เรียกเก็บ ฿${priceOf(p.key).yearly.toLocaleString()}/ปี (ประหยัด ${yearSavePct(priceOf(p.key))}%)`
+                      : `จ่ายรายปีเหลือ ฿${Math.round(priceOf(p.key).yearly / 12).toLocaleString()}/เดือน`}
                   </p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: 7, fontSize: 14 }}>
                     {p.points.map((pt) => <li key={pt}>✓ {pt}</li>)}
@@ -205,6 +225,14 @@ export default function UpgradePage() {
                 </section>
               ))}
             </div>
+            {/* ทรัพย์เกิน 500 = Enterprise — ตั้งราคาต่อดีล คุยกับทีมงานเท่านั้น */}
+            <section className="form-card" style={{ marginTop: 14 }}>
+              <h3 style={{ margin: '0 0 2px' }}>Enterprise</h3>
+              <p className="plan-line">ทรัพย์มากกว่า 500 รายการ / ต้องการ SLA พิเศษ — คุยกับทีมงานเพื่อใบเสนอราคา</p>
+              <a className="btn" href="https://line.me/R/ti/p/@hopplatform" target="_blank" rel="noreferrer">
+                ติดต่อทีมงานทาง LINE
+              </a>
+            </section>
             <p className="plan-line" style={{ marginTop: 16 }}>
               ชำระผ่าน PromptPay (สแกน QR + อัปโหลดสลิป) · ระบบตรวจสอบและอัปเกรดอัตโนมัติ · จ่ายรายปีถูกกว่า
             </p>

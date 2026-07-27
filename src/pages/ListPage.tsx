@@ -8,7 +8,7 @@ import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
 import { IconCompare, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
 import { ContractTag, DealTag, ListingTag, TypeTag } from '../lib/propertyStyle'
-import { FREE_MAX_PROPERTIES, usePlanAccess } from '../lib/plan'
+import { usePlanAccess } from '../lib/plan'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -28,9 +28,13 @@ export default function ListPage({ search }: { search: string }) {
   const access = usePlanAccess()
 
   function addProperty() {
-    if (!access.pro && items.length >= FREE_MAX_PROPERTIES) {
+    // โควตาทรัพย์ตามแพ็กเกจ: Free 5 · Basic/Pro ตามระดับ (100/250/500) · Enterprise ไม่จำกัด
+    // (ฝั่งเซิร์ฟเวอร์บังคับซ้ำใน supabase/plan-tiers.sql — ตรงนี้แค่บอกก่อนถึงหน้าฟอร์ม)
+    if (access.maxProperties !== null && items.length >= access.maxProperties) {
       alert(
-        `แพ็กเกจ Free เพิ่มทรัพย์ได้สูงสุด ${FREE_MAX_PROPERTIES} รายการ\n\nอัปเกรดเป็น Pro หรือชวนเพื่อนรับ Pro ฟรี (เมนู "ทีม")`,
+        access.maxProperties <= 5
+          ? `แพ็กเกจ Free เพิ่มทรัพย์ได้สูงสุด ${access.maxProperties} รายการ\n\nเลือกแพ็กเกจ Basic/Pro (เมนู "อัปเกรด") เพื่อเพิ่มโควตา หรือชวนเพื่อนรับ Pro ฟรี (เมนู "ทีม")`
+          : `ทรัพย์เต็มโควตาระดับปัจจุบัน (${access.maxProperties} รายการ)\n\nอัปเกรดระดับแพ็กเกจในเมนู "อัปเกรด" เพื่อเพิ่มทรัพย์ได้อีก`,
       )
       return
     }

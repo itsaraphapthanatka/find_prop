@@ -18,15 +18,17 @@ import { fetchPlanPrices } from './_lib/prices.js'
 const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
 // ยอดที่ควรจ่าย ตามราคาปัจจุบันใน DB — ต้องตรงกับ verify-charge
-function expectedAmount(plan, cycle, prices) {
+function expectedAmount(plan, tier, cycle, prices) {
   // 🧪 แพ็กเกจทดสอบ ฿1 — สร้างได้เฉพาะตอนสวิตช์ payment_test เปิด (เช็คใน create-charge)
   // ที่นี่ "ยอมรับเสมอ" เพื่อให้รายการที่จ่ายค้างอยู่ก่อนปิดสวิตช์ยังอัปเกรดได้ ไม่มีเงินค้าง
   if (plan === 'test') return 1
-  if (!prices[plan] || !['monthly', 'yearly'].includes(cycle)) return null
+  // รายการยุคก่อนมีระดับ (metadata ไม่มี tier) = ระดับ 500 — ราคาเดิมถูก migrate เป็นแถว tier 500 พอดี
+  const p = prices[plan]?.[Number(tier ?? 500)]
+  if (!p || !['monthly', 'yearly'].includes(cycle)) return null
   // โหมดทดสอบชั่วคราว: ต้องตรงกับ create-charge — ⚠️ ลบ env PUNPAY_TEST_AMOUNT ก่อนขึ้นจริง
   const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
   if (testAmt > 0) return testAmt
-  return cycle === 'yearly' ? prices[plan].yearly : prices[plan].monthly
+  return cycle === 'yearly' ? p.yearly : p.monthly
 }
 
 function readRawBody(req) {
@@ -86,19 +88,20 @@ export default async function handler(req, res) {
 
     const meta = c.metadata || {}
     const prices = await fetchPlanPrices(supaUrl, serviceKey)
-    const want = expectedAmount(meta.plan, meta.cycle, prices)
+    const want = expectedAmount(meta.plan, meta.tier, meta.cycle, prices)
     const months = Number(meta.months)
     if (!meta.org_id || want === null || Number(c.amount) !== want || ![1, 12].includes(months)) {
       return res.status(200).json({ ok: true, note: 'metadata/ยอดไม่ตรง' })
     }
 
-    // แพ็กเกจทดสอบ ฿1 → ให้สิทธิ์ 'starter' จริงๆ (ต้องตรงกับ verify-charge)
+    // แพ็กเกจทดสอบ ฿1 → ให้สิทธิ์ Basic ('starter') ระดับ 100 จริงๆ (ต้องตรงกับ verify-charge)
     const applyPlan = meta.plan === 'test' ? 'starter' : meta.plan
+    const applyTier = meta.plan === 'test' ? 100 : Number(meta.tier ?? 500)
     const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
     const rpc = await fetch(`${supaUrl}/rest/v1/rpc/apply_payment`, {
       method: 'POST',
       headers: svc,
-      body: JSON.stringify({ p_charge_id: chargeId, p_org: meta.org_id, p_plan: applyPlan, p_months: months, p_amount: want }),
+      body: JSON.stringify({ p_charge_id: chargeId, p_org: meta.org_id, p_plan: applyPlan, p_months: months, p_amount: want, p_tier: applyTier }),
     })
     if (!rpc.ok) return res.status(500).json({ error: 'อัปเกรดไม่สำเร็จ' }) // 5xx → retry
     return res.status(200).json({ ok: true, applied: chargeId })
