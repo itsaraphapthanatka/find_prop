@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatDate } from '../labels'
@@ -6,6 +6,8 @@ import { fetchPlanPrices, DEFAULT_PRICES, type PlanPrices, type Tier } from '../
 
 // Dashboard ยอดสมัครใช้งาน (เฉพาะ super admin) — อ่านจาก super_org_overview + organizations.plan_tier
 // นิยาม "ยอดสมัคร" = องค์กรที่ถูกสร้าง (1 องค์กร = 1 ทีมที่สมัครเข้ามา) · ผู้ใช้ = สมาชิกรวมทุกองค์กร
+// Realtime: subscribe ตาราง organizations (ต้องรัน supabase/realtime-organizations.sql) —
+// สมัครใหม่/เปลี่ยนแพ็กเกจเด้งทันที · ตัวเลขสมาชิก/ทรัพย์ตามด้วย polling ทุก 60 วิ (กันพลาดทุกกรณี)
 
 interface OrgRow {
   id: string
@@ -53,25 +55,55 @@ export default function SuperStatsPage() {
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [live, setLive] = useState(false) // ช่อง realtime ต่อติดอยู่ไหม
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+
+  const load = useCallback(async () => {
+    const { data, error } = await supabase.rpc('super_org_overview')
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
+    setError(null)
+    setOrgs((data ?? []) as OrgRow[])
+    // plan_tier ไม่อยู่ใน overview — ดึงแยกไว้คำนวณ MRR (พลาดก็แค่ MRR ประมาณด้วยระดับ 500)
+    const { data: t } = await supabase.from('organizations').select('id, plan_tier')
+    const m: Record<string, number | null> = {}
+    for (const r of (t ?? []) as { id: string; plan_tier: number | null }[]) m[r.id] = r.plan_tier
+    setTiers(m)
+    setUpdatedAt(new Date())
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
-    void (async () => {
-      const { data, error } = await supabase.rpc('super_org_overview')
-      if (error) {
-        setError(error.message)
-        setLoading(false)
-        return
-      }
-      setOrgs((data ?? []) as OrgRow[])
-      // plan_tier ไม่อยู่ใน overview — ดึงแยกไว้คำนวณ MRR (พลาดก็แค่ MRR ประมาณด้วยระดับ 500)
-      const { data: t } = await supabase.from('organizations').select('id, plan_tier')
-      const m: Record<string, number | null> = {}
-      for (const r of (t ?? []) as { id: string; plan_tier: number | null }[]) m[r.id] = r.plan_tier
-      setTiers(m)
-      setPrices(await fetchPlanPrices())
-      setLoading(false)
-    })()
-  }, [])
+    void load()
+    void fetchPlanPrices().then(setPrices)
+
+    // 1) Realtime: องค์กรเกิด/เปลี่ยน/หาย → โหลดซ้ำ (หน่วง 1.5 วิ กันยิงถี่ตอนมีหลายเหตุการณ์)
+    let debounce: number | null = null
+    const bump = () => {
+      if (debounce) window.clearTimeout(debounce)
+      debounce = window.setTimeout(() => void load(), 1500)
+    }
+    const channel = supabase
+      .channel('super-stats-orgs')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'organizations' }, bump)
+      .subscribe((status) => setLive(status === 'SUBSCRIBED'))
+
+    // 2) Polling ทุก 60 วิ — เก็บตกตัวเลขสมาชิก/ทรัพย์ และเป็น fallback ถ้า realtime ใช้ไม่ได้
+    const poll = window.setInterval(() => void load(), 60_000)
+    // 3) สลับกลับมาที่แท็บ → รีเฟรชทันที
+    const onVisible = () => { if (document.visibilityState === 'visible') void load() }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      if (debounce) window.clearTimeout(debounce)
+      window.clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
+      void supabase.removeChannel(channel)
+    }
+  }, [load])
 
   const s = useMemo(() => {
     const months = lastMonths(12)
@@ -116,7 +148,15 @@ export default function SuperStatsPage() {
     <>
       <div className="view-header">
         <h1>ยอดสมัครใช้งาน <span className="count-badge">{s.total} องค์กร</span></h1>
-        <div className="header-actions">
+        <div className="header-actions" style={{ alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--muted)' }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%', flex: 'none',
+              background: live ? 'var(--success)' : 'var(--muted)',
+            }} />
+            {live ? 'LIVE' : 'อัปเดตทุก 60 วิ'}
+            {updatedAt && ` · ${updatedAt.toLocaleTimeString('th-TH')}`}
+          </span>
           <Link to="/super" className="btn">← Super Admin</Link>
         </div>
       </div>
