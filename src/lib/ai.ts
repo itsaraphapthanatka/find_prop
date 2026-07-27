@@ -171,6 +171,7 @@ export function propertyDetailText(p: Property): string {
     line('สัญญา/มัดจำ/ล่วงหน้า', [p.contract_period, p.deposit, p.advance_rent].filter(Boolean).join(' / ')),
     line('ค่าส่วนกลาง', p.common_fee),
     line('ใกล้เคียง', p.nearby),
+    line('เอกสารสิทธิ์', p.documents?.map((d) => d.name).filter(Boolean).join(', ')),
     line('หมายเหตุ', p.notes),
   ]
     .filter(Boolean)

@@ -1,3 +1,9 @@
+/** เอกสารสิทธิ์แนบกับทรัพย์ (เก็บใน storage ถังเดียวกับรูป โฟลเดอร์ docs/) */
+export interface PropertyDoc {
+  name: string
+  url: string
+}
+
 export interface Property {
   id: string
   code: string
@@ -71,6 +77,7 @@ export interface Property {
   road_width: number | null
   utilities: string | null
   video_url: string | null
+  documents: PropertyDoc[] | null
   lat: number | null
   lng: number | null
   map_url: string | null

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PHOTO_BUCKET, supabase, supabaseConfigured } from '../lib/supabase'
-import type { Property, PropertyInput } from '../types'
-import { LABELS, OPTIONS, RESIDENTIAL_FEATURES, SUB_TYPE_BY_TYPE } from '../labels'
+import type { Property, PropertyDoc, PropertyInput } from '../types'
+import { DOC_NAME_OPTIONS, LABELS, OPTIONS, RESIDENTIAL_FEATURES, SUB_TYPE_BY_TYPE } from '../labels'
 import Combo, { MultiSelect } from '../components/Combo'
 import LocationPicker from '../components/LocationPicker'
 import VoiceButton from '../components/VoiceButton'
@@ -10,8 +10,9 @@ import { usePlanAccess } from '../lib/plan'
 import { aiExtractProperty } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
 import { useAuth } from '../lib/auth'
-import { IconCamera, IconLocate, IconSparkles } from '../components/icons'
+import { IconCamera, IconLocate, IconSparkles, IconUpload } from '../components/icons'
 import { getPosition, isNativeApp, takePhoto } from '../lib/native'
+import { compressImage } from '../lib/image'
 import { TypeIcon, typeColor } from '../lib/propertyStyle'
 
 const emptyForm: PropertyInput = {
@@ -83,6 +84,7 @@ const emptyForm: PropertyInput = {
   road_width: null,
   utilities: null,
   video_url: null,
+  documents: [],
   lat: null,
   lng: null,
   map_url: null,
@@ -320,7 +322,8 @@ export default function FormPage() {
     setUploading(true)
     const urls: string[] = []
     for (let i = 0; i < pick.length; i++) {
-      const f = pick[i]
+      // บีบอัดก่อนอัปโหลด — รูปมือถือหลาย MB เหลือไม่กี่ร้อย KB โหลดหน้ารายการ/แผนที่เร็วขึ้นมาก
+      const f = await compressImage(pick[i])
       const path = `${Date.now()}-${i}-${f.name.replace(/[^a-zA-Z0-9.]+/g, '_')}`
       const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, f)
       if (error) { alert(`อัปโหลดรูปไม่สำเร็จ: ${error.message}`); continue }
@@ -342,6 +345,46 @@ export default function FormPage() {
   function setCover(url: string) {
     const next = [url, ...(form.photos ?? []).filter((u) => u !== url)]
     setForm((f) => ({ ...f, photos: next, photo_url: next[0] }))
+  }
+
+  // ── เอกสารสิทธิ์ (รูป/PDF) — เก็บถังเดียวกับรูป โฟลเดอร์ docs/ ──
+  const MAX_DOCS = 10
+  const [docUploading, setDocUploading] = useState(false)
+
+  async function addDocs(files: File[]) {
+    if (!supabaseConfigured) {
+      alert('ยังไม่ได้ตั้งค่า Supabase จึงอัปโหลดไฟล์ไม่ได้')
+      return
+    }
+    const current = form.documents ?? []
+    const room = MAX_DOCS - current.length
+    if (room <= 0) {
+      alert(`แนบเอกสารได้สูงสุด ${MAX_DOCS} ไฟล์`)
+      return
+    }
+    const pick = files.slice(0, room)
+    if (files.length > room) alert(`แนบได้อีก ${room} ไฟล์เท่านั้น (สูงสุด ${MAX_DOCS})`)
+    setDocUploading(true)
+    const added: PropertyDoc[] = []
+    for (let i = 0; i < pick.length; i++) {
+      // เอกสารที่ถ่ายเป็นรูปบีบอัดเหมือนรูปทรัพย์ · PDF ผ่านตามเดิม (บีบใน browser ไม่ได้)
+      const f = await compressImage(pick[i])
+      const path = `docs/${Date.now()}-${i}-${f.name.replace(/[^a-zA-Z0-9.]+/g, '_')}`
+      const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, f)
+      if (error) { alert(`อัปโหลด ${f.name} ไม่สำเร็จ: ${error.message}`); continue }
+      // ชื่อเริ่มต้น = ชื่อไฟล์ (ตัดนามสกุล) — แก้เป็นชื่อจริงในช่องได้เลย
+      added.push({ name: f.name.replace(/\.[^.]+$/, ''), url: supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl })
+    }
+    if (added.length) setForm((fm) => ({ ...fm, documents: [...(fm.documents ?? []), ...added] }))
+    setDocUploading(false)
+  }
+
+  function renameDoc(i: number, name: string) {
+    setForm((fm) => ({ ...fm, documents: (fm.documents ?? []).map((d, j) => (j === i ? { ...d, name } : d)) }))
+  }
+
+  function removeDoc(i: number) {
+    setForm((fm) => ({ ...fm, documents: (fm.documents ?? []).filter((_, j) => j !== i) }))
   }
 
   async function useMyLocation() {
@@ -527,6 +570,45 @@ export default function FormPage() {
             <TextField name="phone" type="tel" required {...fp} />
           </div>
           <TextField name="deed_no" {...fp} />
+        </Section>
+
+        <Section title="เอกสารสิทธิ์">
+          {(form.documents ?? []).map((d, i) => (
+            <div key={d.url} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <input
+                list="doc-name-options"
+                value={d.name}
+                placeholder="ชื่อเอกสาร เช่น สำเนาโฉนดที่ดิน (ด้านหน้า)"
+                style={{ flex: 1 }}
+                onChange={(e) => renameDoc(i, e.target.value)}
+              />
+              <a className="btn sm" href={d.url} target="_blank" rel="noreferrer">เปิด</a>
+              <button type="button" className="btn sm danger" title="ลบเอกสารนี้" onClick={() => removeDoc(i)}>✕</button>
+            </div>
+          ))}
+          <datalist id="doc-name-options">
+            {DOC_NAME_OPTIONS.map((n) => <option key={n} value={n} />)}
+          </datalist>
+          {(form.documents ?? []).length < MAX_DOCS && (
+            <label className="btn" style={{ cursor: 'pointer' }}>
+              <IconUpload size={16} /> {docUploading ? 'กำลังอัปโหลด…' : 'แนบเอกสาร (รูปหรือ PDF)'}
+              <input
+                type="file"
+                multiple
+                accept="image/*,application/pdf"
+                style={{ display: 'none' }}
+                disabled={docUploading}
+                onChange={(e) => {
+                  if (e.target.files?.length) void addDocs(Array.from(e.target.files))
+                  e.target.value = ''
+                }}
+              />
+            </label>
+          )}
+          <p className="ai-hint">
+            สำเนาโฉนดที่ดินควรมีทั้งด้านหน้าและด้านหลัง{kind === 'condo' ? ' (คอนโดใช้ใบ อ.ช.2)' : ' · ใบ ทด.13 ไม่มีก็ได้'} —
+            แนบแล้วแก้ชื่อเอกสารในช่องให้รู้ว่าเป็นใบอะไร
+          </p>
         </Section>
 
         <Section title="ขนาดพื้นที่">

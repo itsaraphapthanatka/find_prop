@@ -376,6 +376,18 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
             )}
           />
           <Field label={LABELS.deed_no} value={p.deed_no} />
+          {(p.documents?.length ?? 0) > 0 && (
+            <div className="field">
+              <div className="label">{LABELS.documents}</div>
+              <div className="value">
+                {p.documents!.map((d) => (
+                  <div key={d.url}>
+                    📄 <a href={d.url} target="_blank" rel="noreferrer">{d.name || 'เอกสาร'}</a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="section-title">ประเภทและทำเล</div>
           <Field label={LABELS.property_type} value={p.property_type} />

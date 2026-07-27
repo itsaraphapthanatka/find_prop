@@ -29,9 +29,10 @@ alter table public.properties
   add column if not exists road_width numeric,       -- ถนนกว้าง (เมตร)
   add column if not exists utilities text,           -- ไฟฟ้า/ประปาผ่านแปลง
   -- ทุกประเภท
-  add column if not exists video_url text;
+  add column if not exists video_url text,
+  add column if not exists documents jsonb;          -- เอกสารสิทธิ์ [{name, url}] — ไฟล์อยู่ใน storage โฟลเดอร์ docs/
 
--- ทดสอบตัวเอง: คอลัมน์ครบ 23 ตัว
+-- ทดสอบตัวเอง: คอลัมน์ครบ 24 ตัว
 do $$
 declare n int;
 begin
@@ -41,9 +42,9 @@ begin
       'sub_type','project_name','usable_area','floors','bedrooms','bathrooms','kitchens',
       'maid_room','parking_spaces','appliances','furniture','transfer_fee',
       'balcony_direction','unit_building','unit_floor','tower_floors','tower_count',
-      'far_ratio','osr_ratio','road_frontage','road_width','utilities','video_url');
-  if n <> 23 then
-    raise exception 'คอลัมน์ไม่ครบ: ได้ % จาก 23', n;
+      'far_ratio','osr_ratio','road_frontage','road_width','utilities','video_url','documents');
+  if n <> 24 then
+    raise exception 'คอลัมน์ไม่ครบ: ได้ % จาก 24', n;
   end if;
-  raise notice '✅ residential-fields: เพิ่มคอลัมน์ครบ 23 ตัวแล้ว';
+  raise notice '✅ residential-fields: เพิ่มคอลัมน์ครบ 24 ตัวแล้ว';
 end $$;

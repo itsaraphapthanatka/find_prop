@@ -1,8 +1,10 @@
 import type { PropertyInput } from '../types'
 import { LABELS } from '../labels'
 
-/** ฟิลด์ที่นำเข้าได้ (ทุกฟิลด์ของทรัพย์) เรียงตามลำดับใน LABELS */
-export const IMPORT_FIELDS = Object.keys(LABELS) as (keyof PropertyInput)[]
+/** ฟิลด์ที่นำเข้าได้ เรียงตามลำดับใน LABELS — ยกเว้น documents (ไฟล์แนบ ไม่ใช่ค่าจากเซลล์) */
+export const IMPORT_FIELDS = (Object.keys(LABELS) as (keyof PropertyInput)[]).filter(
+  (f) => f !== 'documents',
+)
 
 export const NUM_FIELDS = new Set<keyof PropertyInput>([
   'building_area', 'office_area_fl1', 'office_area_total', 'building_area_total',
