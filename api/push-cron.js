@@ -124,25 +124,30 @@ export default async function handler(req, res) {
       }
     }
     // สัญญาเช่าใกล้หมด — แจ้งเมื่อวันสิ้นสุดสัญญาตรงกับ "วันนี้ + N วัน" พอดี (ยิงครั้งเดียวต่อเกณฑ์)
-    // เกณฑ์ N มาจากตั้งค่า super admin (app_settings 'contract_alert' {days:[...]}) — มาตรฐาน 60/30 วัน
+    // เกณฑ์ N: องค์กรตั้งเองได้ (organizations.contract_alert_days — แอดมิน org แก้จากหน้าโปรไฟล์)
+    // ไม่ตั้ง = ใช้ค่ามาตรฐานระบบ (app_settings 'contract_alert' — super admin) = 60/30 วัน
     // เฉพาะองค์กร Pro (รวมช่วงทดลองใช้) เหมือนนัดติดตาม · คอลัมน์ยังไม่มี → ข้ามเงียบๆ ไม่ทำให้ cron ล้ม
+    const validDays = (arr) =>
+      (Array.isArray(arr) ? arr : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 365)
     const alertCfg = await fetchSetting(supaUrl, serviceKey, 'contract_alert')
-    const alertDays = (Array.isArray(alertCfg?.days) ? alertCfg.days : [60, 30])
-      .map(Number)
-      .filter((n) => Number.isInteger(n) && n >= 0 && n <= 365)
-    if (alertDays.length > 0) {
-      const dayAt = (n) => new Date(Date.now() + (7 + n * 24) * 3600e3).toISOString().slice(0, 10)
-      const targets = [...new Set(alertDays.map(dayAt))]
+    const globalDays = validDays(alertCfg?.days)
+    const defaultDays = globalDays.length > 0 ? globalDays : [60, 30]
+    {
+      // ดึงทรัพย์ที่สัญญาจะหมดภายใน 365 วัน แล้วเช็คกับเกณฑ์ของแต่ละองค์กร
+      const until = new Date(Date.now() + (7 + 365 * 24) * 3600e3).toISOString().slice(0, 10)
       const props = await sb(
-        `properties?select=org_id,code,contract_end,organizations(plan,trial_plan,trial_expires_at)` +
-          `&contract_end=in.(${targets.join(',')})`,
+        `properties?select=org_id,code,contract_end,organizations(plan,trial_plan,trial_expires_at,contract_alert_days)` +
+          `&contract_end=gte.${today}&contract_end=lte.${until}`,
       )
       if (Array.isArray(props) && props.length > 0) {
         const byOrg = new Map()
         for (const p of props) {
           if (!p.org_id) continue
           if (!isProPlan(effectivePlan(p.organizations))) continue
+          const orgDays = validDays(p.organizations?.contract_alert_days)
+          const days = orgDays.length > 0 ? orgDays : defaultDays
           const left = Math.round((new Date(`${p.contract_end}T00:00:00Z`) - new Date(`${today}T00:00:00Z`)) / 86400e3)
+          if (!days.includes(left)) continue
           const arr = byOrg.get(p.org_id) ?? []
           arr.push(`${p.code} เหลือ ${left} วัน`)
           byOrg.set(p.org_id, arr)

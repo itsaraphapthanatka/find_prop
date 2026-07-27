@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, onTrial } from '../lib/plan'
+import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, fetchContractAlertSetting, DEFAULT_CONTRACT_ALERT, onTrial } from '../lib/plan'
 
 const roleLabel = (r: string) => (r === 'admin' ? 'แอดมิน' : 'ลูกทีม')
 
@@ -48,6 +48,42 @@ export default function ProfilePage() {
     void fetchReferralSetting().then(setRefSet)
   }, [])
   const toNext = refStat ? refSet.need - (refStat.referred_count % refSet.need) : refSet.need
+
+  // ── แจ้งเตือนสัญญาเช่าใกล้หมด (ต่อองค์กร) — แอดมินองค์กรตั้งเอง · เว้นว่าง = ใช้ค่ามาตรฐานระบบ ──
+  const isOrgAdmin = profile?.role === 'admin' || Boolean(profile?.is_super && profile?.impersonate_org_id)
+  const [alertDays, setAlertDays] = useState((org?.contract_alert_days ?? []).join(', '))
+  const [alertDefault, setAlertDefault] = useState(DEFAULT_CONTRACT_ALERT.days.join(', '))
+  const [alertSaving, setAlertSaving] = useState(false)
+  const [alertMsg, setAlertMsg] = useState<string | null>(null)
+  useEffect(() => {
+    setAlertDays((org?.contract_alert_days ?? []).join(', '))
+  }, [org?.id, org?.contract_alert_days])
+  useEffect(() => {
+    void fetchContractAlertSetting().then((c) => setAlertDefault(c.days.join(', ')))
+  }, [])
+
+  async function saveContractAlert() {
+    setAlertMsg(null)
+    const parts = alertDays.split(/[,\s]+/).filter(Boolean).map(Number)
+    if (parts.some((n) => !Number.isInteger(n) || n < 0 || n > 365) || parts.length > 5) {
+      setAlertMsg('กรอกจำนวนวันเป็นเลข 0–365 คั่นด้วยจุลภาค (สูงสุด 5 เกณฑ์) เช่น "90, 60, 30"')
+      return
+    }
+    setAlertSaving(true)
+    // ช่องว่าง = ส่ง null → กลับไปใช้ค่ามาตรฐานระบบ
+    const { error } = await supabase.rpc('set_contract_alert_days', {
+      p_days: parts.length > 0 ? parts : null,
+    })
+    setAlertSaving(false)
+    if (error) {
+      setAlertMsg(error.message.includes('set_contract_alert_days')
+        ? 'ยังไม่ได้ติดตั้งฟีเจอร์นี้ — รัน supabase/contract-alert-per-org.sql ก่อน'
+        : `บันทึกไม่สำเร็จ: ${error.message}`)
+      return
+    }
+    await refreshProfile()
+    setAlertMsg('บันทึกแล้ว ✓ มีผลรอบแจ้งเตือน 07:00 ถัดไป')
+  }
 
   if (!profile) return null
 
@@ -164,6 +200,39 @@ export default function ProfilePage() {
                 : ''}
           </p>
         </section>
+
+        {/* ── แจ้งเตือนสัญญาเช่าใกล้หมด (เฉพาะแอดมินองค์กร) ── */}
+        {isOrgAdmin && org && (
+          <section className="form-card">
+            <h3>แจ้งเตือนสัญญาเช่าใกล้หมด ⏰</h3>
+            <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75, lineHeight: 1.5 }}>
+              ทรัพย์ที่กรอก "วันสิ้นสุดสัญญาเช่า" ไว้ ระบบส่งแจ้งเตือนถึงมือถือทีม (07:00)
+              เมื่อสัญญาเหลือวันตามเกณฑ์พอดี — ตั้งเฉพาะขององค์กรคุณได้ที่นี่
+              {!access.pro && <b> · ใช้ได้เมื่อองค์กรเป็นแพ็กเกจ Pro</b>}
+            </p>
+            <div className="org-row">
+              <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
+                <label>แจ้งล่วงหน้า (วัน, คั่นด้วยจุลภาค)</label>
+                <input
+                  type="text"
+                  value={alertDays}
+                  placeholder={`เว้นว่าง = ค่ามาตรฐาน (${alertDefault} วัน)`}
+                  onChange={(e) => { setAlertDays(e.target.value); setAlertMsg(null) }}
+                />
+              </div>
+              <button className="btn" type="button" disabled={alertSaving} onClick={() => void saveContractAlert()}>
+                {alertSaving ? 'กำลังบันทึก…' : 'บันทึก'}
+              </button>
+            </div>
+            <p className="plan-line" style={{ marginTop: 8 }}>
+              ตอนนี้:{' '}
+              {(org.contract_alert_days?.length ?? 0) > 0
+                ? `แจ้งเมื่อเหลือ ${org.contract_alert_days!.join(', ')} วัน (ตั้งเอง)`
+                : `ใช้ค่ามาตรฐานระบบ — แจ้งเมื่อเหลือ ${alertDefault} วัน`}
+            </p>
+            {alertMsg && <p className="plan-line" style={{ marginTop: 6 }}>{alertMsg}</p>}
+          </section>
+        )}
 
         {/* ── ชวนเพื่อน ── */}
         {refStat && (

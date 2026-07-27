@@ -27,6 +27,8 @@ export interface Organization {
   sub_expires_at?: string | null
   trial_plan?: string | null       // แพ็กเกจช่วงทดลองใช้ (supabase/trial.sql)
   trial_expires_at?: string | null // วันสุดท้ายของช่วงทดลอง — หมดแล้วล็อกองค์กรจนกว่าจะเลือกแพ็กเกจ
+  /** เกณฑ์แจ้งเตือนสัญญาใกล้หมดขององค์กร (วันล่วงหน้า) — null = ใช้ค่ามาตรฐานระบบ */
+  contract_alert_days?: number[] | null
 }
 
 /** องค์กรใช้งานได้มั้ย (ไม่ถูกระงับ + sub ไม่หมดอายุ + ช่วงทดลองไม่หมด) — ตรรกะเดียวกับ org_ok ในฐานข้อมูล */
