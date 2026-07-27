@@ -713,7 +713,17 @@ export default function SuperAdminPage() {
                 <div className="form-field" style={{ flex: 1, minWidth: 160, marginBottom: 8 }}>
                   <label>LINE ID <span className="req">*</span></label>
                   <input type="text" value={contact.lineId} placeholder="@hopplatform"
-                    onChange={(e) => setContact({ ...contact, lineId: e.target.value })} />
+                    onChange={(e) => {
+                      const lineId = e.target.value
+                      // พิมพ์ LINE ID แล้วลิงก์วิ่งตามอัตโนมัติ — เฉพาะตอนลิงก์ยังเป็นรูปแบบมาตรฐาน
+                      // (ถ้าวางลิงก์เอง เช่น lin.ee/xxxx จะไม่ไปทับ)
+                      const auto = contact.lineUrl.trim() === '' || contact.lineUrl.startsWith('https://line.me/R/ti/p/')
+                      setContact({
+                        ...contact,
+                        lineId,
+                        lineUrl: auto ? `https://line.me/R/ti/p/${encodeURIComponent(lineId.trim())}` : contact.lineUrl,
+                      })
+                    }} />
                 </div>
                 <div className="form-field" style={{ flex: 2, minWidth: 220, marginBottom: 8 }}>
                   <label>ลิงก์ LINE OA (เว้นว่าง = สร้างจาก LINE ID ให้)</label>
