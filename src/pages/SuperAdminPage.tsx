@@ -712,24 +712,24 @@ export default function SuperAdminPage() {
               <div className="org-row" style={{ flexWrap: 'wrap' }}>
                 <div className="form-field" style={{ flex: 1, minWidth: 160, marginBottom: 8 }}>
                   <label>LINE ID <span className="req">*</span></label>
-                  <input value={contact.lineId} placeholder="@hopplatform"
+                  <input type="text" value={contact.lineId} placeholder="@hopplatform"
                     onChange={(e) => setContact({ ...contact, lineId: e.target.value })} />
                 </div>
                 <div className="form-field" style={{ flex: 2, minWidth: 220, marginBottom: 8 }}>
                   <label>ลิงก์ LINE OA (เว้นว่าง = สร้างจาก LINE ID ให้)</label>
-                  <input value={contact.lineUrl} placeholder="https://lin.ee/xxxx"
+                  <input type="url" value={contact.lineUrl} placeholder="https://lin.ee/xxxx"
                     onChange={(e) => setContact({ ...contact, lineUrl: e.target.value })} />
                 </div>
               </div>
               <div className="org-row" style={{ flexWrap: 'wrap' }}>
                 <div className="form-field" style={{ flex: 1, minWidth: 160, marginBottom: 8 }}>
                   <label>เบอร์โทรทีมขาย</label>
-                  <input value={contact.phone} placeholder="081-234-5678"
+                  <input type="tel" value={contact.phone} placeholder="081-234-5678"
                     onChange={(e) => setContact({ ...contact, phone: e.target.value })} />
                 </div>
                 <div className="form-field" style={{ flex: 1, minWidth: 200, marginBottom: 8 }}>
                   <label>อีเมลทีมขาย</label>
-                  <input value={contact.email} placeholder="sales@..."
+                  <input type="email" value={contact.email} placeholder="sales@..."
                     onChange={(e) => setContact({ ...contact, email: e.target.value })} />
                 </div>
               </div>
