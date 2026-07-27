@@ -93,6 +93,9 @@ export default function ReviewPanel() {
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const r = wrapRef.current?.getBoundingClientRect()
     if (!r) return
+    // เริ่มกดครั้งใหม่ = ล้างธงกันคลิกของรอบก่อนเสมอ — กันเคสลากแล้ว click ไม่ยิงตาม
+    // ทำให้ธงค้างและ "กินคลิก" ครั้งถัดไป (อาการกดปุ่มไม่ติด)
+    suppressClick.current = false
     drag.current = {
       dx: e.clientX - r.left, dy: e.clientY - r.top,
       sx: e.clientX, sy: e.clientY,
