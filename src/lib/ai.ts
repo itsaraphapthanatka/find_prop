@@ -57,12 +57,18 @@ export function propertyBrief(p: Property): string {
     p.code,
     // สถานะปิดงานสำคัญมาก — AI ต้องไม่เสนอทรัพย์ที่เช่า/ขายไปแล้วว่า "ว่าง"
     p.deal_status === 'rented' ? '⛔ปิดงาน:มีคนเช่าแล้ว' : p.deal_status === 'sold' ? '⛔ปิดงาน:ขายแล้ว' : null,
-    [p.property_type, p.listing_type].filter(Boolean).join(' '),
+    [p.property_type, p.sub_type, p.listing_type].filter(Boolean).join(' '),
+    p.project_name ? `โครงการ ${p.project_name}` : null,
     [p.subdistrict, p.district, p.province].filter(Boolean).join(' '),
   ]
   if (p.rent_per_month != null) parts.push(`เช่า ${formatNumber(p.rent_per_month)} บ./ด.`)
   if (p.sale_price != null) parts.push(`ขาย ${formatNumber(p.sale_price)} บ.`)
   if (p.building_area != null) parts.push(`อาคาร ${formatNumber(p.building_area)} ตร.ม.`)
+  if (p.usable_area != null) parts.push(`ใช้สอย ${formatNumber(p.usable_area)} ตร.ม.`)
+  if (p.bedrooms != null || p.bathrooms != null)
+    parts.push(`${p.bedrooms ?? '?'} นอน ${p.bathrooms ?? '?'} น้ำ`)
+  if (p.floors) parts.push(p.floors)
+  if (p.furniture) parts.push(`เฟอร์ฯ ${p.furniture}`)
   if (p.land_area) parts.push(`ที่ดิน ${p.land_area}`)
   if (p.building_height != null) parts.push(`สูง ${formatNumber(p.building_height)} ม.`)
   if (p.floor_load) parts.push(`พื้นรับ ${p.floor_load}`)
@@ -141,13 +147,19 @@ export function propertyDetailText(p: Property): string {
     v === null || v === undefined || v === '' ? null : `  ${label}: ${String(v)}`
   return [
     `ทรัพย์ ${p.code}`,
-    line('ประเภท', [p.property_type, p.listing_type].filter(Boolean).join(' / ')),
+    line('ประเภท', [p.property_type, p.sub_type, p.listing_type].filter(Boolean).join(' / ')),
+    line('หมู่บ้าน/โครงการ', p.project_name),
     line('ทำเล', [p.subdistrict, p.district, p.province].filter(Boolean).join(', ')),
     line('ค่าเช่า/เดือน', p.rent_per_month != null ? `${formatNumber(p.rent_per_month)} บาท` : null),
     line('ราคาขาย', p.sale_price != null ? `${formatNumber(p.sale_price)} บาท` : null),
     line('ราคา/ตร.ม.', p.price_per_sqm != null ? formatNumber(p.price_per_sqm) : null),
     line('พื้นที่ที่ดิน', p.land_area),
     line('พื้นที่อาคาร (ตร.ม.)', p.building_area != null ? formatNumber(p.building_area) : null),
+    line('พื้นที่ใช้สอย (ตร.ม.)', p.usable_area != null ? formatNumber(p.usable_area) : null),
+    line('ชั้น/ห้องนอน/ห้องน้ำ', [p.floors, p.bedrooms != null ? `${p.bedrooms} นอน` : null, p.bathrooms != null ? `${p.bathrooms} น้ำ` : null].filter(Boolean).join(' / ')),
+    line('เฟอร์นิเจอร์', p.furniture),
+    line('เครื่องใช้ไฟฟ้า', p.appliances?.join(', ')),
+    line('ค่าโอน', p.transfer_fee),
     line('ความสูงอาคาร (ม.)', p.building_height),
     line('พื้นรับน้ำหนัก', p.floor_load),
     line('ระบบไฟฟ้า', p.power_system),

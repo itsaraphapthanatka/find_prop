@@ -28,6 +28,18 @@ export const PROPERTY_STYLE: Record<string, TypeStyle> = {
     color: '#dc2626', // แดง
     glyph: '<path d="M3.5 10h17v1.5c0 3-1.7 5.6-4.5 6.9v1.1c0 .8-.7 1.5-1.5 1.5h-5c-.8 0-1.5-.7-1.5-1.5v-1.1C5.2 17.1 3.5 14.5 3.5 11.5V10z"/><path d="M8 8c0-1.8 1-1.8 1-3.3M12 8c0-1.8 1-1.8 1-3.3M16 8c0-1.8 1-1.8 1-3.3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>',
   },
+  'บ้าน': {
+    color: '#16a34a', // เขียว
+    glyph: '<path d="M4 21v-9l8-7 8 7v9h-5.5v-5.5h-5V21H4z"/>',
+  },
+  'คอนโด': {
+    color: '#6366f1', // คราม
+    glyph: '<path fill-rule="evenodd" d="M7 21V3.8c0-.4.4-.8.8-.8h8.4c.4 0 .8.4.8.8V21h-3.5v-3.5h-3V21H7zm2.5-15h2v2h-2V6zm4 0h2v2h-2V6zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z"/><path d="M4 21h16v.01H4z" stroke="#fff"/>',
+  },
+  'ที่ดินเปล่า': {
+    color: '#a16207', // น้ำตาลดิน
+    glyph: '<path d="M2.5 19 8.5 8l4.2 7 2.3-3.5 6.5 7.5H2.5z"/><circle cx="17.5" cy="6" r="2.2"/>',
+  },
 }
 
 // ประเภทที่ไม่รู้จัก/ว่าง → บ้านสีเทา

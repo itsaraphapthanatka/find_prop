@@ -379,17 +379,26 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
 
           <div className="section-title">ประเภทและทำเล</div>
           <Field label={LABELS.property_type} value={p.property_type} />
+          <Field label={LABELS.sub_type} value={p.sub_type} />
           <Field label={LABELS.listing_type} value={p.listing_type} />
+          <Field label={LABELS.project_name} value={p.project_name} />
           <Field label={LABELS.subdistrict} value={p.subdistrict} />
           <Field label={LABELS.district} value={p.district} />
           <Field label={LABELS.province} value={p.province} />
           <Field label={LABELS.color_zone} value={p.color_zone} />
+          <Field label={LABELS.far_ratio} value={p.far_ratio} />
+          <Field label={LABELS.osr_ratio} value={p.osr_ratio} />
+          <Field label={LABELS.road_frontage} value={p.road_frontage} />
+          <Field label={LABELS.road_width} value={formatNumber(p.road_width)} />
+          <Field label={LABELS.utilities} value={p.utilities} />
           <ChipList label={LABELS.zones} values={p.zones} />
           <Field label={LABELS.nearby} value={p.nearby} />
 
           <div className="section-title">ขนาดพื้นที่</div>
           <Field label={LABELS.land_wxd} value={p.land_wxd} />
           <Field label={LABELS.land_area} value={p.land_area} />
+          <Field label={LABELS.usable_area} value={formatNumber(p.usable_area)} />
+          <Field label={LABELS.floors} value={p.floors} />
           <Field label={LABELS.building_area} value={formatNumber(p.building_area)} />
           <Field label={LABELS.building_wxd} value={p.building_wxd} />
           <Field label={LABELS.office_floors} value={p.office_floors} />
@@ -397,10 +406,32 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.office_area_total} value={formatNumber(p.office_area_total)} />
           <Field label={LABELS.building_area_total} value={formatNumber(p.building_area_total)} />
 
+          {/* ห้องและการตกแต่ง — มีเฉพาะบ้าน/คอนโด · โชว์หัวข้อเมื่อมีข้อมูลจริงเท่านั้น */}
+          {([p.bedrooms, p.bathrooms, p.kitchens, p.parking_spaces, p.tower_floors, p.tower_count].some((v) => v != null) ||
+            [p.maid_room, p.furniture, p.balcony_direction, p.unit_building, p.unit_floor].some(Boolean) ||
+            (p.appliances?.length ?? 0) > 0) && (
+            <>
+              <div className="section-title">ห้องและการตกแต่ง</div>
+              <Field label={LABELS.bedrooms} value={formatNumber(p.bedrooms)} />
+              <Field label={LABELS.bathrooms} value={formatNumber(p.bathrooms)} />
+              <Field label={LABELS.kitchens} value={formatNumber(p.kitchens)} />
+              <Field label={LABELS.maid_room} value={p.maid_room} />
+              <Field label={LABELS.parking_spaces} value={formatNumber(p.parking_spaces)} />
+              <Field label={LABELS.balcony_direction} value={p.balcony_direction} />
+              <Field label={LABELS.unit_building} value={p.unit_building} />
+              <Field label={LABELS.unit_floor} value={p.unit_floor} />
+              <Field label={LABELS.tower_floors} value={formatNumber(p.tower_floors)} />
+              <Field label={LABELS.tower_count} value={formatNumber(p.tower_count)} />
+              <ChipList label={LABELS.appliances} values={p.appliances} />
+              <Field label={LABELS.furniture} value={p.furniture} />
+            </>
+          )}
+
           <div className="section-title">ราคาและค่าใช้จ่าย</div>
           <Field label={LABELS.rent_per_month} value={formatNumber(p.rent_per_month)} />
           <Field label={LABELS.price_per_sqm} value={formatNumber(p.price_per_sqm)} />
           <Field label={LABELS.sale_price} value={formatNumber(p.sale_price)} />
+          <Field label={LABELS.transfer_fee} value={p.transfer_fee} />
           <Field label={LABELS.withholding_tax} value={p.withholding_tax} />
           <Field label={LABELS.land_building_tax} value={p.land_building_tax} />
           <Field label={LABELS.common_fee} value={p.common_fee} />
@@ -438,6 +469,12 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
             label={LABELS.map_url}
             value={p.map_url && (
               <a href={p.map_url} target="_blank" rel="noreferrer">{p.map_url}</a>
+            )}
+          />
+          <Field
+            label={LABELS.video_url}
+            value={p.video_url && (
+              <a href={p.video_url} target="_blank" rel="noreferrer">{p.video_url}</a>
             )}
           />
           <Field label={LABELS.notes} value={p.notes} />

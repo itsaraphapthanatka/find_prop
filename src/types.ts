@@ -46,6 +46,31 @@ export interface Property {
   advance_rent: string | null
   features: string[] | null
   usages: string[] | null
+  // ── ฟิลด์ที่อยู่อาศัย (บ้าน/คอนโด) — ดู requirement.md ──
+  sub_type: string | null
+  project_name: string | null
+  usable_area: number | null
+  floors: string | null
+  bedrooms: number | null
+  bathrooms: number | null
+  kitchens: number | null
+  maid_room: string | null
+  parking_spaces: number | null
+  appliances: string[] | null
+  furniture: string | null
+  transfer_fee: string | null
+  balcony_direction: string | null
+  unit_building: string | null
+  unit_floor: string | null
+  tower_floors: number | null
+  tower_count: number | null
+  // ── ฟิลด์ที่ดินเปล่า ──
+  far_ratio: string | null
+  osr_ratio: string | null
+  road_frontage: string | null
+  road_width: number | null
+  utilities: string | null
+  video_url: string | null
   lat: number | null
   lng: number | null
   map_url: string | null

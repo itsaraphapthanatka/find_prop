@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PHOTO_BUCKET, supabase, supabaseConfigured } from '../lib/supabase'
 import type { Property, PropertyInput } from '../types'
-import { LABELS, OPTIONS } from '../labels'
+import { LABELS, OPTIONS, RESIDENTIAL_FEATURES, SUB_TYPE_BY_TYPE } from '../labels'
 import Combo, { MultiSelect } from '../components/Combo'
 import LocationPicker from '../components/LocationPicker'
 import VoiceButton from '../components/VoiceButton'
@@ -60,10 +60,42 @@ const emptyForm: PropertyInput = {
   advance_rent: null,
   features: [],
   usages: [],
+  sub_type: null,
+  project_name: null,
+  usable_area: null,
+  floors: null,
+  bedrooms: null,
+  bathrooms: null,
+  kitchens: null,
+  maid_room: null,
+  parking_spaces: null,
+  appliances: [],
+  furniture: null,
+  transfer_fee: null,
+  balcony_direction: null,
+  unit_building: null,
+  unit_floor: null,
+  tower_floors: null,
+  tower_count: null,
+  far_ratio: null,
+  osr_ratio: null,
+  road_frontage: null,
+  road_width: null,
+  utilities: null,
+  video_url: null,
   lat: null,
   lng: null,
   map_url: null,
   notes: null,
+}
+
+/** กลุ่มฟอร์มตามประเภททรัพย์ — ประเภทอื่น/ยังไม่เลือก = เชิงพาณิชย์/อุตสาหกรรม (ฟอร์มเดิม) */
+type FormKind = 'house' | 'condo' | 'land' | 'general'
+function kindOf(propertyType: string | null): FormKind {
+  if (propertyType === 'บ้าน') return 'house'
+  if (propertyType === 'คอนโด') return 'condo'
+  if (propertyType === 'ที่ดินเปล่า') return 'land'
+  return 'general'
 }
 
 type TextKey = {
@@ -350,6 +382,10 @@ export default function FormPage() {
   }
 
   const fp = { form, set }
+  // ฟอร์มโชว์เฉพาะฟิลด์ที่เกี่ยวกับประเภทที่เลือก (ตาม requirement.md) —
+  // สลับประเภทไม่ล้างค่าที่กรอกแล้ว ฟิลด์ที่ซ่อนยังบันทึกค่าตามเดิม
+  const kind = kindOf(form.property_type)
+  const isHome = kind === 'house' || kind === 'condo'
 
   return (
     <>
@@ -415,14 +451,18 @@ export default function FormPage() {
         <Section title="ประเภทและทำเล">
           <ButtonsField name="property_type" options={OPTIONS.property_type} required {...fp}
             icon={(o) => <TypeIcon type={o} size={20} />} color={typeColor} />
+          {isHome && SUB_TYPE_BY_TYPE[form.property_type!] && (
+            <ButtonsField name="sub_type" options={SUB_TYPE_BY_TYPE[form.property_type!]} {...fp} />
+          )}
           <ButtonsField name="listing_type" options={OPTIONS.listing_type} required {...fp} />
+          {isHome && <TextField name="project_name" {...fp} />}
           <div className="form-grid-2">
             <TextField name="subdistrict" required {...fp} />
             <TextField name="district" required {...fp} />
             <TextField name="province" required {...fp} />
-            <ComboField name="color_zone" options={OPTIONS.color_zone} required {...fp} />
+            {!isHome && <ComboField name="color_zone" options={OPTIONS.color_zone} required {...fp} />}
           </div>
-          <MultiField name="zones" options={OPTIONS.zones} {...fp} />
+          {kind === 'general' && <MultiField name="zones" options={OPTIONS.zones} {...fp} />}
           <TextField name="nearby" {...fp} />
         </Section>
 
@@ -476,6 +516,7 @@ export default function FormPage() {
             )}
             <p className="photo-hint">รูปที่มีป้าย "ปก" จะโชว์ในรายการ/แผนที่ · กด "ตั้งเป็นปก" เพื่อเปลี่ยน · สูงสุด {MAX_PHOTOS} รูป</p>
           </div>
+          <TextField name="video_url" type="url" {...fp} />
         </Section>
 
         <Section title="ผู้ให้เช่า">
@@ -489,57 +530,139 @@ export default function FormPage() {
         </Section>
 
         <Section title="ขนาดพื้นที่">
-          <div className="form-grid-2">
-            <TextField name="land_wxd" {...fp} />
-            <TextField name="land_area" {...fp} />
-            <NumberField name="building_area" {...fp} />
-            <TextField name="building_wxd" {...fp} />
-          </div>
-          <ComboField name="office_floors" options={OPTIONS.office_floors} {...fp} />
-          <div className="form-grid-2">
-            <NumberField name="office_area_fl1" {...fp} />
-            <NumberField name="office_area_total" {...fp} />
-          </div>
-          <NumberField name="building_area_total" {...fp} />
+          {kind === 'general' && (
+            <>
+              <div className="form-grid-2">
+                <TextField name="land_wxd" {...fp} />
+                <TextField name="land_area" {...fp} />
+                <NumberField name="building_area" {...fp} />
+                <TextField name="building_wxd" {...fp} />
+              </div>
+              <ComboField name="office_floors" options={OPTIONS.office_floors} {...fp} />
+              <div className="form-grid-2">
+                <NumberField name="office_area_fl1" {...fp} />
+                <NumberField name="office_area_total" {...fp} />
+              </div>
+              <NumberField name="building_area_total" {...fp} />
+            </>
+          )}
+          {kind === 'house' && (
+            <>
+              <div className="form-grid-2">
+                <TextField name="land_area" {...fp} />
+                <NumberField name="usable_area" {...fp} />
+              </div>
+              <ComboField name="floors" options={OPTIONS.floors} {...fp} />
+              <p className="ai-hint">ขนาดที่ดินหน่วยตารางวา เช่น "54 ตร.วา" · พื้นที่ใช้สอยหน่วยตารางเมตร</p>
+            </>
+          )}
+          {kind === 'condo' && <NumberField name="usable_area" {...fp} />}
+          {kind === 'land' && (
+            <>
+              <div className="form-grid-2">
+                <TextField name="land_wxd" {...fp} />
+                <TextField name="land_area" {...fp} />
+              </div>
+              <p className="ai-hint">ขนาดที่ดินใส่เป็น ไร่-งาน-ตารางวา เช่น "2 ไร่ 1 งาน 50 ตร.วา"</p>
+            </>
+          )}
         </Section>
+
+        {isHome && (
+          <Section title="ห้องและการตกแต่ง">
+            {kind === 'house' && (
+              <div className="form-grid-2">
+                <NumberField name="bedrooms" {...fp} />
+                <NumberField name="bathrooms" {...fp} />
+                <NumberField name="kitchens" {...fp} />
+                <NumberField name="parking_spaces" {...fp} />
+              </div>
+            )}
+            {kind === 'house' && <ButtonsField name="maid_room" options={OPTIONS.maid_room} {...fp} />}
+            {kind === 'condo' && (
+              <>
+                <div className="form-grid-2">
+                  <NumberField name="bathrooms" {...fp} />
+                  <NumberField name="kitchens" {...fp} />
+                  <ComboField name="balcony_direction" options={OPTIONS.balcony_direction} {...fp} />
+                  <TextField name="unit_building" {...fp} />
+                </div>
+                <div className="form-grid-2">
+                  <TextField name="unit_floor" {...fp} />
+                  <NumberField name="tower_floors" {...fp} />
+                </div>
+                <NumberField name="tower_count" {...fp} />
+              </>
+            )}
+            <MultiField name="appliances" options={OPTIONS.appliances} {...fp} />
+            <ButtonsField name="furniture" options={OPTIONS.furniture} {...fp} />
+          </Section>
+        )}
+
+        {kind === 'land' && (
+          <Section title="ศักยภาพที่ดิน (ดูจากกฎหมายผังเมือง/LandsMaps)">
+            <div className="form-grid-2">
+              <TextField name="far_ratio" {...fp} />
+              <TextField name="osr_ratio" {...fp} />
+              <ComboField name="road_frontage" options={OPTIONS.road_frontage} {...fp} />
+              <NumberField name="road_width" {...fp} />
+            </div>
+            <ComboField name="utilities" options={OPTIONS.utilities} {...fp} />
+          </Section>
+        )}
 
         <Section title="ราคาและค่าใช้จ่าย">
           <div className="form-grid-2">
             <NumberField name="rent_per_month" {...fp} />
-            <NumberField name="price_per_sqm" {...fp} />
+            {!isHome && <NumberField name="price_per_sqm" {...fp} />}
           </div>
           <NumberField name="sale_price" {...fp} />
-          <div className="form-grid-2">
-            <ComboField name="withholding_tax" options={OPTIONS.withholding_tax} {...fp} />
-            <ComboField name="land_building_tax" options={OPTIONS.land_building_tax} {...fp} />
-            <TextField name="common_fee" {...fp} />
-            <TextField name="electricity_rate" {...fp} />
-          </div>
-          <TextField name="water_rate" {...fp} />
+          {kind === 'general' && (
+            <>
+              <div className="form-grid-2">
+                <ComboField name="withholding_tax" options={OPTIONS.withholding_tax} {...fp} />
+                <ComboField name="land_building_tax" options={OPTIONS.land_building_tax} {...fp} />
+                <TextField name="common_fee" {...fp} />
+                <TextField name="electricity_rate" {...fp} />
+              </div>
+              <TextField name="water_rate" {...fp} />
+            </>
+          )}
+          {isHome && (
+            <>
+              <TextField name="common_fee" {...fp} />
+              <p className="ai-hint">{kind === 'house' ? 'ค่าส่วนกลางหน่วย บาท/ตร.วา (กรณีโครงการจัดสรร)' : 'ค่าส่วนกลางหน่วย บาท/ตร.ม.'}</p>
+            </>
+          )}
+          {kind !== 'general' && <ComboField name="transfer_fee" options={OPTIONS.transfer_fee} {...fp} />}
         </Section>
 
-        <Section title="สเปกอาคาร">
-          <div className="form-grid-2">
-            <NumberField name="door_count" {...fp} />
-            <TextField name="door_wxh" {...fp} />
-            <NumberField name="building_height" {...fp} />
-            <ComboField name="floor_load" options={OPTIONS.floor_load} {...fp} />
-          </div>
-          <ComboField name="power_system" options={OPTIONS.power_system} {...fp} />
-          <TextField name="water_per_day" {...fp} />
-        </Section>
+        {kind === 'general' && (
+          <Section title="สเปกอาคาร">
+            <div className="form-grid-2">
+              <NumberField name="door_count" {...fp} />
+              <TextField name="door_wxh" {...fp} />
+              <NumberField name="building_height" {...fp} />
+              <ComboField name="floor_load" options={OPTIONS.floor_load} {...fp} />
+            </div>
+            <ComboField name="power_system" options={OPTIONS.power_system} {...fp} />
+            <TextField name="water_per_day" {...fp} />
+          </Section>
+        )}
 
-        <Section title="เงื่อนไขสัญญา">
-          <div className="form-grid-2">
-            <ComboField name="contract_period" options={OPTIONS.contract_period} {...fp} />
-            <ComboField name="deposit" options={OPTIONS.deposit} {...fp} />
-          </div>
-          <ComboField name="advance_rent" options={OPTIONS.advance_rent} {...fp} />
-        </Section>
+        {kind !== 'land' && (
+          <Section title="เงื่อนไขสัญญา">
+            <div className="form-grid-2">
+              <ComboField name="contract_period" options={OPTIONS.contract_period} {...fp} />
+              <ComboField name="deposit" options={OPTIONS.deposit} {...fp} />
+            </div>
+            <ComboField name="advance_rent" options={OPTIONS.advance_rent} {...fp} />
+          </Section>
+        )}
 
         <Section title="คุณสมบัติและการใช้งาน">
-          <MultiField name="features" options={OPTIONS.features} {...fp} />
-          <MultiField name="usages" options={OPTIONS.usages} {...fp} />
+          <MultiField name="features" options={isHome ? RESIDENTIAL_FEATURES : OPTIONS.features} {...fp} />
+          {!isHome && <MultiField name="usages" options={OPTIONS.usages} {...fp} />}
         </Section>
 
         <Section title="ตำแหน่ง">
