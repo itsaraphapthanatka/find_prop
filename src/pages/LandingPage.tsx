@@ -363,7 +363,7 @@ export default function LandingPage() {
           ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีถูกกว่า
         </p>
         {/* .ld-billing เป็น inline-flex — ครอบด้วย div block เพื่อบังคับให้อยู่คนละบรรทัด */}
-        <div>
+        <div style={{ textAlign: 'center' }}>
           <div className="ld-billing" role="group" aria-label="รอบการชำระเงิน" style={{ marginBottom: 0 }}>
             <button type="button" className={billing === 'monthly' ? 'on' : ''} onClick={() => setBilling('monthly')}>รายเดือน</button>
             <button type="button" className={billing === 'yearly' ? 'on' : ''} onClick={() => setBilling('yearly')}>
@@ -372,7 +372,7 @@ export default function LandingPage() {
           </div>
         </div>
         {/* ตัวเลือกระดับอยู่บรรทัดล่าง — ชิดการ์ดราคาที่ราคาเปลี่ยนตาม */}
-        <div>
+        <div style={{ textAlign: 'center' }}>
           <div className="ld-billing" role="group" aria-label="ระดับตามจำนวนทรัพย์" style={{ marginTop: 10 }}>
             {TIERS.map((t) => (
               <button key={t} type="button" className={tier === t ? 'on' : ''} onClick={() => setTier(t)}>
