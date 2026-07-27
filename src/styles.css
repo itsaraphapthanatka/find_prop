@@ -85,7 +85,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .view-header {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 14px 20px; border-bottom: 1px solid var(--line);
-  background: #fff; position: sticky; top: 0; z-index: 5;
+  /* ต้องสูงกว่าคอนโทรลบนแผนที่ (1100) ไม่งั้นเมนูบัญชีที่หล่นลงมาโดนแผนที่ทับ ·
+     แต่ต่ำกว่า overlay ต่างๆ (detail 1200 / assistant 1180) */
+  background: #fff; position: sticky; top: 0; z-index: 1160;
 }
 .view-header h1 {
   font-size: 18px; margin: 0; font-weight: 700; letter-spacing: -0.4px;
