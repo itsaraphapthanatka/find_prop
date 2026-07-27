@@ -14,6 +14,7 @@ import { IconCamera, IconLocate, IconSparkles, IconUpload } from '../components/
 import { getPosition, isNativeApp, takePhoto } from '../lib/native'
 import { compressImage } from '../lib/image'
 import { TypeIcon, ZoneSwatch, typeColor } from '../lib/propertyStyle'
+import { loadThaiLocations, type ThaiLocations } from '../lib/thaiLocations'
 
 const emptyForm: PropertyInput = {
   code: '',
@@ -247,6 +248,17 @@ export default function FormPage() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const editing = Boolean(id)
+
+  // ── จังหวัด → เขต/อำเภอ → แขวง/ตำบล (เลือกต่อเนื่อง) ──
+  // ข้อมูลโหลด lazy · ยังพิมพ์เองได้เสมอ (Combo) เผื่อชื่อไม่ตรงชุดข้อมูล/โหลดไม่สำเร็จ
+  const [thLoc, setThLoc] = useState<ThaiLocations | null>(null)
+  useEffect(() => {
+    void loadThaiLocations().then(setThLoc)
+  }, [])
+  const provinceOptions = thLoc ? Object.keys(thLoc) : []
+  const districtOptions = (form.province && thLoc?.[form.province]) ? Object.keys(thLoc[form.province]) : []
+  const subdistrictOptions =
+    form.province && form.district ? thLoc?.[form.province]?.[form.district] ?? [] : []
 
   // super โหมดภาพรวม: ต้องเลือกว่าบันทึกทรัพย์ในนามองค์กรไหน (สมาชิกปกติระบบผูกให้เอง)
   const { profile } = useAuth()
@@ -504,9 +516,38 @@ export default function FormPage() {
           <ButtonsField name="listing_type" options={OPTIONS.listing_type} required {...fp} />
           {isHome && <TextField name="project_name" {...fp} />}
           <div className="form-grid-2">
-            <TextField name="subdistrict" required {...fp} />
-            <TextField name="district" required {...fp} />
-            <TextField name="province" required {...fp} />
+            <div className="form-field">
+              <label>{LABELS.province} <span className="req">*</span></label>
+              <Combo
+                value={form.province}
+                options={provinceOptions}
+                required
+                placeholder="เลือกจังหวัด…"
+                onChange={(v) =>
+                  // เปลี่ยนจังหวัด = เขต/แขวงเดิมใช้ไม่ได้แล้ว ล้างให้เลือกใหม่
+                  setForm((f) => ({ ...f, province: v, district: null, subdistrict: null }))}
+              />
+            </div>
+            <div className="form-field">
+              <label>{LABELS.district} <span className="req">*</span></label>
+              <Combo
+                value={form.district}
+                options={districtOptions}
+                required
+                placeholder={form.province ? 'เลือกเขต/อำเภอ…' : 'เลือกจังหวัดก่อน'}
+                onChange={(v) => setForm((f) => ({ ...f, district: v, subdistrict: null }))}
+              />
+            </div>
+            <div className="form-field">
+              <label>{LABELS.subdistrict} <span className="req">*</span></label>
+              <Combo
+                value={form.subdistrict}
+                options={subdistrictOptions}
+                required
+                placeholder={form.district ? 'เลือกแขวง/ตำบล…' : 'เลือกเขต/อำเภอก่อน'}
+                onChange={(v) => set('subdistrict', v)}
+              />
+            </div>
             {!isHome && (
               <ComboField
                 name="color_zone" options={OPTIONS.color_zone} required {...fp}
