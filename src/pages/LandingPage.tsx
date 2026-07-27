@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPlanPrices, DEFAULT_PRICES, TIERS, type PlanPrices, type Tier } from '../lib/payments'
-import { fetchTrialSetting, DEFAULT_TRIAL, fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
+import { fetchTrialSetting, DEFAULT_TRIAL, fetchReferralSetting, DEFAULT_REFERRAL, fetchContactSetting, DEFAULT_CONTACT } from '../lib/plan'
 import {
   IconBell,
   IconChart,
@@ -17,13 +17,8 @@ import {
   IconUsers,
 } from '../components/icons'
 
-// ── ช่องทางติดต่อ/ทีมขาย — แก้ตรงนี้จุดเดียว ──────────────────
-const CONTACT = {
-  phone: '081-234-5678', // TODO: ใส่เบอร์จริง
-  lineId: '@hopplatform', // TODO: ใส่ LINE ID จริง (ยังเป็น placeholder)
-  lineUrl: 'https://line.me/R/ti/p/@hopplatform', // TODO: ลิงก์ LINE OA จริง
-  email: 'sales@hop-platform.com', // TODO: ใส่อีเมลจริง
-}
+// ช่องทางติดต่อ/ทีมขาย — super admin ตั้งจากหน้า Super Admin (app_settings 'contact')
+// ค่ามาตรฐานระหว่างโหลด/ยังไม่ตั้ง = DEFAULT_CONTACT ใน lib/plan.ts
 
 // สกรีนช็อตจริงของแอป (อยู่ใน public/) — ครอปแถบบนที่มีชื่อผู้ใช้ออกแล้ว
 const GALLERY = [
@@ -229,10 +224,13 @@ export default function LandingPage() {
   const [trialDays, setTrialDays] = useState(DEFAULT_TRIAL.days)
   // เกณฑ์ชวนเพื่อน (super admin ตั้งได้)
   const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
+  // ช่องทางติดต่อจริง (LINE OA / โทร / อีเมล) — super admin ตั้งเอง
+  const [contact, setContact] = useState(DEFAULT_CONTACT)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
     void fetchTrialSetting().then((t) => setTrialDays(t.days))
     void fetchReferralSetting().then(setRefSet)
+    void fetchContactSetting().then(setContact)
   }, [])
   const trialTxt = trialDays > 0 ? `ทดลองฟรี ${trialDays} วัน` : 'สมัครใช้งานฟรี'
   // แทน {trial} ในข้อความจาก FEATURES/STEPS/PLANS
@@ -431,7 +429,7 @@ export default function LandingPage() {
           </div>
         </div>
         <p style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--muted, #6b7280)', margin: '14px 0 0' }}>
-          ทรัพย์มากกว่า 500 รายการ / ต้องการ SLA พิเศษ → <b>Enterprise</b> คุยกับทีมงานเพื่อใบเสนอราคา (LINE {CONTACT.lineId})
+          ทรัพย์มากกว่า 500 รายการ / ต้องการ SLA พิเศษ → <b>Enterprise</b> คุยกับทีมงานเพื่อใบเสนอราคา (LINE {contact.lineId})
         </p>
         <div className="ld-referral">
           <span className="ld-referral-emoji">🎁</span>
@@ -466,11 +464,11 @@ export default function LandingPage() {
           <button className="btn primary ld-cta" onClick={goSignup}>
             {trialTxt}
           </button>
-          <a className="btn ld-cta on-dark" href={CONTACT.lineUrl} target="_blank" rel="noreferrer">
-            LINE {CONTACT.lineId}
+          <a className="btn ld-cta on-dark" href={contact.lineUrl} target="_blank" rel="noreferrer">
+            LINE {contact.lineId}
           </a>
-          <a className="btn ld-cta on-dark" href={`tel:${CONTACT.phone.replace(/-/g, '')}`}>
-            <IconPhone size={18} /> {CONTACT.phone}
+          <a className="btn ld-cta on-dark" href={`tel:${contact.phone.replace(/-/g, '')}`}>
+            <IconPhone size={18} /> {contact.phone}
           </a>
         </div>
       </section>

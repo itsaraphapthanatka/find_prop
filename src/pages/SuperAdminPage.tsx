@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { formatDate } from '../labels'
 import { listReviews, setReviewMode, useReviewMode, type ReviewRow } from '../lib/review'
-import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, type TrialSetting } from '../lib/plan'
+import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, fetchContactSetting, type ContactSetting, type TrialSetting } from '../lib/plan'
 import { fetchPaymentTestEnabled } from '../lib/payments'
 
 // จัดกลุ่มรีวิวของผู้รีวิวคนหนึ่งตาม "หัวข้อ" (flow) — คงลำดับที่พบครั้งแรก
@@ -232,6 +232,41 @@ export default function SuperAdminPage() {
       return
     }
     setAlertDays(uniq.join(', '))
+  }
+
+  // ช่องทางติดต่อ/LINE OA (app_settings key 'contact') — โชว์บน landing + ปุ่ม "คุยกับเซลล์"
+  const [contact, setContact] = useState<ContactSetting | null>(null)
+  const [contactSaving, setContactSaving] = useState(false)
+  useEffect(() => {
+    void fetchContactSetting().then(setContact)
+  }, [])
+
+  async function saveContact() {
+    if (!contact) return
+    const lineId = contact.lineId.trim()
+    if (!lineId) {
+      alert('กรอก LINE ID ก่อน (เช่น @hopplatform)')
+      return
+    }
+    // ไม่กรอกลิงก์ = สร้างจาก LINE ID ให้อัตโนมัติ
+    const lineUrl = contact.lineUrl.trim() || `https://line.me/R/ti/p/${encodeURIComponent(lineId)}`
+    setContactSaving(true)
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'contact',
+      value: { lineId, lineUrl, phone: contact.phone.trim(), email: contact.email.trim() },
+      updated_at: new Date().toISOString(),
+    })
+    setContactSaving(false)
+    if (error) {
+      alert(
+        error.message.includes('app_settings')
+          ? 'ยังไม่ได้ติดตั้งตารางตั้งค่า — รัน supabase/app-settings-jsonb-fix.sql ก่อน'
+          : `บันทึกไม่สำเร็จ: ${error.message}`,
+      )
+      return
+    }
+    setContact({ ...contact, lineId, lineUrl })
+    alert('บันทึกแล้ว ✓ มีผลทันทีบนหน้า landing')
   }
 
   async function savePrices() {
@@ -663,6 +698,45 @@ export default function SuperAdminPage() {
                 ชวนครบทุก {referral.need} คน = Pro +{referral.days} วัน (สะสมได้)
               </span>
             </div>
+          )}
+        </section>
+
+        <section className="form-card">
+          <h3>ช่องทางติดต่อ / LINE OA (แสดงบนหน้า landing)</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            ใช้ที่ปุ่มติดต่อท้ายหน้า landing และปุ่ม "คุยกับเซลล์" ของแพ็ก Enterprise · มีผลทันทีไม่ต้อง deploy
+          </p>
+          {!contact && <div className="loading">กำลังโหลด…</div>}
+          {contact && (
+            <>
+              <div className="org-row" style={{ flexWrap: 'wrap' }}>
+                <div className="form-field" style={{ flex: 1, minWidth: 160, marginBottom: 8 }}>
+                  <label>LINE ID <span className="req">*</span></label>
+                  <input value={contact.lineId} placeholder="@hopplatform"
+                    onChange={(e) => setContact({ ...contact, lineId: e.target.value })} />
+                </div>
+                <div className="form-field" style={{ flex: 2, minWidth: 220, marginBottom: 8 }}>
+                  <label>ลิงก์ LINE OA (เว้นว่าง = สร้างจาก LINE ID ให้)</label>
+                  <input value={contact.lineUrl} placeholder="https://lin.ee/xxxx"
+                    onChange={(e) => setContact({ ...contact, lineUrl: e.target.value })} />
+                </div>
+              </div>
+              <div className="org-row" style={{ flexWrap: 'wrap' }}>
+                <div className="form-field" style={{ flex: 1, minWidth: 160, marginBottom: 8 }}>
+                  <label>เบอร์โทรทีมขาย</label>
+                  <input value={contact.phone} placeholder="081-234-5678"
+                    onChange={(e) => setContact({ ...contact, phone: e.target.value })} />
+                </div>
+                <div className="form-field" style={{ flex: 1, minWidth: 200, marginBottom: 8 }}>
+                  <label>อีเมลทีมขาย</label>
+                  <input value={contact.email} placeholder="sales@..."
+                    onChange={(e) => setContact({ ...contact, email: e.target.value })} />
+                </div>
+              </div>
+              <button className="btn sm primary" disabled={contactSaving} onClick={() => void saveContact()}>
+                {contactSaving ? 'กำลังบันทึก…' : 'บันทึก'}
+              </button>
+            </>
           )}
         </section>
 

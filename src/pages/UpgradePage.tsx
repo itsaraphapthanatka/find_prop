@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { createCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, DEFAULT_PRICES, TIERS, type PlanKey, type PlanPrices, type Tier } from '../lib/payments'
-import { onTrial } from '../lib/plan'
+import { onTrial, fetchContactSetting, DEFAULT_CONTACT } from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
 // จำนวนทรัพย์ = ตามระดับที่เลือก (100/250/500) — แสดงใน UI ตัวเลือกระดับ
@@ -42,9 +42,12 @@ export default function UpgradePage() {
 
   // การ์ดทดสอบ ฿1 โชว์เฉพาะตอน super เปิดสวิตช์ payment_test (เซิร์ฟเวอร์บังคับซ้ำอีกชั้น)
   const [testOn, setTestOn] = useState(false)
+  // ช่องทางติดต่อทีมขาย (LINE OA) — super admin ตั้งจากหน้า Super Admin
+  const [contact, setContact] = useState(DEFAULT_CONTACT)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
     void fetchPaymentTestEnabled().then(setTestOn)
+    void fetchContactSetting().then(setContact)
   }, [])
 
   const perMonth = (p: { monthly: number; yearly: number }) =>
@@ -229,8 +232,8 @@ export default function UpgradePage() {
             <section className="form-card" style={{ marginTop: 14 }}>
               <h3 style={{ margin: '0 0 2px' }}>Enterprise</h3>
               <p className="plan-line">ทรัพย์มากกว่า 500 รายการ / ต้องการ SLA พิเศษ — คุยกับทีมงานเพื่อใบเสนอราคา</p>
-              <a className="btn" href="https://line.me/R/ti/p/@hopplatform" target="_blank" rel="noreferrer">
-                ติดต่อทีมงานทาง LINE
+              <a className="btn" href={contact.lineUrl} target="_blank" rel="noreferrer">
+                ติดต่อทีมงานทาง LINE {contact.lineId}
               </a>
             </section>
             <p className="plan-line" style={{ marginTop: 16 }}>

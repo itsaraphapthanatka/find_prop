@@ -88,6 +88,38 @@ export async function fetchReferralSetting(): Promise<ReferralSetting> {
   }
 }
 
+// ── ช่องทางติดต่อ/ทีมขาย (app_settings key 'contact') — super admin ตั้งได้ · โชว์บน landing + ปุ่มคุยเซลล์ ──
+export interface ContactSetting {
+  lineId: string  // เช่น @hopplatform
+  lineUrl: string // ลิงก์ LINE OA — เว้นว่างตอนบันทึก = สร้างจาก lineId ให้อัตโนมัติ
+  phone: string
+  email: string
+}
+export const DEFAULT_CONTACT: ContactSetting = {
+  lineId: '@hopplatform',
+  lineUrl: 'https://line.me/R/ti/p/@hopplatform',
+  phone: '081-234-5678',
+  email: 'sales@hop-platform.com',
+}
+
+/** โหลดช่องทางติดต่อ — ไม่ throw (แถวยังไม่มี → ใช้ค่ามาตรฐาน) · landing เรียกแบบ anon ได้ */
+export async function fetchContactSetting(): Promise<ContactSetting> {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'contact').maybeSingle()
+    const v = (data?.value ?? null) as Partial<ContactSetting> | null
+    if (!v) return DEFAULT_CONTACT
+    const lineId = (v.lineId || DEFAULT_CONTACT.lineId).trim()
+    return {
+      lineId,
+      lineUrl: (v.lineUrl || `https://line.me/R/ti/p/${encodeURIComponent(lineId)}`).trim(),
+      phone: (v.phone || DEFAULT_CONTACT.phone).trim(),
+      email: (v.email || DEFAULT_CONTACT.email).trim(),
+    }
+  } catch {
+    return DEFAULT_CONTACT
+  }
+}
+
 // ── แจ้งเตือนสัญญาเช่าใกล้หมด (app_settings key 'contract_alert') — แจ้งล่วงหน้ากี่วันบ้าง ──
 export interface ContractAlertSetting {
   days: number[] // เช่น [60, 30] = แจ้งตอนเหลือ 60 วัน และอีกครั้งตอนเหลือ 30 วัน
