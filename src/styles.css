@@ -85,9 +85,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .view-header {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 14px 20px; border-bottom: 1px solid var(--line);
-  /* ต้องสูงกว่าคอนโทรลบนแผนที่ (1100) ไม่งั้นเมนูบัญชีที่หล่นลงมาโดนแผนที่ทับ ·
-     แต่ต่ำกว่า overlay ต่างๆ (detail 1200 / assistant 1180) */
-  background: #fff; position: sticky; top: 0; z-index: 1160;
+  background: #fff; position: sticky; top: 0; z-index: 5;
 }
 .view-header h1 {
   font-size: 18px; margin: 0; font-weight: 700; letter-spacing: -0.4px;
@@ -646,7 +644,8 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .user-menu-btn { gap: 3px; padding: 5px 8px; }
 .user-menu-btn svg { display: block; }
 .user-menu-pop {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 100;
+  /* สูงกว่าคอนโทรลบนแผนที่ (1100) และ view-header — ไม่งั้นเมนูโดนทับ · ต่ำกว่า overlay (1180+) */
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 1160;
   min-width: 210px; background: #fff; border: 1px solid var(--line);
   border-radius: 12px; box-shadow: 0 12px 32px rgba(16, 17, 20, 0.14);
   padding: 6px; display: flex; flex-direction: column; gap: 2px;
