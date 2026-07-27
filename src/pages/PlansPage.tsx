@@ -292,6 +292,22 @@ ${catalog}
                         )}
                       </div>
                       <div className="stop-actions">
+                        {/* เปิดตำแหน่งทรัพย์จุดนี้ใน Google Maps — มีพิกัดใช้พิกัด ไม่มีก็ใช้ลิงก์แผนที่ที่กรอกไว้ */}
+                        {p && (p.lat != null && p.lng != null ? (
+                          <a
+                            className="icon-btn"
+                            href={`https://www.google.com/maps?q=${p.lat},${p.lng}`}
+                            target="_blank" rel="noreferrer"
+                            title={`เปิดตำแหน่ง ${p.code} ใน Google Maps`}
+                          ><IconPin size={16} /></a>
+                        ) : p.map_url ? (
+                          <a
+                            className="icon-btn"
+                            href={p.map_url}
+                            target="_blank" rel="noreferrer"
+                            title={`เปิดแผนที่ ${p.code}`}
+                          ><IconPin size={16} /></a>
+                        ) : null)}
                         {p?.phone && (
                           <>
                             <a className="icon-btn" href={`tel:${p.phone}`} title="โทร"><IconPhone size={16} /></a>
