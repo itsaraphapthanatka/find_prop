@@ -391,7 +391,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .pick-map { height: 260px; width: 100%; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 4px; z-index: 0; }
 /* ── review panel (โหมดทดสอบ QA) ── */
 /* กล่องครอบปุ่มรีวิว — ตัวกำหนดตำแหน่ง (ลากย้ายได้ ตำแหน่งบันทึกใน localStorage) */
-.review-fab-wrap { position: fixed; left: 16px; bottom: 16px; z-index: 1200; touch-action: none; }
+.review-fab-wrap { position: fixed; left: 16px; bottom: 16px; z-index: 1200; }
 .review-fab { position: relative; display: inline-flex; align-items: center; gap: 6px; background: #1c1730; color: #fff; border: none; border-radius: 999px; padding: 10px 16px; font-family: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); cursor: grab; }
 .review-fab:hover { background: #2a2348; }
 .review-fab .rf-emoji { font-size: 15px; line-height: 1; }

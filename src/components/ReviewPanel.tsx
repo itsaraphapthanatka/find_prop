@@ -47,8 +47,14 @@ export default function ReviewPanel() {
     } catch { return null }
   })
   const wrapRef = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ dx: number; dy: number; sx: number; sy: number; moved: boolean } | null>(null)
+  // นิ้ว/ปากกา: ต้อง "กดค้าง ~0.3 วิ" ก่อนถึงเข้าโหมดลาก — ปัดเร็วๆ = ปล่อยให้หน้า scroll ตามปกติ
+  // เมาส์: ลากได้ทันที (เมาส์ไม่มี scroll ด้วยการลากอยู่แล้ว)
+  const drag = useRef<{
+    dx: number; dy: number; sx: number; sy: number
+    armed: boolean; moved: boolean; timer: number | null
+  } | null>(null)
   const suppressClick = useRef(false)
+  const [dragging, setDragging] = useState(false)
 
   const clampPos = (x: number, y: number) => {
     const r = wrapRef.current?.getBoundingClientRect()
@@ -60,23 +66,54 @@ export default function ReviewPanel() {
     }
   }
 
+  // กันหน้าจอเลื่อนเฉพาะ "ระหว่างลากจริง" (touchmove ต้อง non-passive ถึง preventDefault ได้)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const block = (e: TouchEvent) => {
+      if (drag.current?.armed) e.preventDefault()
+    }
+    el.addEventListener('touchmove', block, { passive: false })
+    return () => el.removeEventListener('touchmove', block)
+  })
+
+  function arm() {
+    if (!drag.current) return
+    drag.current.armed = true
+    setDragging(true)
+    try { navigator.vibrate?.(15) } catch { /* อุปกรณ์ไม่รองรับ */ }
+  }
+
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const r = wrapRef.current?.getBoundingClientRect()
     if (!r) return
-    drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top, sx: e.clientX, sy: e.clientY, moved: false }
+    drag.current = {
+      dx: e.clientX - r.left, dy: e.clientY - r.top,
+      sx: e.clientX, sy: e.clientY,
+      armed: e.pointerType === 'mouse', // เมาส์ลากได้ทันที
+      moved: false,
+      timer: e.pointerType === 'mouse' ? null : window.setTimeout(arm, 300),
+    }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     const d = drag.current
     if (!d) return
-    // ขยับเกิน 6px ถึงนับเป็นการลาก — ไม่งั้นถือว่าตั้งใจ "กด"
-    if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 6) return
+    const dist = Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy)
+    if (!d.armed) {
+      // ยังไม่เข้าโหมดลาก: ขยับก่อนครบเวลา = ตั้งใจ scroll → ยกเลิกการรอ ปล่อยให้ browser จัดการ
+      if (dist > 10 && d.timer) { window.clearTimeout(d.timer); d.timer = null; drag.current = null }
+      return
+    }
+    if (!d.moved && dist < 6) return
     d.moved = true
     setPos(clampPos(e.clientX - d.dx, e.clientY - d.dy))
   }
   function onPointerUp() {
     const d = drag.current
     drag.current = null
+    setDragging(false)
+    if (d?.timer) window.clearTimeout(d.timer)
     if (!d?.moved) return
     suppressClick.current = true // กันคลิกเปิดแผงหลังปล่อยจากการลาก
     setPos((p) => {
@@ -124,7 +161,11 @@ export default function ReviewPanel() {
       <div
         ref={wrapRef}
         className="review-fab-wrap"
-        style={pos ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' } : undefined}
+        style={{
+          ...(pos ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' } : null),
+          // ระหว่างลาก: ขยายเงา + กันเลือกข้อความ ให้รู้ว่ากำลังย้าย
+          ...(dragging ? { opacity: 0.85, transform: 'scale(1.06)', userSelect: 'none' } : null),
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -132,7 +173,7 @@ export default function ReviewPanel() {
       >
         <button
           className="review-fab"
-          title="รีวิว/ทดสอบระบบ — ลากเพื่อย้ายตำแหน่ง"
+          title="รีวิว/ทดสอบระบบ — กดค้างเพื่อลากย้ายตำแหน่ง"
           onClick={() => {
             if (suppressClick.current) { suppressClick.current = false; return }
             setOpen(true)
