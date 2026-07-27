@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/auth'
-import { CHECKPOINTS, submitReview, useReviewMode, type Checkpoint, type ReviewStatus } from '../lib/review'
+import { CHECKPOINTS, REVIEW_HIDE_KEY, REVIEW_SHOW_EVENT, submitReview, useReviewMode, type Checkpoint, type ReviewStatus } from '../lib/review'
 import { IconClose } from './icons'
 
 interface ItemState {
@@ -18,7 +18,7 @@ const STATUS: { key: ReviewStatus; label: string }[] = [
 
 // ซ่อนปุ่มชั่วคราวได้ 1 ชั่วโมง + ลากย้ายตำแหน่งได้ (จำทั้งคู่ไว้ใน localStorage เฉพาะเครื่องนั้น)
 const HIDE_MS = 3600e3
-const HIDE_KEY = 'hop_review_hide_until'
+const HIDE_KEY = REVIEW_HIDE_KEY
 const POS_KEY = 'hop_review_fab_pos'
 
 /** ปุ่มรีวิวลอย — โผล่เฉพาะตอน super เปิดโหมดรีวิว (review_mode = on) */
@@ -38,6 +38,12 @@ export default function ReviewPanel() {
     const t = window.setTimeout(() => setHiddenUntil(0), left)
     return () => window.clearTimeout(t)
   }, [hiddenUntil])
+  // หน้าโปรไฟล์กด "แสดงปุ่มรีวิว" → เรียกกลับทันทีไม่ต้องรอครบชั่วโมง
+  useEffect(() => {
+    const onShow = () => setHiddenUntil(0)
+    window.addEventListener(REVIEW_SHOW_EVENT, onShow)
+    return () => window.removeEventListener(REVIEW_SHOW_EVENT, onShow)
+  }, [])
 
   // ── ลากย้ายตำแหน่ง — ตำแหน่งเก็บเป็นมุมซ้ายบน (px) · null = ตำแหน่งมาตรฐาน (มุมล่างซ้าย) ──
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => {

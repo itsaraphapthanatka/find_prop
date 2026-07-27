@@ -111,3 +111,19 @@ export async function listReviews(): Promise<ReviewRow[]> {
   if (error) return []
   return (data ?? []) as ReviewRow[]
 }
+
+
+// ── ซ่อนปุ่มรีวิวชั่วคราว (ต่อเครื่อง) — ReviewPanel ใช้คีย์นี้ · หน้าโปรไฟล์เรียกปุ่มกลับก่อนครบเวลาได้ ──
+export const REVIEW_HIDE_KEY = 'hop_review_hide_until'
+export const REVIEW_SHOW_EVENT = 'hop-review-show'
+
+/** ปุ่มรีวิวถูกซ่อนชั่วคราวอยู่ไหม */
+export function reviewFabHidden(): boolean {
+  try { return Number(localStorage.getItem(REVIEW_HIDE_KEY) ?? 0) > Date.now() } catch { return false }
+}
+
+/** เรียกปุ่มรีวิวกลับมาทันที (ไม่ต้องรอครบ 1 ชม.) */
+export function showReviewFab() {
+  try { localStorage.removeItem(REVIEW_HIDE_KEY) } catch { /* ข้าม */ }
+  window.dispatchEvent(new Event(REVIEW_SHOW_EVENT))
+}

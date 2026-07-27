@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
 import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, fetchContractAlertSetting, DEFAULT_CONTRACT_ALERT, onTrial } from '../lib/plan'
+import { reviewFabHidden, showReviewFab, useReviewMode } from '../lib/review'
 
 const roleLabel = (r: string) => (r === 'admin' ? 'แอดมิน' : 'ลูกทีม')
 
@@ -48,6 +49,10 @@ export default function ProfilePage() {
     void fetchReferralSetting().then(setRefSet)
   }, [])
   const toNext = refStat ? refSet.need - (refStat.referred_count % refSet.need) : refSet.need
+
+  // ── ปุ่มรีวิวที่ถูกซ่อนชั่วคราว — เรียกกลับได้จากที่นี่ (โชว์เฉพาะตอนโหมดรีวิวเปิด) ──
+  const reviewOn = useReviewMode()
+  const [fabHidden, setFabHidden] = useState(reviewFabHidden())
 
   // ── แจ้งเตือนสัญญาเช่าใกล้หมด (ต่อองค์กร) — แอดมินองค์กรตั้งเอง · เว้นว่าง = ใช้ค่ามาตรฐานระบบ ──
   const isOrgAdmin = profile?.role === 'admin' || Boolean(profile?.is_super && profile?.impersonate_org_id)
@@ -256,6 +261,23 @@ export default function ProfilePage() {
                 <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง</>
               )}
             </p>
+          </section>
+        )}
+
+        {/* ── เรียกปุ่มรีวิวที่ซ่อนไว้กลับมา (เฉพาะตอนโหมดรีวิวเปิด) ── */}
+        {reviewOn && fabHidden && (
+          <section className="form-card">
+            <h3>ปุ่มรีวิว 📝</h3>
+            <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75 }}>
+              คุณซ่อนปุ่มรีวิวไว้ชั่วคราว (จะกลับมาเองใน 1 ชั่วโมง) — กดปุ่มนี้ถ้าอยากให้กลับมาเลย
+            </p>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => { showReviewFab(); setFabHidden(false) }}
+            >
+              แสดงปุ่มรีวิวตอนนี้
+            </button>
           </section>
         )}
 
