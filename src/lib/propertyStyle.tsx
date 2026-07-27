@@ -63,6 +63,44 @@ export function TypeTag({ type }: { type?: string | null }) {
   )
 }
 
+// ── สีผังเมือง (color_zone) → ตัวอย่างสีแบบตาราง legend ผังเมือง ──
+// ลายจุดขาว = radial-gradient · เส้นแยง = repeating-linear-gradient (เลียนแบบผังจริง)
+export const COLOR_ZONE_STYLE: Record<string, React.CSSProperties> = {
+  'เหลือง': { background: '#fde047' },
+  'เหลืองอ่อน': { background: '#fef9c3' },
+  'เหลืองมีเส้นแยงเขียว': { background: 'repeating-linear-gradient(45deg, #fde047 0 5px, #16a34a 5px 8px)' },
+  'ส้ม': { background: '#f97316' },
+  'ส้มอ่อนมีจุดขาว': { background: 'radial-gradient(circle, #fff 1.3px, transparent 1.4px) 0 0 / 6px 6px, #fdba74' },
+  'น้ำตาล': { background: '#78350f' },
+  'น้ำตาลอ่อน': { background: '#eac9bd' },
+  'แดง': { background: '#dc2626' },
+  'ชมพู': { background: '#f472b6' },
+  'ม่วง': { background: '#7e22ce' },
+  'ม่วงอ่อนมีจุดขาว': { background: 'radial-gradient(circle, #fff 1.3px, transparent 1.4px) 0 0 / 6px 6px, #d8b4fe' },
+  'เม็ดมะปราง': { background: '#c9aca6' },
+  'เขียว': { background: '#16a34a' },
+  'เขียวอ่อน': { background: '#d9f99d' },
+  'เขียวมีเส้นแยงฟ้า': { background: 'repeating-linear-gradient(45deg, #16a34a 0 5px, #7dd3fc 5px 8px)' },
+  'เขียวอ่อนมีเส้นแยงขาว': { background: 'repeating-linear-gradient(45deg, #bef264 0 5px, #fff 5px 8px)' },
+  'ขาวมีกรอบเส้นแยงเขียว': { background: 'repeating-linear-gradient(45deg, #fff 0 5px, #86efac 5px 8px)', boxShadow: 'inset 0 0 0 1.5px #16a34a' },
+  'น้ำเงิน': { background: '#2563eb' },
+}
+
+/** แถบสีตัวอย่างหน้าชื่อสีผังเมือง (สีที่พิมพ์เพิ่มเอง/ไม่รู้จัก = ไม่โชว์แถบ) */
+export function ZoneSwatch({ zone }: { zone?: string | null }) {
+  const st = zone ? COLOR_ZONE_STYLE[zone] : undefined
+  if (!st) return null
+  return (
+    <span
+      style={{
+        display: 'inline-block', width: 24, height: 14, borderRadius: 3,
+        border: '1px solid rgba(0,0,0,.2)', verticalAlign: '-2px', marginRight: 8,
+        flex: 'none', ...st,
+      }}
+    />
+  )
+}
+
 // สีป้าย "เช่า/ขาย" (listing_type) — คนละแกนกับประเภททรัพย์
 export const LISTING_COLOR: Record<string, string> = {
   'เช่า': '#149e61',      // เขียว = เช่า (ต่อเนื่อง)

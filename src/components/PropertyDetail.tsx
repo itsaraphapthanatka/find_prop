@@ -4,7 +4,7 @@ import { LABELS, formatDate, formatNumber } from '../labels'
 import { useAuth } from '../lib/auth'
 import { usePlanAccess } from '../lib/plan'
 import { supabase } from '../lib/supabase'
-import { ContractTag, DealTag } from '../lib/propertyStyle'
+import { ContractTag, DealTag, ZoneSwatch } from '../lib/propertyStyle'
 import { IconClose, IconPhone, IconSms } from './icons'
 import LocationPicker from './LocationPicker'
 
@@ -398,7 +398,7 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.subdistrict} value={p.subdistrict} />
           <Field label={LABELS.district} value={p.district} />
           <Field label={LABELS.province} value={p.province} />
-          <Field label={LABELS.color_zone} value={p.color_zone} />
+          <Field label={LABELS.color_zone} value={p.color_zone && <><ZoneSwatch zone={p.color_zone} />{p.color_zone}</>} />
           <Field label={LABELS.far_ratio} value={p.far_ratio} />
           <Field label={LABELS.osr_ratio} value={p.osr_ratio} />
           <Field label={LABELS.road_frontage} value={p.road_frontage} />

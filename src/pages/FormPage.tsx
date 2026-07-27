@@ -13,7 +13,7 @@ import { useAuth } from '../lib/auth'
 import { IconCamera, IconLocate, IconSparkles, IconUpload } from '../components/icons'
 import { getPosition, isNativeApp, takePhoto } from '../lib/native'
 import { compressImage } from '../lib/image'
-import { TypeIcon, typeColor } from '../lib/propertyStyle'
+import { TypeIcon, ZoneSwatch, typeColor } from '../lib/propertyStyle'
 
 const emptyForm: PropertyInput = {
   code: '',
@@ -184,7 +184,9 @@ function ButtonsField({
   )
 }
 
-function ComboField({ name, form, set, required, options }: FieldProps<TextKey> & { options: string[] }) {
+function ComboField({
+  name, form, set, required, options, renderOption,
+}: FieldProps<TextKey> & { options: string[]; renderOption?: (o: string) => React.ReactNode }) {
   return (
     <div className="form-field">
       <label>
@@ -196,6 +198,7 @@ function ComboField({ name, form, set, required, options }: FieldProps<TextKey> 
         options={options}
         required={required}
         placeholder="เลือกหรือพิมพ์เพิ่ม…"
+        renderOption={renderOption}
       />
     </div>
   )
@@ -504,7 +507,12 @@ export default function FormPage() {
             <TextField name="subdistrict" required {...fp} />
             <TextField name="district" required {...fp} />
             <TextField name="province" required {...fp} />
-            {!isHome && <ComboField name="color_zone" options={OPTIONS.color_zone} required {...fp} />}
+            {!isHome && (
+              <ComboField
+                name="color_zone" options={OPTIONS.color_zone} required {...fp}
+                renderOption={(o) => <><ZoneSwatch zone={o} />{o}</>}
+              />
+            )}
           </div>
           {kind === 'general' && <MultiField name="zones" options={OPTIONS.zones} {...fp} />}
           <TextField name="nearby" {...fp} />
