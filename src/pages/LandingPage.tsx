@@ -362,18 +362,19 @@ export default function LandingPage() {
           {trialDays > 0 ? `สมัครแล้วทดลองใช้ฟรี ${trialDays} วัน ` : 'สมัครใช้งานได้ทันที '}
           ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีถูกกว่า
         </p>
-        <div className="ld-billing" role="group" aria-label="ระดับตามจำนวนทรัพย์" style={{ marginBottom: 10 }}>
-          {TIERS.map((t) => (
-            <button key={t} type="button" className={tier === t ? 'on' : ''} onClick={() => setTier(t)}>
-              ≤ {t} ทรัพย์
-            </button>
-          ))}
-        </div>
         <div className="ld-billing" role="group" aria-label="รอบการชำระเงิน">
           <button type="button" className={billing === 'monthly' ? 'on' : ''} onClick={() => setBilling('monthly')}>รายเดือน</button>
           <button type="button" className={billing === 'yearly' ? 'on' : ''} onClick={() => setBilling('yearly')}>
             รายปี <span className="save">−{savePct}%</span>
           </button>
+        </div>
+        {/* ตัวเลือกระดับอยู่ใต้รอบชำระเงิน — ชิดการ์ดราคาที่ราคาเปลี่ยนตาม */}
+        <div className="ld-billing" role="group" aria-label="ระดับตามจำนวนทรัพย์" style={{ marginTop: 10 }}>
+          {TIERS.map((t) => (
+            <button key={t} type="button" className={tier === t ? 'on' : ''} onClick={() => setTier(t)}>
+              ≤ {t} ทรัพย์
+            </button>
+          ))}
         </div>
         <div className="ld-pricing">
           {PLANS.map((p) => {
