@@ -1167,6 +1167,14 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   }
   .prop-row .row-actions .icon-btn { width: 38px; height: 36px; border-radius: 10px; }
 
+  /* ── จุดแวะรูทเยี่ยมชม: ปุ่มลัดย้ายลงเป็นแถบล่างของการ์ด (เหมือนการ์ดรายการ) ── */
+  .stop-row { flex-wrap: wrap; row-gap: 0; }
+  .stop-actions {
+    width: 100%; justify-content: space-evenly;
+    border-top: 1px solid var(--line-soft); padding-top: 6px; margin-top: 8px;
+  }
+  .stop-actions .icon-btn { width: 38px; height: 36px; border-radius: 10px; }
+
   /* ── ตาราง → การ์ดซ้อนบรรทัด (ใช้ data-label เป็นหัวข้อ) ── */
   .table-scroll { overflow-x: visible; }
   .data-table, .data-table tbody { display: block; }
