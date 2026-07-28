@@ -761,6 +761,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .stop-code { border: none; background: none; padding: 0; font: inherit; cursor: pointer; color: inherit; text-align: left; }
 .stop-code:hover { color: var(--purple); text-decoration: underline; }
 .stop-sub { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+/* ในแถวจุดแวะ จำกัดบรรทัดละ 1 แถว (ยาวเกิน = …) กันข้อความพับหลายบรรทัดจนอ่านยากบนมือถือ */
+.stop-row .stop-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stop-owner b { font-weight: 600; color: var(--ink); }
 .stop-actions { display: flex; gap: 0; }
 .stop-actions .icon-btn { width: 30px; height: 30px; }
 .stop-actions .icon-btn:disabled { opacity: 0.3; cursor: default; }
