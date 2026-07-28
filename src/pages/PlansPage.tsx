@@ -286,8 +286,12 @@ ${catalog}
                         </div>
                         {p && (
                           <div className="stop-sub">
-                            {[p.property_type, [p.district, p.province].filter(Boolean).join(', ')]
-                              .filter(Boolean).join(' · ')}
+                            {[
+                              p.property_type,
+                              [p.district, p.province].filter(Boolean).join(', '),
+                              // ชื่อเจ้าของทรัพย์ — ไม่มีชื่อคนใช้ชื่อบริษัทแทน
+                              (p.lessor_name || p.lessor_company) && `เจ้าของ: ${p.lessor_name || p.lessor_company}`,
+                            ].filter(Boolean).join(' · ')}
                           </div>
                         )}
                       </div>
