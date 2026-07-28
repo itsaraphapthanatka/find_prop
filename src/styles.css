@@ -764,9 +764,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 /* ในแถวจุดแวะ จำกัดบรรทัดละ 1 แถว (ยาวเกิน = …) กันข้อความพับหลายบรรทัดจนอ่านยากบนมือถือ */
 .stop-row .stop-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stop-owner b { font-weight: 600; color: var(--ink); }
-.stop-actions { display: flex; gap: 0; }
-.stop-actions .icon-btn { width: 30px; height: 30px; }
-.stop-actions .icon-btn:disabled { opacity: 0.3; cursor: default; }
+.stop-actions, .stop-move { display: flex; gap: 0; }
+.stop-actions .icon-btn, .stop-move .icon-btn { width: 30px; height: 30px; }
+.stop-actions .icon-btn:disabled, .stop-move .icon-btn:disabled { opacity: 0.3; cursor: default; }
 .stop-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .stop-add > div { min-width: 200px; }
 

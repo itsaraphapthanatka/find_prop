@@ -299,6 +299,13 @@ ${catalog}
                           </>
                         )}
                       </div>
+                      {/* ปุ่มเลื่อนลำดับอยู่ขวาของแถวเสมอ (มือถือก็ไม่ย้ายลงแถบล่าง) */}
+                      <div className="stop-move">
+                        <button className="icon-btn" title="เลื่อนขึ้น" disabled={i === 0}
+                          onClick={() => moveStop(sel, i, -1)}><IconUp size={16} /></button>
+                        <button className="icon-btn" title="เลื่อนลง" disabled={i === sel.stops.length - 1}
+                          onClick={() => moveStop(sel, i, 1)}><IconDown size={16} /></button>
+                      </div>
                       <div className="stop-actions">
                         {/* เปิดตำแหน่งทรัพย์จุดนี้ใน Google Maps — มีพิกัดใช้พิกัด ไม่มีก็ใช้ลิงก์แผนที่ที่กรอกไว้ */}
                         {p && (p.lat != null && p.lng != null ? (
@@ -322,10 +329,6 @@ ${catalog}
                             <a className="icon-btn" href={`sms:${p.phone}`} title="ส่งข้อความ"><IconSms size={16} /></a>
                           </>
                         )}
-                        <button className="icon-btn" title="เลื่อนขึ้น" disabled={i === 0}
-                          onClick={() => moveStop(sel, i, -1)}><IconUp size={16} /></button>
-                        <button className="icon-btn" title="เลื่อนลง" disabled={i === sel.stops.length - 1}
-                          onClick={() => moveStop(sel, i, 1)}><IconDown size={16} /></button>
                         <button className="icon-btn danger" title="เอาออกจากรูท"
                           onClick={() => void removeStop(sel, s.property_id)}><IconClose size={16} /></button>
                       </div>
