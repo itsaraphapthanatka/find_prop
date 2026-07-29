@@ -12,9 +12,13 @@ import 'leaflet/dist/leaflet.css'
 // อยู่ในเครื่องอยู่แล้ว และ SW ที่แคชค้างคือสาเหตุคลาสสิกของจอขาวหลังอัปเดตแอป จึงไม่ลงทะเบียน
 if (!Capacitor.isNativePlatform()) {
   registerSW({ immediate: true })
-  // Vercel Speed Insights — เก็บค่า Core Web Vitals จากผู้ใช้จริง (เว็บเท่านั้น ในแอปไม่มี Vercel script)
+  // Vercel Speed Insights + Web Analytics — เก็บ Core Web Vitals และยอดเข้าชมจากผู้ใช้จริง
+  // (เว็บเท่านั้น — ในแอป Capacitor ไม่มี Vercel อยู่เบื้องหลัง ส่งข้อมูลไม่ได้)
   void import('@vercel/speed-insights')
     .then((m) => m.injectSpeedInsights({ framework: 'react' }))
+    .catch(() => {})
+  void import('@vercel/analytics')
+    .then((m) => m.inject())
     .catch(() => {})
 } else {
   // ในแอปใช้ live-update แทน SW: ตามเว็บ prod อัตโนมัติโดยไม่ต้องลง APK ใหม่ (ดู lib/appUpdate.ts)

@@ -19,6 +19,7 @@
     "@capacitor/push-notifications": "^7.0.7",
     "@capgo/capacitor-updater": "^7.50.2",
     "@supabase/supabase-js": "^2.45.0",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "leaflet": "^1.9.4",
     "nodemailer": "^9.0.3",
