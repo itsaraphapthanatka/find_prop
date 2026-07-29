@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { registerSW } from 'virtual:pwa-register'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import App from './App'
 import { AuthProvider } from './lib/auth'
 import './styles.css'
@@ -12,10 +13,6 @@ import 'leaflet/dist/leaflet.css'
 // อยู่ในเครื่องอยู่แล้ว และ SW ที่แคชค้างคือสาเหตุคลาสสิกของจอขาวหลังอัปเดตแอป จึงไม่ลงทะเบียน
 if (!Capacitor.isNativePlatform()) {
   registerSW({ immediate: true })
-  // Vercel Speed Insights — เก็บค่า Core Web Vitals จากผู้ใช้จริง (เว็บเท่านั้น ในแอปไม่มี Vercel script)
-  void import('@vercel/speed-insights')
-    .then((m) => m.injectSpeedInsights({ framework: 'react' }))
-    .catch(() => {})
 } else {
   // ในแอปใช้ live-update แทน SW: ตามเว็บ prod อัตโนมัติโดยไม่ต้องลง APK ใหม่ (ดู lib/appUpdate.ts)
   void import('./lib/appUpdate')
@@ -28,6 +25,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <AuthProvider>
         <App />
+        {!Capacitor.isNativePlatform() && <SpeedInsights />}
       </AuthProvider>
     </HashRouter>
   </React.StrictMode>,
