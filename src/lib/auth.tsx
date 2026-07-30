@@ -3,6 +3,11 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
 import { setLogActor } from './activityLog'
 import { isNativeApp } from './native'
+import { claimDeviceSession, watchDeviceSession } from './deviceSession'
+
+// OAuth (Google) เด้งออกไปนอกแอปแล้วค่อยกลับมา — ตั้งธงไว้ก่อนเด้ง พอ SIGNED_IN กลับมาค่อยจดเครื่อง
+// (จดเฉพาะตอนล็อกอินจริง ไม่จดตอน SIGNED_IN จากการสลับแท็บ ไม่งั้นเครื่องเก่าจะแย่งสิทธิ์คืน)
+const OAUTH_CLAIM_FLAG = 'hop_oauth_claim'
 
 export interface Profile {
   id: string
@@ -104,8 +109,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.session) await loadProfile(data.session.user.id)
       setLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
+      // กลับมาจากหน้า Google พร้อม session ใหม่ → จดเครื่องนี้เป็นเครื่องที่ใช้งาน (เด้งเครื่องอื่นออก)
+      if (event === 'SIGNED_IN' && s && localStorage.getItem(OAUTH_CLAIM_FLAG)) {
+        localStorage.removeItem(OAUTH_CLAIM_FLAG)
+        void claimDeviceSession()
+      }
       if (s) void loadProfile(s.user.id)
       else {
         setProfile(null)
@@ -141,9 +151,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // ล็อกอินได้ทีละเครื่อง: เฝ้าดู profiles.current_session_id — มีเครื่องอื่นล็อกอินซ้อนเมื่อไหร่
+  // เครื่องนี้ออกจากระบบทันทีพร้อมแจ้งเหตุผล (ดู lib/deviceSession.ts + supabase/single-device.sql)
+  const userId = session?.user.id
+  useEffect(() => {
+    if (!userId || !supabaseConfigured) return
+    return watchDeviceSession(userId, () => {
+      void supabase.auth.signOut().finally(() => {
+        alert('บัญชีนี้ถูกเข้าสู่ระบบบนเครื่องอื่น ระบบจึงออกจากระบบเครื่องนี้ให้\n(บัญชีหนึ่งใช้งานได้ทีละเครื่อง)')
+      })
+    })
+  }, [userId])
+
   async function signIn(email: string, password: string): Promise<string | null> {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return error ? error.message : null
+    if (error) return error.message
+    await claimDeviceSession() // ล็อกอินได้ทีละเครื่อง — เครื่องนี้เป็นเจ้าของ เครื่องเก่าเด้งออก
+    return null
   }
 
   async function signUp(
@@ -161,11 +185,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.user && (data.user.identities?.length ?? 0) === 0) {
       return { error: 'อีเมลนี้ถูกใช้แล้ว — ลองเข้าสู่ระบบแทน', needConfirm: false }
     }
+    if (data.session) await claimDeviceSession() // สมัครแล้วเข้าใช้ได้เลย → จดเครื่องนี้
     // ไม่มี session กลับมา = Supabase ตั้งค่าให้ยืนยันอีเมลก่อนใช้งาน
     return { error: null, needConfirm: !data.session }
   }
 
   async function signInWithGoogle(): Promise<string | null> {
+    localStorage.setItem(OAUTH_CLAIM_FLAG, '1') // กลับมาถึงค่อยจดเครื่อง (ดูคอมเมนต์บนสุด)
     const redirectTo = isNativeApp ? 'com.hobproperty.app://auth-callback' : window.location.origin
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
