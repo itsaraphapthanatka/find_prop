@@ -68,7 +68,9 @@ interface AuthState {
   switchOrg: (orgId: string) => Promise<void>
 }
 
-const AuthContext = createContext<AuthState | null>(null)
+// export ไว้เพื่อให้หน้าทดสอบ dev/form-harness.tsx ใส่สถานะผู้ใช้ปลอมได้ (ทดสอบ UI ที่กั้นด้วยแพ็กเกจ)
+// โค้ดแอปจริงให้ใช้ useAuth() เท่านั้น อย่าอ่าน context ตรงๆ
+export const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)

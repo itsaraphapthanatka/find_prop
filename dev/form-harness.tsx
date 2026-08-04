@@ -9,7 +9,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, MemoryRouter, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from '../src/lib/auth'
+import { AuthContext, AuthProvider } from '../src/lib/auth'
 import FormPage from '../src/pages/FormPage'
 // ต้องโหลด CSS ชุดเดียวกับ main.tsx — ถ้าไม่มี leaflet.css แผนที่จะไม่ถูก clip แล้วบังปุ่มด้านล่าง
 import 'leaflet/dist/leaflet.css'
@@ -18,6 +18,29 @@ import '../src/styles.css'
 const params = new URLSearchParams(location.search)
 const editId = params.get('edit')
 const navMode = params.has('nav')
+// ?pro=1 = สวมสถานะผู้ใช้แพ็กเกจ Pro ปลอม เพื่อทดสอบส่วนที่กั้นด้วยแพ็กเกจ (เช่น แผงนัดติดตาม)
+const proMode = params.has('pro')
+
+/** สถานะผู้ใช้ปลอมแพ็กเกจ Pro — ใช้เฉพาะหน้าทดสอบนี้ */
+const noop = async () => {}
+const fakeAuth = {
+  session: { user: { id: 'fake-user' } },
+  profile: { id: 'fake-user', email: 'test@example.com', role: 'admin', active: true },
+  org: { id: 'fake-org', name: 'ทดสอบ', plan: 'pro' },
+  loading: false,
+  signIn: async () => null,
+  signUp: async () => ({ error: null, needConfirm: false }),
+  signInWithGoogle: async () => null,
+  signOut: noop,
+  refreshProfile: noop,
+  orgs: [],
+  switchOrg: noop,
+}
+
+function Auth({ children }: { children: React.ReactNode }) {
+  if (!proMode) return <AuthProvider>{children}</AuthProvider>
+  return <AuthContext.Provider value={fakeAuth as never}>{children}</AuthContext.Provider>
+}
 
 /** หน้ารายการปลอมสูงๆ + ลิงก์ไปหน้าแก้ไข (ใช้เฉพาะโหมด nav) */
 function TallList() {
@@ -62,8 +85,8 @@ function App() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
+    <Auth>
       <App />
-    </AuthProvider>
+    </Auth>
   </StrictMode>,
 )

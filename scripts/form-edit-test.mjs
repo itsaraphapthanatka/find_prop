@@ -19,6 +19,35 @@ const check = (name, ok, extra = '') => results.push({ name, ok: Boolean(ok), ex
   check('โหมดแก้ไข: มีแถบสเต็ป 5 ขั้น', (await page.locator('.wiz-step').count()) === 5)
   check('โหมดแก้ไข: มีปุ่มบันทึกตั้งแต่ขั้นแรก', (await page.getByRole('button', { name: 'บันทึก', exact: true }).count()) === 1)
   check('โหมดแก้ไข: ไม่มีแถบร่าง (ร่างใช้เฉพาะทรัพย์ใหม่)', (await page.getByText('พบร่างที่กรอกค้างไว้').count()) === 0)
+  check('แพ็กเกจ Free: ไม่โชว์แผงนัดติดตาม', (await page.getByText('นัดติดตาม', { exact: false }).count()) === 0)
+  await page.close()
+}
+
+// ── 2. แผงนัดติดตามในหน้าแก้ไข (ต้องเป็นแพ็กเกจ Pro) ──
+{
+  const page = await browser.newPage({ viewport: { width: 1100, height: 900 } })
+  page.on('dialog', (d) => d.accept())
+  await page.goto('http://localhost:5173/dev/form-harness.html?edit=fake-id&pro=1', { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  check('แก้ไข+Pro: มีหัวข้อ "นัดติดตาม" ในหน้าแก้ไข', (await page.getByText('นัดติดตาม', { exact: false }).count()) > 0)
+  check('แก้ไข+Pro: มีปุ่มปิดงาน (เช่าแล้ว/ขายแล้ว)',
+    (await page.getByRole('button', { name: /ปิดงาน/ }).count()) >= 2)
+  check('แก้ไข+Pro: มีช่องเพิ่มนัด', (await page.getByRole('button', { name: 'เพิ่มนัด', exact: true }).count()) === 1)
+  // ฟอร์มซ้อนฟอร์มไม่ได้ — แผงนัดต้องอยู่นอก <form> ของฟอร์มทรัพย์
+  const nested = await page.evaluate(() =>
+    document.querySelectorAll('form.form-wrap form').length)
+  check('แผงนัดไม่ได้ซ้อนอยู่ใน form ของฟอร์มทรัพย์', nested === 0, `nested=${nested}`)
+  await page.screenshot({ path: 'scratch-shots/10-edit-followups.png', fullPage: true })
+  await page.close()
+}
+
+// ── 3. ทรัพย์ใหม่ (ยังไม่มี id) ต้องไม่มีแผงนัดติดตาม ──
+{
+  const page = await browser.newPage({ viewport: { width: 1100, height: 900 } })
+  page.on('dialog', (d) => d.accept())
+  await page.goto('http://localhost:5173/dev/form-harness.html?pro=1', { waitUntil: 'networkidle' })
+  await page.waitForTimeout(800)
+  check('เพิ่มทรัพย์ใหม่: ยังไม่มีแผงนัดติดตาม', (await page.getByText('นัดติดตาม', { exact: false }).count()) === 0)
   await page.close()
 }
 

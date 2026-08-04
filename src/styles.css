@@ -1707,3 +1707,7 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .draft-text { flex: 1 1 220px; min-width: 0; line-height: 1.5; }
 .draft-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .draft-saved { color: var(--muted); font-size: 12px; }
+
+/* แผงนัดติดตามท้ายหน้าแก้ไขทรัพย์ — ชิดกับฟอร์มด้านบน ไม่ต้องเว้นหัวซ้ำ */
+.follow-in-form { padding-top: 0; }
+.follow-in-form .section-title:first-child { margin-top: 0; }

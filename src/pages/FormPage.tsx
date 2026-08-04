@@ -13,6 +13,7 @@ import { getPosition } from '../lib/native'
 import { compressImage } from '../lib/image'
 import { loadThaiLocations, type ThaiLocations } from '../lib/thaiLocations'
 import { StepDetails, StepLocation, StepMedia, StepPrice, StepType } from './form/steps'
+import FollowUpSection from '../components/FollowUpSection'
 import {
   browserStore, clearDraft, draftAgeText, draftTimeText, loadDraft, saveDraft, type FormDraft,
 } from '../lib/draft'
@@ -149,6 +150,8 @@ export default function FormPage() {
   const [uploading, setUploading] = useState(false)
   const [step, setStep] = useState(0)
   const editing = Boolean(id)
+  /** สถานะงานของทรัพย์ที่กำลังแก้ (ใช้กับแผงนัดติดตามท้ายหน้า) */
+  const [dealStatus, setDealStatus] = useState<Property['deal_status']>('open')
 
   // ── ร่างอัตโนมัติ (เฉพาะเพิ่มทรัพย์ใหม่) ──
   // pendingDraft = ร่างที่เจอตอนเปิดหน้า ยังไม่ตัดสินใจว่าจะกู้คืนหรือทิ้ง
@@ -240,6 +243,7 @@ export default function FormPage() {
         else if (data) {
           const { id: _id, created_at: _c, org_id, org_name: _o, created_by: _cb, created_by_name: _cbn, ...rest } = data as Property
           setForm({ ...emptyForm, ...rest })
+          setDealStatus((data as Property).deal_status ?? 'open')
           if (org_id) setFormOrg(org_id)
         }
       })
@@ -590,6 +594,19 @@ export default function FormPage() {
           )}
         </div>
       </form>
+
+      {/* นัดติดตามของทรัพย์ที่กำลังแก้ไข — เห็นและเพิ่มนัดได้จากหน้านี้เลย ไม่ต้องกลับไปหน้ารายการ
+          ต้องอยู่นอก <form> ของฟอร์มทรัพย์ เพราะแผงนี้มีฟอร์มเพิ่มนัดของตัวเอง (ฟอร์มซ้อนฟอร์มไม่ได้)
+          ฟีเจอร์ Pro — แพ็กเกจอื่นไม่โชว์ (สอดคล้องกับแผงรายละเอียดและ route /followups) */}
+      {editing && access.followUps && (
+        <div className="form-wrap follow-in-form">
+          <section className="form-card">
+            <FollowUpSection
+              property={{ ...form, id: id!, deal_status: dealStatus } as unknown as Property}
+            />
+          </section>
+        </div>
+      )}
     </>
   )
 }
