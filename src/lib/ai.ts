@@ -162,6 +162,7 @@ export function propertyDetailText(p: Property): string {
   return [
     `ทรัพย์ ${p.code}`,
     line('ประเภท', [p.property_type, p.sub_type, p.listing_type].filter(Boolean).join(' / ')),
+    line('บ้านเลขที่/เลขที่ห้อง', p.house_no),
     line('หมู่บ้าน/โครงการ', p.project_name),
     line('ทำเล', [p.subdistrict, p.district, p.province].filter(Boolean).join(', ')),
     line('ค่าเช่า/เดือน', p.rent_per_month != null ? `${formatNumber(p.rent_per_month)} บาท` : null),

@@ -32,11 +32,13 @@ interface FieldProps<K> extends FieldPack {
   required?: boolean
 }
 
-export function TextField({ name, form, set, required, type = 'text' }: FieldProps<TextKey> & { type?: string }) {
+export function TextField({
+  name, form, set, required, type = 'text', label,
+}: FieldProps<TextKey> & { type?: string; label?: string }) {
   return (
     <div className="form-field">
       <label>
-        {LABELS[name]} {required && <span className="req">*</span>}
+        {label ?? LABELS[name]} {required && <span className="req">*</span>}
       </label>
       <input
         type={type}

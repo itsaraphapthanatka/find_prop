@@ -68,6 +68,7 @@ const emptyForm: PropertyInput = {
   features: [],
   usages: [],
   sub_type: null,
+  house_no: null,
   project_name: null,
   usable_area: null,
   floors: null,

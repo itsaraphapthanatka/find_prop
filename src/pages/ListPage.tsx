@@ -86,6 +86,8 @@ export default function ListPage({ search }: { search: string }) {
         const hit = [
           p.code, p.property_type, p.listing_type, p.subdistrict, p.district,
           p.province, p.nearby, p.lessor_name, p.lessor_company, p.notes,
+          // ค้นด้วยเลขที่บ้าน/ห้อง และชื่อโครงการ — เป็นคำที่นายหน้าจำได้ก่อนรหัสทรัพย์
+          p.house_no, p.project_name,
           ...(p.features ?? []), ...(p.usages ?? []),
         ]
           .filter(Boolean)

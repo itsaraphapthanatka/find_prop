@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   DOC_NAME_OPTIONS, LABELS, OPTIONS, PROPERTY_CATEGORIES, RESIDENTIAL_FEATURES,
-  SUB_TYPE_BY_TYPE, categoryOf, type PropertyKind,
+  SUB_TYPE_BY_TYPE, categoryOf, houseNoLabel, type PropertyKind,
 } from '../../labels'
 import type { PropertyDoc, PropertyInput } from '../../types'
 import { TypeIcon, ZoneSwatch, typeColor } from '../../lib/propertyStyle'
@@ -116,7 +116,15 @@ export function StepLocation({
   return (
     <>
       <Section title="ที่ตั้ง">
-        <TextField name="project_name" {...fp} />
+        {/* ที่ดินเปล่าไม่มีสิ่งปลูกสร้าง จึงไม่มีเลขที่ให้กรอก — หมวดอื่นมีทุกหมวด */}
+        {kind === 'land' ? (
+          <TextField name="project_name" {...fp} />
+        ) : (
+          <div className="form-grid-2">
+            <TextField name="house_no" label={houseNoLabel(kind)} {...fp} />
+            <TextField name="project_name" {...fp} />
+          </div>
+        )}
         <div className="form-grid-2">
           <div className="form-field">
             <label>{LABELS.province} <span className="req">*</span></label>

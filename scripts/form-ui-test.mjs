@@ -96,6 +96,10 @@ check('ผ่านไปขั้น 2 ที่ตั้ง', (await activeSte
 await btn('ถัดไป →').click()
 await page.waitForTimeout(300)
 check('ขั้น 2 ไม่กรอกทำเล → เตือน', lastDialog().includes('จังหวัด'), lastDialog())
+check('โกดัง: มีบ้านเลขที่ (ไม่ใช่เลขที่ห้อง)',
+  (await field('บ้านเลขที่').count()) === 1 && (await field('เลขที่ห้อง').count()) === 0)
+await fillField('บ้านเลขที่', '88/123')
+check('บ้านเลขที่รับขีด/ทับได้ (ไม่ใช่ช่องตัวเลข)', (await fieldValue('บ้านเลขที่')) === '88/123')
 await pickCombo('จังหวัด', 'สมุทรปราการ')
 await pickCombo('เขต/อำเภอ', 'บางพลี')
 await pickCombo('แขวง/ตำบล', 'บางพลีใหญ่')
@@ -271,12 +275,41 @@ check('บ้านที่แนบโฉนดแล้ว → ผ่าน�
   dialogs.length === dialogCountBefore && (await activeStep()) === 'ราคา', lastDialog())
 const shot8 = await shot(page, 'step4-house-sale')
 
+// ══ บ้านเลขที่/เลขที่ห้อง — ต้องมีทุกหมวด ยกเว้นที่ดินเปล่า ══
+const HOUSE_NO_CASES = [
+  { cat: 'ที่อยู่อาศัย', type: 'บ้าน', label: 'บ้านเลขที่' },
+  { cat: 'ที่อยู่อาศัย', type: 'คอนโด', label: 'เลขที่ห้อง' },   // คอนโดไม่มีบ้านเลขที่ มีเลขที่ห้อง
+  { cat: 'เชิงพาณิชย์', type: 'ออฟฟิศ', label: 'บ้านเลขที่' },
+  { cat: 'เชิงพาณิชย์', type: 'โฮมออฟฟิศ', label: 'บ้านเลขที่' },
+  { cat: 'เชิงพาณิชย์', type: 'โชว์รูม', label: 'บ้านเลขที่' },
+  { cat: 'เชิงอุตสาหกรรม', type: 'โกดัง', label: 'บ้านเลขที่' },
+  { cat: 'เชิงอุตสาหกรรม', type: 'โรงงาน', label: 'บ้านเลขที่' },
+  { cat: 'ที่ดิน', type: 'ที่ดินเปล่า', label: null },            // ยังไม่มีสิ่งปลูกสร้าง = ไม่มีเลขที่
+]
+for (const c of HOUSE_NO_CASES) {
+  await page.locator('.wiz-step').first().click()
+  await page.waitForTimeout(250)
+  await selectOpt(c.cat)
+  await selectOpt(c.type)
+  await page.locator('.wiz-step').nth(1).click()
+  await page.waitForTimeout(350)
+  const house = await field('บ้านเลขที่').count()
+  const room = await field('เลขที่ห้อง').count()
+  if (c.label === null) {
+    check(`${c.type}: ไม่มีช่องเลขที่`, house === 0 && room === 0, `บ้านเลขที่=${house} เลขที่ห้อง=${room}`)
+  } else {
+    const want = c.label === 'เลขที่ห้อง' ? room === 1 && house === 0 : house === 1 && room === 0
+    check(`${c.type}: มีช่อง "${c.label}"`, want, `บ้านเลขที่=${house} เลขที่ห้อง=${room}`)
+  }
+}
+const shot9 = await shot(page, 'house-no-land')
+
 await page.evaluate(() => localStorage.clear())
 await browser.close()
 
 // ── สรุป ──
 const fails = results.filter((r) => !r.ok)
-console.log(`\nภาพหน้าจอ: ${[shot1, shot2, shot3, shot4, shot5, shot6, shot7, shot8].join(', ')}`)
+console.log(`\nภาพหน้าจอ: ${[shot1, shot2, shot3, shot4, shot5, shot6, shot7, shot8, shot9].join(', ')}`)
 if (pageErrors.length) {
   console.log(`\n⚠️  error ในหน้าเว็บ ${pageErrors.length} รายการ:`)
   for (const e of pageErrors.slice(0, 10)) console.log(`   - ${e}`)

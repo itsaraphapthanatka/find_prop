@@ -57,6 +57,7 @@ export const LABELS: Record<keyof PropertyInput, string> = {
   features: 'คุณสมบัติ',
   usages: 'เหมาะกับการใช้งาน',
   sub_type: 'ประเภทย่อย',
+  house_no: 'บ้านเลขที่',
   project_name: 'ชื่อโครงการ',
   usable_area: 'พื้นที่ใช้สอย (ตร.ม.)',
   floors: 'จำนวนชั้น',
@@ -224,6 +225,14 @@ export function kindOf(propertyType: string | null | undefined): PropertyKind {
     case 'ที่ดินเปล่า': return 'land'
     default: return 'industrial'
   }
+}
+
+/**
+ * ป้ายช่อง "บ้านเลขที่" ตามประเภททรัพย์ — คอนโดคือเลขที่ห้อง ไม่ใช่บ้านเลขที่
+ * ที่ดินเปล่าไม่มีช่องนี้ในฟอร์ม แต่ทรัพย์เก่าที่เคยมีค่าอยู่ยังโชว์ในหน้ารายละเอียดได้
+ */
+export function houseNoLabel(kind: PropertyKind): string {
+  return kind === 'condo' ? 'เลขที่ห้อง' : LABELS.house_no
 }
 
 /** สถานที่สำคัญที่มักถามถึง (HOP Form STEP 2 — ระบุระยะเป็นกิโลเมตร) */

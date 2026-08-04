@@ -71,6 +71,8 @@ export interface Property {
   usages: string[] | null
   // ── ฟิลด์ที่อยู่อาศัย (บ้าน/คอนโด) — ดู requirement.md ──
   sub_type: string | null
+  /** บ้านเลขที่ (คอนโดใช้เป็นเลขที่ห้อง) — ทุกหมวดยกเว้นที่ดินเปล่า · text เพราะมีขีด/ทับ เช่น 88/123 */
+  house_no: string | null
   project_name: string | null
   usable_area: number | null
   floors: string | null

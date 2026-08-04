@@ -1,5 +1,5 @@
 import type { Property } from '../types'
-import { LABELS, formatDate, formatNumber } from '../labels'
+import { LABELS, formatDate, formatNumber, houseNoLabel, kindOf } from '../labels'
 import { useAuth } from '../lib/auth'
 import { usePlanAccess } from '../lib/plan'
 import { ContractTag, DealTag, ZoneSwatch } from '../lib/propertyStyle'
@@ -121,6 +121,7 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.sub_type} value={p.sub_type} />
           <Field label={LABELS.listing_type} value={p.listing_type} />
           <Field label={LABELS.agreement_type} value={p.agreement_type} />
+          <Field label={houseNoLabel(kindOf(p.property_type))} value={p.house_no} />
           <Field label={LABELS.project_name} value={p.project_name} />
           <Field label={LABELS.house_direction} value={p.house_direction} />
           <Field label={LABELS.subdistrict} value={p.subdistrict} />
