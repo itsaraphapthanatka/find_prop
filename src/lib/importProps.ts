@@ -70,6 +70,7 @@ const LEGACY_LABELS: Record<string, keyof PropertyInput> = {
   'วิดีโอ (ลิงก์)': 'video_url',
   'แผนที่ (ลิงก์)': 'map_url',
   'หมายเหตุ_ถ้ามี': 'notes',
+  'ชื่อหมู่บ้าน/โครงการ': 'project_name',
 }
 
 /** ชื่อเรียกอื่นที่พบบ่อยในไฟล์จริง (นอกเหนือจากป้าย LABELS และชื่อฟิลด์อังกฤษ) */

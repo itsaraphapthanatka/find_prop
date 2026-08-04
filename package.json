@@ -11,7 +11,8 @@
     "test:ui": "node scripts/form-ui-test.mjs",
     "test:import": "node scripts/import-map-selftest.mjs",
     "test:edit": "node scripts/form-edit-test.mjs",
-    "test:nav": "node scripts/org-switch-selftest.mjs"
+    "test:nav": "node scripts/org-switch-selftest.mjs",
+    "test:latlng": "node scripts/latlng-selftest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",

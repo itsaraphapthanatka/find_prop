@@ -12,7 +12,7 @@ import Combo from '../../components/Combo'
 import LocationPicker from '../../components/LocationPicker'
 import { isNativeApp, takePhoto } from '../../lib/native'
 import {
-  AppliancesField, BoolField, ButtonsField, ComboField, type FieldPack, MultiField,
+  AppliancesField, BoolField, ButtonsField, ComboField, type FieldPack, LatLngField, MultiField,
   NearbyPlacesField, NumberField, Section, TextField, UtilityField,
 } from './fields'
 
@@ -168,10 +168,7 @@ export function StepLocation({
           </div>
           <LocationPicker lat={form.lat} lng={form.lng} onPick={onPickLatLng} />
         </div>
-        <div className="form-grid-2">
-          <NumberField name="lat" {...fp} />
-          <NumberField name="lng" {...fp} />
-        </div>
+        <LatLngField {...fp} />
         <TextField name="map_url" type="url" {...fp} />
       </Section>
 
@@ -321,9 +318,9 @@ export function StepDetails(props: StepDetailsProps) {
           <AppliancesField {...fp} options={OPTIONS.appliances} />
           <ButtonsField name="furniture" options={OPTIONS.furniture} {...fp} />
         </Section>
-        <Section title="พื้นที่ส่วนกลางและคุณสมบัติ">
+        <Section title="พื้นที่ส่วนกลาง">
           <MultiField name="features" options={RESIDENTIAL_FEATURES} {...fp}
-            label="พื้นที่ส่วนกลาง/คุณสมบัติ (กรณีโครงการจัดสรร)" />
+            label="พื้นที่ส่วนกลาง (กรณีโครงการจัดสรร)" />
         </Section>
         <UtilityCostSection {...fp} commonFeeHint="ค่าส่วนกลางหน่วย บาท/ตร.วา (กรณีโครงการจัดสรร)" />
         {docs}
@@ -385,7 +382,6 @@ export function StepDetails(props: StepDetailsProps) {
         <Section title="พื้นที่ส่วนกลางและของที่ให้">
           <MultiField name="features" options={RESIDENTIAL_FEATURES} {...fp} label="พื้นที่ส่วนกลางมีอะไรบ้าง" />
           <AppliancesField {...fp} options={OPTIONS.appliances} />
-          <MultiField name="usages" options={OPTIONS.usages} {...fp} />
         </Section>
         <UtilityCostSection {...fp} />
         {docs}
@@ -454,10 +450,9 @@ export function StepDetails(props: StepDetailsProps) {
           <BoolField name="container_access" {...fp} />
         </div>
       </Section>
-      <Section title="คุณสมบัติและการใช้งาน">
-        <MultiField name="features" options={OPTIONS.features} {...fp} />
-        <MultiField name="usages" options={OPTIONS.usages} {...fp} />
-      </Section>
+      {/* เดิมมีการ์ด "คุณสมบัติและการใช้งาน" — ตัดออกทั้งการ์ดตามที่ผู้ใช้สั่ง
+          เพราะคำถาม ใช่/ไม่ ในสเปกอาคารด้านบน (เครน · ใกล้ถนนหลัก · อาคารเดี่ยว · คอนเทนเนอร์เข้าได้)
+          แทนได้หมดแล้ว · ที่ดินยังมี "ใช้ประโยชน์อะไรได้บ้าง" เพราะเป็นคำถามเชิงผังเมือง ไม่ใช่สเปกอาคาร */}
       <UtilityCostSection {...fp} />
       {docs}
     </>

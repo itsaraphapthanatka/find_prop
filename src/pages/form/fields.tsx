@@ -1,6 +1,8 @@
 // ชิ้นส่วนช่องกรอกของฟอร์มลงทรัพย์ (HOP Form) — ใช้ร่วมกันทั้ง 5 สเต็ป
 // แยกออกจาก FormPage เพื่อให้แต่ละสเต็ปอ่านได้เป็นชุดฟิลด์ล้วนๆ
+import { useState } from 'react'
 import { LABELS, NEARBY_PLACE_OPTIONS } from '../../labels'
+import { formatLatLng, parseLatLng, roundLatLng } from '../../lib/latlng'
 import type { NearbyPlace, PropertyInput } from '../../types'
 import Combo, { MultiSelect } from '../../components/Combo'
 
@@ -211,6 +213,48 @@ export function AppliancesField({ form, set, options }: FieldPack & { options: s
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/**
+ * พิกัดช่องเดียว "ละติจูด, ลองจิจูด" — วางจาก Google Maps ได้ตรงๆ (ทั้งตัวเลขและลิงก์)
+ * DB ยังเก็บแยก lat/lng ตามเดิม · แก้ค่าจากแผนที่ก็สะท้อนมาที่ช่องนี้
+ */
+export function LatLngField({ form, set }: FieldPack) {
+  // เก็บข้อความที่พิมพ์แยกจากค่าจริง เพื่อให้พิมพ์กลางทาง (เช่น "13.6,") ได้โดยไม่ถูกเขียนทับ
+  const [text, setText] = useState<string | null>(null)
+  const shown = text ?? formatLatLng(form.lat, form.lng)
+  const parsed = parseLatLng(shown)
+  const dirty = shown.trim() !== '' && !parsed
+  return (
+    <div className="form-field">
+      <label>พิกัด (ละติจูด, ลองจิจูด)</label>
+      <input
+        type="text"
+        inputMode="decimal"
+        placeholder="เช่น 13.599, 100.618 หรือวางลิงก์ Google Maps"
+        value={shown}
+        onChange={(e) => {
+          const v = e.target.value
+          setText(v)
+          const p = parseLatLng(v)
+          if (p) {
+            const r = roundLatLng(p)
+            set('lat', r.lat)
+            set('lng', r.lng)
+          } else if (v.trim() === '') {
+            set('lat', null)
+            set('lng', null)
+          }
+        }}
+        onBlur={() => setText(null)} // กลับไปโชว์ค่าจริงที่บันทึกไว้
+      />
+      <p className="field-hint">
+        {dirty
+          ? '⚠️ อ่านพิกัดไม่ออก — ใส่เป็น "ละติจูด, ลองจิจูด" เช่น 13.599, 100.618 หรือวางลิงก์จาก Google Maps'
+          : 'ก๊อปจาก Google Maps มาวางได้เลย (ตัวเลขหรือลิงก์) · หรือแตะบนแผนที่ด้านบน'}
+      </p>
     </div>
   )
 }
