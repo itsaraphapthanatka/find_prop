@@ -1,0 +1,19 @@
+<!doctype html>
+<!--
+  หน้าทดสอบฟอร์มลงทรัพย์แบบไม่ต้องล็อกอิน (dev เท่านั้น)
+  vite dev เสิร์ฟไฟล์นี้ที่ /dev/form-harness.html · ไม่ถูกรวมใน production build
+  (build มี input แค่ index.html) — ใช้กับ scripts/form-ui-test.mjs
+-->
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <title>ทดสอบฟอร์มลงทรัพย์ (dev harness)</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./form-harness.tsx"></script>
+  </body>
+</html>

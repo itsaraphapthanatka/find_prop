@@ -4,54 +4,54 @@
 
 create table if not exists public.properties (
   id uuid primary key default gen_random_uuid(),
-  code text not null unique,                -- ลำดับที่ เช่น JKP01
-  record_date date,                         -- วันที่
-  photo_url text,                           -- รูป
-  pic text,                                 -- PIC
-  lessor_status text,                       -- สถานะ_ผู้ให้เช่า
-  lessor_company text,                      -- ชื่อบริษัท_ผู้ให้เช่า
-  lessor_name text,                         -- ชื่อผู้ให้เช่า
+  code text not null unique,                -- รหัสทรัพย์ เช่น JKP01
+  record_date date,                         -- วันที่ลงทรัพย์
+  photo_url text,                           -- รูปทรัพย์ (รูปปก)
+  pic text,                                 -- ผู้ดูแลทรัพย์
+  lessor_status text,                       -- สถานะผู้ติดต่อ (เจ้าของ/เอเจนต์)
+  lessor_company text,                      -- ชื่อบริษัท/นิติบุคคล
+  lessor_name text,                         -- ชื่อผู้ติดต่อ
   phone text,                               -- เบอร์โทรติดต่อ
   deed_no text,                             -- เลขโฉนด
   property_type text,                       -- ประเภททรัพย์
-  listing_type text,                        -- เช่า_หรือ_ขาย
+  listing_type text,                        -- สำหรับ (เช่า/ขาย)
   subdistrict text,                         -- แขวง/ตำบล
   district text,                            -- เขต/อำเภอ
   province text,                            -- จังหวัด
-  color_zone text,                          -- พื้นที่สี (ผังเมือง)
-  zones text[],                             -- โซน
+  color_zone text,                          -- พื้นที่สีผังเมือง
+  zones text[],                             -- โซนพิเศษ
   nearby text,                              -- อยู่ใกล้
-  land_wxd text,                            -- กว้าง x ลึก ที่ดิน
-  land_area text,                           -- ขนาด_ที่ดิน_รวม
-  building_area numeric,                    -- ขนาด_อาคาร (ตร.ม.)
-  building_wxd text,                        -- กว้าง x ลึก อาคาร
-  office_floors text,                       -- จำนวน_ชั้น_ออฟฟิศ
-  office_area_fl1 numeric,                  -- ขนาด_ออฟฟิศ_ชั้น 1
-  office_area_total numeric,                -- ขนาด_ออฟฟิศ_รวม
-  building_area_total numeric,              -- ขนาด_อาคาร_รวม
-  rent_per_month numeric,                   -- ราคา_เช่า/เดือน
-  price_per_sqm numeric,                    -- ราคา/ตร.ม.
-  sale_price numeric,                       -- ราคาขาย
-  withholding_tax text,                     -- ภาษีหัก_ณ_ที่จ่าย
-  land_building_tax text,                   -- ภาษีที่ดิน_และ_สิ่งปลูกสร้าง
+  land_wxd text,                            -- ที่ดิน กว้าง x ลึก
+  land_area text,                           -- ขนาดที่ดินรวม (ข้อความเดิม — ของใหม่ใช้ land_rai/ngan/wa)
+  building_area numeric,                    -- ขนาดอาคาร (ตร.ม.)
+  building_wxd text,                        -- อาคาร กว้าง x ลึก
+  office_floors text,                       -- จำนวนชั้นออฟฟิศ
+  office_area_fl1 numeric,                  -- ขนาดออฟฟิศ ชั้น 1 (ตร.ม.)
+  office_area_total numeric,                -- ขนาดออฟฟิศรวม (ตร.ม.)
+  building_area_total numeric,              -- ขนาดอาคารรวม (ตร.ม.)
+  rent_per_month numeric,                   -- ค่าเช่า/เดือน (บาท)
+  price_per_sqm numeric,                    -- ราคาต่อ ตร.ม. (บาท)
+  sale_price numeric,                       -- ราคาขาย (บาท)
+  withholding_tax text,                     -- ภาษีหัก ณ ที่จ่าย
+  land_building_tax text,                   -- ภาษีที่ดินและสิ่งปลูกสร้าง
   common_fee text,                          -- ค่าส่วนกลาง
-  electricity_rate text,                    -- ค่าไฟฟ้า
-  water_rate text,                          -- ค่าน้ำประปา
-  door_count integer,                       -- จำนวน_ประตู
-  door_wxh text,                            -- ประตู_กว้าง x ยาว
-  building_height numeric,                  -- ความสูง_อาคาร (ม.)
-  floor_load text,                          -- รับน้ำหนัก (ตัน)
-  power_system text,                        -- ระบบ_ไฟฟ้า
-  water_per_day text,                       -- จำนวนน้ำ_ที่ใช้ได้ต่อวัน
-  contract_period text,                     -- ระยะ_เวลา_สัญญา
-  deposit text,                             -- ค่าประกัน
-  advance_rent text,                        -- ค่าเช่า_ล่วงหน้า
+  electricity_rate text,                    -- ค่าไฟ (บาท/หน่วย)
+  water_rate text,                          -- ค่าน้ำ (บาท/หน่วย)
+  door_count integer,                       -- จำนวนประตู (บาน)
+  door_wxh text,                            -- ขนาดประตู กว้าง x สูง
+  building_height numeric,                  -- ความสูงอาคาร (ม.)
+  floor_load text,                          -- พื้นรับน้ำหนัก (ตัน)
+  power_system text,                        -- ระบบไฟฟ้า
+  water_per_day text,                       -- ปริมาณน้ำใช้ได้ต่อวัน
+  contract_period text,                     -- ระยะเวลาสัญญา
+  deposit text,                             -- เงินประกัน
+  advance_rent text,                        -- ค่าเช่าล่วงหน้า
   features text[],                          -- คุณสมบัติ
-  usages text[],                            -- การใช้งาน
+  usages text[],                            -- เหมาะกับการใช้งาน
   lat double precision,                     -- เลขพิกัด (ละติจูด)
   lng double precision,                     -- เลขพิกัด (ลองจิจูด)
-  map_url text,                             -- แผนที่ (ลิงก์ Google Maps)
-  notes text,                               -- หมายเหตุ_ถ้ามี
+  map_url text,                             -- ลิงก์ Google Maps
+  notes text,                               -- หมายเหตุ
   created_at timestamptz not null default now()
 );
 

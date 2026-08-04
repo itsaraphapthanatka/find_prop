@@ -24,9 +24,9 @@ export const PROPERTY_STYLE: Record<string, TypeStyle> = {
     color: '#0d9488', // เขียวหัวเป็ด
     glyph: '<path fill-rule="evenodd" d="M5 21V4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5V21h-4v-4h-6v4H5zm3-14h3v3H8V7zm5 0h3v3h-3V7zm-5 5h3v3H8v-3zm5 0h3v3h-3v-3z"/>',
   },
-  'ครัวกลาง': {
-    color: '#dc2626', // แดง
-    glyph: '<path d="M3.5 10h17v1.5c0 3-1.7 5.6-4.5 6.9v1.1c0 .8-.7 1.5-1.5 1.5h-5c-.8 0-1.5-.7-1.5-1.5v-1.1C5.2 17.1 3.5 14.5 3.5 11.5V10z"/><path d="M8 8c0-1.8 1-1.8 1-3.3M12 8c0-1.8 1-1.8 1-3.3M16 8c0-1.8 1-1.8 1-3.3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>',
+  'โฮมออฟฟิศ': {
+    color: '#0891b2', // ฟ้าเทอร์ควอยซ์ (คู่กับออฟฟิศแต่แยกออกจากกันได้)
+    glyph: '<path fill-rule="evenodd" d="M12 3.5 2.5 11v10h19V11L12 3.5zM7 12.5h3.2v3H7v-3zm6.8 0H17v3h-3.2v-3zM10.4 17h3.2v4h-3.2v-4z"/>',
   },
   'บ้าน': {
     color: '#16a34a', // เขียว

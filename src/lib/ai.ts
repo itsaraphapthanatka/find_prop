@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { Property, PropertyInput } from '../types'
 import { LABELS, OPTIONS, formatNumber } from '../labels'
-import { ARRAY_FIELDS, DATE_FIELDS, IMPORT_FIELDS, NUM_FIELDS, convertValue } from './importProps'
+import { ARRAY_FIELDS, BOOL_FIELDS, DATE_FIELDS, IMPORT_FIELDS, NUM_FIELDS, convertValue } from './importProps'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -75,7 +75,13 @@ export function propertyBrief(p: Property): string {
     if (dLeft < 0) parts.push(`⏰สัญญาหมดแล้ว (${p.contract_end})`)
     else if (dLeft <= 60) parts.push(`⏰สัญญาเหลือ ${dLeft} วัน (${p.contract_end})`)
   }
-  if (p.land_area) parts.push(`ที่ดิน ${p.land_area}`)
+  const landSize = [
+    p.land_rai != null ? `${formatNumber(p.land_rai)} ไร่` : null,
+    p.land_ngan != null ? `${formatNumber(p.land_ngan)} งาน` : null,
+    p.land_wa != null ? `${formatNumber(p.land_wa)} ตร.วา` : null,
+  ].filter(Boolean).join(' ')
+  if (landSize) parts.push(`ที่ดิน ${landSize}`)
+  else if (p.land_area) parts.push(`ที่ดิน ${p.land_area}`)
   if (p.building_height != null) parts.push(`สูง ${formatNumber(p.building_height)} ม.`)
   if (p.floor_load) parts.push(`พื้นรับ ${p.floor_load}`)
   if (p.power_system) parts.push(`ไฟ ${p.power_system}`)
@@ -98,7 +104,9 @@ function fieldGuide(): string {
           ? 'array ของข้อความ'
           : DATE_FIELDS.has(f)
             ? 'วันที่ YYYY-MM-DD'
-            : 'ข้อความ'
+            : BOOL_FIELDS.has(f)
+              ? 'true/false'
+              : 'ข้อความ'
       return `${f} | ${LABELS[f]} | ${kind}${opts ? ` | ตัวเลือกแนะนำ: ${opts.join(', ')}` : ''}`
     })
     .join('\n')
@@ -166,10 +174,21 @@ export function propertyDetailText(p: Property): string {
     line('เฟอร์นิเจอร์', p.furniture),
     line('เครื่องใช้ไฟฟ้า', p.appliances?.join(', ')),
     line('ค่าโอน', p.transfer_fee),
+    line('VAT', p.vat),
+    line('ประเภทสัญญานายหน้า', p.agreement_type),
     line('ความสูงอาคาร (ม.)', p.building_height),
+    line('ความสูงเพดาน (ม.)', p.ceiling_height),
+    line('พื้นยกสูง (ซม.)', p.floor_raise_cm),
     line('พื้นรับน้ำหนัก', p.floor_load),
     line('ระบบไฟฟ้า', p.power_system),
     line('จำนวน/ขนาดประตู', [p.door_count, p.door_wxh].filter(Boolean).join(' / ')),
+    line('สเปกพิเศษ', [
+      p.has_crane ? 'มีเครน' : null,
+      p.near_main_road ? 'ใกล้ถนนหลัก' : null,
+      p.standalone_building ? 'อาคารเดี่ยว' : null,
+      p.container_access ? 'คอนเทนเนอร์เข้าได้' : null,
+      p.wastewater_pond === 'มี' ? 'มีบ่อบำบัดน้ำเสีย' : null,
+    ].filter(Boolean).join(', ') || null),
     line('พื้นที่สีผังเมือง', p.color_zone),
     line('โซน', p.zones?.join(', ')),
     line('คุณสมบัติ', p.features?.join(', ')),

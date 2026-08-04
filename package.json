@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/update-zip.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:draft": "node scripts/draft-selftest.mjs",
+    "test:ui": "node scripts/form-ui-test.mjs",
+    "test:import": "node scripts/import-map-selftest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",
@@ -36,6 +39,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "adm-zip": "^0.6.0",
+    "playwright": "^1.62.1",
     "sharp": "^0.35.3",
     "typescript": "^5.5.4",
     "vite": "^5.4.0",

@@ -18,6 +18,12 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+/** ค่า ใช่/ไม่ — ไม่ระบุ (null) = ไม่โชว์แถว */
+function BoolField({ label, value }: { label: string; value: boolean | null | undefined }) {
+  if (value === null || value === undefined) return null
+  return <Field label={label} value={value ? 'ใช่' : 'ไม่'} />
+}
+
 function ChipList({ label, values }: { label: string; values: string[] | null }) {
   if (!values || values.length === 0) return null
   return (
@@ -41,6 +47,22 @@ interface FuRow {
 }
 
 const DEAL_LABELS: Record<string, string> = { rented: 'มีคนเช่าแล้ว', sold: 'ขายแล้ว' }
+
+/** ขนาดที่ดินแบบไทย "2 ไร่ 1 งาน 50 ตร.วา" (ไม่มีค่าเลย = null → ไม่โชว์แถว) */
+function landSizeText(p: Property): string | null {
+  const parts = [
+    p.land_rai != null ? `${formatNumber(p.land_rai)} ไร่` : null,
+    p.land_ngan != null ? `${formatNumber(p.land_ngan)} งาน` : null,
+    p.land_wa != null ? `${formatNumber(p.land_wa)} ตร.วา` : null,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' ') : null
+}
+
+/** เครื่องใช้ไฟฟ้า + จำนวนต่อชนิด เช่น "แอร์ ×3" */
+function applianceChips(p: Property): string[] {
+  const counts = p.appliance_counts ?? {}
+  return (p.appliances ?? []).map((a) => (counts[a] != null ? `${a} ×${counts[a]}` : a))
+}
 
 /** นัดติดตามของทรัพย์แปลงนี้ — ตามต่อไปเรื่อยๆ จนกด "ปิดงาน" (มีคนเช่า/ขายแล้ว) */
 function FollowUpSection({ property }: { property: Property }) {
@@ -362,8 +384,9 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.record_date} value={formatDate(p.record_date)} />
           <Field label="ลงโดย" value={p.created_by_name} />
 
-          <div className="section-title">เจ้าของทรัพย์</div>
+          <div className="section-title">ผู้ติดต่อ</div>
           <Field label={LABELS.lessor_status} value={p.lessor_status} />
+          <Field label={LABELS.contact_form} value={p.contact_form} />
           <Field label={LABELS.lessor_company} value={p.lessor_company} />
           <Field label={LABELS.lessor_name} value={p.lessor_name} />
           <Field
@@ -394,7 +417,9 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.property_type} value={p.property_type} />
           <Field label={LABELS.sub_type} value={p.sub_type} />
           <Field label={LABELS.listing_type} value={p.listing_type} />
+          <Field label={LABELS.agreement_type} value={p.agreement_type} />
           <Field label={LABELS.project_name} value={p.project_name} />
+          <Field label={LABELS.house_direction} value={p.house_direction} />
           <Field label={LABELS.subdistrict} value={p.subdistrict} />
           <Field label={LABELS.district} value={p.district} />
           <Field label={LABELS.province} value={p.province} />
@@ -406,8 +431,19 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.utilities} value={p.utilities} />
           <ChipList label={LABELS.zones} values={p.zones} />
           <Field label={LABELS.nearby} value={p.nearby} />
+          {(p.nearby_places?.length ?? 0) > 0 && (
+            <div className="field">
+              <div className="label">{LABELS.nearby_places}</div>
+              <div className="value">
+                {p.nearby_places!.map((n, i) => (
+                  <div key={i}>{n.name}{n.km != null ? ` — ${formatNumber(n.km)} กม.` : ''}</div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="section-title">ขนาดพื้นที่</div>
+          <Field label="ขนาดที่ดิน" value={landSizeText(p)} />
           <Field label={LABELS.land_wxd} value={p.land_wxd} />
           <Field label={LABELS.land_area} value={p.land_area} />
           <Field label={LABELS.usable_area} value={formatNumber(p.usable_area)} />
@@ -420,22 +456,24 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.building_area_total} value={formatNumber(p.building_area_total)} />
 
           {/* ห้องและการตกแต่ง — มีเฉพาะบ้าน/คอนโด · โชว์หัวข้อเมื่อมีข้อมูลจริงเท่านั้น */}
-          {([p.bedrooms, p.bathrooms, p.kitchens, p.parking_spaces, p.tower_floors, p.tower_count].some((v) => v != null) ||
+          {([p.bedrooms, p.bathrooms, p.kitchens, p.parking_spaces, p.tower_floors, p.tower_count, p.rooms, p.ceiling_height].some((v) => v != null) ||
             [p.maid_room, p.furniture, p.balcony_direction, p.unit_building, p.unit_floor].some(Boolean) ||
             (p.appliances?.length ?? 0) > 0) && (
             <>
               <div className="section-title">ห้องและการตกแต่ง</div>
+              <Field label={LABELS.rooms} value={formatNumber(p.rooms)} />
               <Field label={LABELS.bedrooms} value={formatNumber(p.bedrooms)} />
               <Field label={LABELS.bathrooms} value={formatNumber(p.bathrooms)} />
               <Field label={LABELS.kitchens} value={formatNumber(p.kitchens)} />
               <Field label={LABELS.maid_room} value={p.maid_room} />
               <Field label={LABELS.parking_spaces} value={formatNumber(p.parking_spaces)} />
+              <Field label={LABELS.ceiling_height} value={formatNumber(p.ceiling_height)} />
               <Field label={LABELS.balcony_direction} value={p.balcony_direction} />
               <Field label={LABELS.unit_building} value={p.unit_building} />
               <Field label={LABELS.unit_floor} value={p.unit_floor} />
               <Field label={LABELS.tower_floors} value={formatNumber(p.tower_floors)} />
               <Field label={LABELS.tower_count} value={formatNumber(p.tower_count)} />
-              <ChipList label={LABELS.appliances} values={p.appliances} />
+              <ChipList label={LABELS.appliances} values={applianceChips(p)} />
               <Field label={LABELS.furniture} value={p.furniture} />
             </>
           )}
@@ -447,17 +485,28 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.transfer_fee} value={p.transfer_fee} />
           <Field label={LABELS.withholding_tax} value={p.withholding_tax} />
           <Field label={LABELS.land_building_tax} value={p.land_building_tax} />
+          <Field label={LABELS.vat} value={p.vat} />
           <Field label={LABELS.common_fee} value={p.common_fee} />
+          <Field label={LABELS.common_fee_payee} value={p.common_fee_payee} />
           <Field label={LABELS.electricity_rate} value={p.electricity_rate} />
+          <Field label={LABELS.power_payee} value={p.power_payee} />
           <Field label={LABELS.water_rate} value={p.water_rate} />
+          <Field label={LABELS.water_payee} value={p.water_payee} />
 
           <div className="section-title">สเปกอาคาร</div>
           <Field label={LABELS.door_count} value={formatNumber(p.door_count)} />
           <Field label={LABELS.door_wxh} value={p.door_wxh} />
           <Field label={LABELS.building_height} value={formatNumber(p.building_height)} />
+          <Field label={LABELS.floor_height} value={formatNumber(p.floor_height)} />
+          <Field label={LABELS.floor_raise_cm} value={formatNumber(p.floor_raise_cm)} />
           <Field label={LABELS.floor_load} value={p.floor_load} />
           <Field label={LABELS.power_system} value={p.power_system} />
           <Field label={LABELS.water_per_day} value={p.water_per_day} />
+          <Field label={LABELS.wastewater_pond} value={p.wastewater_pond} />
+          <BoolField label={LABELS.has_crane} value={p.has_crane} />
+          <BoolField label={LABELS.near_main_road} value={p.near_main_road} />
+          <BoolField label={LABELS.standalone_building} value={p.standalone_building} />
+          <BoolField label={LABELS.container_access} value={p.container_access} />
 
           <div className="section-title">เงื่อนไขสัญญา</div>
           <Field label={LABELS.contract_period} value={p.contract_period} />

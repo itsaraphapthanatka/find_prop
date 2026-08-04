@@ -1,6 +1,6 @@
 # HOB — ฐานข้อมูลทรัพย์ให้เช่า/ขาย
 
-Web app ทดแทนแอป AppSheet "WUT Demo" — จัดการข้อมูลโกดัง โรงงาน โชว์รูม ออฟฟิศ ครัวกลาง
+Web app ทดแทนแอป AppSheet "WUT Demo" — จัดการทรัพย์ 4 หมวด: ที่อยู่อาศัย (บ้าน/คอนโด) · เชิงพาณิชย์ (ออฟฟิศ/โฮมออฟฟิศ/โชว์รูม) · เชิงอุตสาหกรรม (โกดัง/โรงงาน) · ที่ดิน
 (โครงสร้างข้อมูลต้นแบบ: [docs/appsheet-analysis.md](docs/appsheet-analysis.md))
 
 **Stack:** React + Vite + TypeScript · Supabase (PostgreSQL + Storage) · Leaflet/OpenStreetMap

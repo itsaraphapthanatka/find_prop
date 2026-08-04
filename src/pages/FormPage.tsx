@@ -2,19 +2,20 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PHOTO_BUCKET, supabase, supabaseConfigured } from '../lib/supabase'
 import type { Property, PropertyDoc, PropertyInput } from '../types'
-import { DOC_NAME_OPTIONS, LABELS, OPTIONS, RESIDENTIAL_FEATURES, SUB_TYPE_BY_TYPE } from '../labels'
-import Combo, { MultiSelect } from '../components/Combo'
-import LocationPicker from '../components/LocationPicker'
+import { LABELS, kindOf } from '../labels'
 import VoiceButton from '../components/VoiceButton'
 import { usePlanAccess } from '../lib/plan'
 import { aiExtractProperty } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
 import { useAuth } from '../lib/auth'
-import { IconCamera, IconLocate, IconSparkles, IconUpload } from '../components/icons'
-import { getPosition, isNativeApp, takePhoto } from '../lib/native'
+import { IconSparkles } from '../components/icons'
+import { getPosition } from '../lib/native'
 import { compressImage } from '../lib/image'
-import { TypeIcon, ZoneSwatch, typeColor } from '../lib/propertyStyle'
 import { loadThaiLocations, type ThaiLocations } from '../lib/thaiLocations'
+import { StepDetails, StepLocation, StepMedia, StepPrice, StepType } from './form/steps'
+import {
+  browserStore, clearDraft, draftAgeText, draftTimeText, loadDraft, saveDraft, type FormDraft,
+} from '../lib/draft'
 
 const emptyForm: PropertyInput = {
   code: '',
@@ -29,6 +30,8 @@ const emptyForm: PropertyInput = {
   deed_no: null,
   property_type: null,
   listing_type: null,
+  agreement_type: null,
+  contact_form: null,
   subdistrict: null,
   district: null,
   province: null,
@@ -85,6 +88,25 @@ const emptyForm: PropertyInput = {
   road_frontage: null,
   road_width: null,
   utilities: null,
+  house_direction: null,
+  appliance_counts: null,
+  land_rai: null,
+  land_ngan: null,
+  land_wa: null,
+  rooms: null,
+  ceiling_height: null,
+  floor_height: null,
+  floor_raise_cm: null,
+  has_crane: null,
+  near_main_road: null,
+  standalone_building: null,
+  container_access: null,
+  wastewater_pond: null,
+  water_payee: null,
+  power_payee: null,
+  common_fee_payee: null,
+  nearby_places: null,
+  vat: null,
   video_url: null,
   documents: [],
   lat: null,
@@ -93,139 +115,17 @@ const emptyForm: PropertyInput = {
   notes: null,
 }
 
-/** กลุ่มฟอร์มตามประเภททรัพย์ — ประเภทอื่น/ยังไม่เลือก = เชิงพาณิชย์/อุตสาหกรรม (ฟอร์มเดิม) */
-type FormKind = 'house' | 'condo' | 'land' | 'general'
-function kindOf(propertyType: string | null): FormKind {
-  if (propertyType === 'บ้าน') return 'house'
-  if (propertyType === 'คอนโด') return 'condo'
-  if (propertyType === 'ที่ดินเปล่า') return 'land'
-  return 'general'
-}
+/** 5 สเต็ปตาม spec "HOP Form" (docs/hop-form-spec.md) */
+const STEPS = ['ประเภททรัพย์', 'ที่ตั้ง', 'รายละเอียด', 'ราคา', 'ลงภาพ'] as const
 
-type TextKey = {
-  [K in keyof PropertyInput]: PropertyInput[K] extends string | null ? K : never
-}[keyof PropertyInput]
-type NumKey = {
-  [K in keyof PropertyInput]: PropertyInput[K] extends number | null ? K : never
-}[keyof PropertyInput]
-type ListKey = {
-  [K in keyof PropertyInput]: PropertyInput[K] extends string[] | null ? K : never
-}[keyof PropertyInput]
-
-interface FieldProps<K> {
-  name: K
-  form: PropertyInput
-  set: <P extends keyof PropertyInput>(key: P, value: PropertyInput[P]) => void
-  required?: boolean
-}
-
-function TextField({ name, form, set, required, type = 'text' }: FieldProps<TextKey> & { type?: string }) {
-  return (
-    <div className="form-field">
-      <label>
-        {LABELS[name]} {required && <span className="req">*</span>}
-      </label>
-      <input
-        type={type}
-        required={required}
-        value={form[name] ?? ''}
-        onChange={(e) => set(name, e.target.value || null)}
-      />
-    </div>
-  )
-}
-
-function NumberField({ name, form, set, required }: FieldProps<NumKey>) {
-  return (
-    <div className="form-field">
-      <label>
-        {LABELS[name]} {required && <span className="req">*</span>}
-      </label>
-      <input
-        type="number"
-        step="any"
-        required={required}
-        value={form[name] ?? ''}
-        onChange={(e) => set(name, e.target.value === '' ? null : Number(e.target.value))}
-      />
-    </div>
-  )
-}
-
-function ButtonsField({
-  name, form, set, required, options, icon, color,
-}: FieldProps<TextKey> & {
-  options: string[]
-  icon?: (o: string) => React.ReactNode
-  color?: (o: string) => string | undefined
-}) {
-  return (
-    <div className="form-field">
-      <label>
-        {LABELS[name]} {required && <span className="req">*</span>}
-      </label>
-      <div className="btn-group">
-        {options.map((o) => {
-          const on = form[name] === o
-          const c = color?.(o)
-          return (
-            <button
-              key={o}
-              type="button"
-              className={`opt ${on ? 'on' : ''}`}
-              style={on && c ? { background: `${c}1a`, borderColor: c, color: c } : undefined}
-              onClick={() => set(name, on ? null : o)}
-            >
-              {icon?.(o)}{o}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function ComboField({
-  name, form, set, required, options, renderOption,
-}: FieldProps<TextKey> & { options: string[]; renderOption?: (o: string) => React.ReactNode }) {
-  return (
-    <div className="form-field">
-      <label>
-        {LABELS[name]} {required && <span className="req">*</span>}
-      </label>
-      <Combo
-        value={form[name]}
-        onChange={(v) => set(name, v)}
-        options={options}
-        required={required}
-        placeholder="เลือกหรือพิมพ์เพิ่ม…"
-        renderOption={renderOption}
-      />
-    </div>
-  )
-}
-
-function MultiField({ name, form, set, options }: FieldProps<ListKey> & { options: string[] }) {
-  return (
-    <div className="form-field">
-      <label>{LABELS[name]}</label>
-      <MultiSelect
-        values={form[name] ?? []}
-        onChange={(v) => set(name, v)}
-        options={options}
-      />
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="form-card">
-      <h3>{title}</h3>
-      {children}
-    </section>
-  )
-}
+/** ฟิลด์บังคับของแต่ละสเต็ป — ตรวจตอนกด "ถัดไป" (สเต็ปที่ไม่ได้เรนเดอร์ browser ตรวจให้ไม่ได้) */
+const REQUIRED_BY_STEP: (keyof PropertyInput)[][] = [
+  ['property_type', 'listing_type', 'lessor_name', 'phone', 'record_date', 'code'],
+  ['province', 'district', 'subdistrict'],
+  [],
+  [],
+  [],
+]
 
 export default function FormPage() {
   const { id } = useParams()
@@ -247,7 +147,30 @@ export default function FormPage() {
   })
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [step, setStep] = useState(0)
   const editing = Boolean(id)
+
+  // ── ร่างอัตโนมัติ (เฉพาะเพิ่มทรัพย์ใหม่) ──
+  // pendingDraft = ร่างที่เจอตอนเปิดหน้า ยังไม่ตัดสินใจว่าจะกู้คืนหรือทิ้ง
+  // ระหว่างนั้น "ห้ามเขียนร่างทับ" ไม่งั้นฟอร์มเปล่าจะลบร่างเดิมทิ้งทันที
+  const [store] = useState(() => (typeof window === 'undefined' ? null : browserStore()))
+  const [pendingDraft, setPendingDraft] = useState<FormDraft | null>(null)
+  const [savedDraftAt, setSavedDraftAt] = useState<string | null>(null)
+  useEffect(() => {
+    if (editing) return
+    const d = loadDraft(store)
+    if (d) setPendingDraft(d)
+  }, [editing, store])
+
+  useEffect(() => {
+    if (editing || pendingDraft) return
+    // หน่วงไว้ 800ms กันเขียนทุกตัวอักษรที่พิมพ์
+    const t = setTimeout(() => {
+      const d = saveDraft(store, form, emptyForm, step)
+      setSavedDraftAt(d?.savedAt ?? null)
+    }, 800)
+    return () => clearTimeout(t)
+  }, [form, step, editing, pendingDraft, store])
 
   // ── จังหวัด → เขต/อำเภอ → แขวง/ตำบล (เลือกต่อเนื่อง) ──
   // ข้อมูลโหลด lazy · ยังพิมพ์เองได้เสมอ (Combo) เผื่อชื่อไม่ตรงชุดข้อมูล/โหลดไม่สำเร็จ
@@ -416,6 +339,39 @@ export default function FormPage() {
       )
   }
 
+  const kind = kindOf(form.property_type)
+
+  /** ตรวจสเต็ปเดียว — คืนข้อความปัญหา (null = ผ่าน) */
+  function checkStep(i: number): string | null {
+    const missing = REQUIRED_BY_STEP[i].filter((k) => {
+      const v = form[k]
+      return v === null || v === undefined || v === ''
+    })
+    if (missing.length) return `กรอกให้ครบก่อน: ${missing.map((k) => LABELS[k]).join(', ')}`
+    // เอกสารสิทธิ์ — spec บังคับสำเนาโฉนดหน้า-หลังสำหรับบ้าน/คอนโด/ที่ดิน
+    // ทรัพย์ใหม่บังคับจริง · ทรัพย์เดิม (แก้ไข) เตือนแต่ไม่บล็อก เพื่อไม่ให้แก้ข้อมูลเก่าไม่ได้
+    if (i === 2 && !editing && ['house', 'condo', 'land'].includes(kind) && (form.documents ?? []).length === 0) {
+      return 'ต้องแนบสำเนาโฉนด (ด้านหน้าและด้านหลัง) ก่อนไปขั้นถัดไป'
+    }
+    return null
+  }
+
+  /** ไปสเต็ปที่ต้องการ — เดินหน้าต้องผ่านการตรวจของสเต็ปก่อนๆ (ตอนแก้ไขข้ามได้อิสระ) */
+  function goStep(next: number) {
+    if (next > step && !editing) {
+      for (let i = step; i < next; i++) {
+        const problem = checkStep(i)
+        if (problem) {
+          setStep(i)
+          alert(problem)
+          return
+        }
+      }
+    }
+    setStep(next)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!supabaseConfigured) {
@@ -426,6 +382,18 @@ export default function FormPage() {
       alert('เลือกองค์กรเจ้าของทรัพย์ก่อนบันทึก')
       return
     }
+    // ตรวจทุกสเต็ปก่อนบันทึก (ผู้ใช้อาจกดข้ามมาตอนแก้ไข)
+    for (let i = 0; i < STEPS.length; i++) {
+      const problem = checkStep(i)
+      if (problem) {
+        setStep(i)
+        alert(problem)
+        return
+      }
+    }
+    if (editing && ['house', 'condo', 'land'].includes(kind) && (form.documents ?? []).length === 0) {
+      if (!window.confirm('ทรัพย์นี้ยังไม่มีเอกสารสิทธิ์แนบ (spec กำหนดว่าต้องมีสำเนาโฉนด) — บันทึกต่อไหม?')) return
+    }
     setSaving(true)
     // super ระบุองค์กรปลายทางเอง / สมาชิกปกติปล่อยให้ระบบผูกองค์กรตัวเองอัตโนมัติ
     const payload = superOverview ? { ...form, org_id: formOrg } : { ...form }
@@ -435,16 +403,15 @@ export default function FormPage() {
     setSaving(false)
     if (res.error) alert(`บันทึกไม่สำเร็จ: ${res.error.message}`)
     else {
+      // บันทึกเข้า DB แล้ว ร่างไม่จำเป็นอีก (ลบเฉพาะกรณีเพิ่มใหม่ — ตอนแก้ไขไม่ได้แตะร่างของทรัพย์ใหม่)
+      if (!editing) clearDraft(store)
       logActivity(editing ? 'property.update' : 'property.create', form.code || null)
       navigate('/')
     }
   }
 
   const fp = { form, set }
-  // ฟอร์มโชว์เฉพาะฟิลด์ที่เกี่ยวกับประเภทที่เลือก (ตาม requirement.md) —
-  // สลับประเภทไม่ล้างค่าที่กรอกแล้ว ฟิลด์ที่ซ่อนยังบันทึกค่าตามเดิม
-  const kind = kindOf(form.property_type)
-  const isHome = kind === 'house' || kind === 'condo'
+  const lastStep = step === STEPS.length - 1
 
   return (
     <>
@@ -452,7 +419,55 @@ export default function FormPage() {
         <h1>{editing ? `แก้ไข ${form.code || ''}` : 'เพิ่มทรัพย์ใหม่'}</h1>
       </div>
       <form className="form-wrap" onSubmit={handleSubmit}>
-        {superOverview && orgChoices.length > 0 && (
+        {/* ร่างที่ค้างอยู่จากครั้งก่อน — ให้ผู้ใช้เลือกเอง ไม่ยัดใส่ฟอร์มเงียบๆ */}
+        {pendingDraft && (
+          <div className="draft-banner">
+            <div className="draft-text">
+              <b>พบร่างที่กรอกค้างไว้</b> {draftAgeText(pendingDraft.savedAt)}
+              {STEPS[pendingDraft.step] && ` · ค้างที่ขั้น ${pendingDraft.step + 1} ${STEPS[pendingDraft.step]}`}
+            </div>
+            <div className="draft-actions">
+              <button
+                type="button"
+                className="btn sm primary"
+                onClick={() => {
+                  setForm({ ...emptyForm, ...pendingDraft.form })
+                  setStep(Math.min(Math.max(pendingDraft.step, 0), STEPS.length - 1))
+                  setPendingDraft(null)
+                }}
+              >
+                กรอกต่อจากร่าง
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => {
+                  clearDraft(store)
+                  setPendingDraft(null)
+                }}
+              >
+                เริ่มใหม่ (ทิ้งร่าง)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* แถบสเต็ป — กดข้ามได้ (ตอนเพิ่มทรัพย์ใหม่ต้องกรอกฟิลด์บังคับของสเต็ปก่อนๆ ให้ครบ) */}
+        <div className="wiz-steps">
+          {STEPS.map((s, i) => (
+            <button
+              key={s}
+              type="button"
+              className={`wiz-step ${i === step ? 'on' : ''} ${i < step ? 'done' : ''}`}
+              onClick={() => goStep(i)}
+            >
+              <span className="wiz-num">{i + 1}</span>
+              <span className="wiz-name">{s}</span>
+            </button>
+          ))}
+        </div>
+
+        {superOverview && orgChoices.length > 0 && step === 0 && (
           <section className="form-card">
             <div className="form-field" style={{ marginBottom: 4 }}>
               <label>องค์กรเจ้าของทรัพย์ <span className="req">*</span></label>
@@ -466,13 +481,14 @@ export default function FormPage() {
             <p className="ai-hint">คุณกำลังบันทึกในนามองค์กรลูกค้า (ส่วนนี้เห็นเฉพาะ super admin)</p>
           </section>
         )}
-        {access.ai && (
+
+        {access.ai && step === 0 && (
         <section className="form-card ai-card">
           <h3><IconSparkles size={16} /> บันทึกด่วนด้วยเสียงหรือข้อความ</h3>
           <p className="ai-hint">
             กด "พูด" แล้วเล่ารายละเอียดทรัพย์รวดเดียว (ทำเล ขนาด ราคา สเปก เจ้าของ เบอร์โทร…)
             หรือวางข้อความจากแชท แล้วให้ AI กรอกลงฟอร์มให้ — กรอกทับเฉพาะฟิลด์ที่พูดถึง
-            อย่าลืมตรวจก่อนบันทึก
+            อย่าลืมตรวจทุกสเต็ปก่อนบันทึก
           </p>
           <div className="form-field">
             <textarea
@@ -501,360 +517,71 @@ export default function FormPage() {
           {aiFilled && (
             <div className="auth-notice" style={{ marginTop: 10 }}>
               กรอกให้แล้ว {aiFilled.length} ฟิลด์: {aiFilled.map((f) => LABELS[f]).join(', ')} —
-              ตรวจความถูกต้องด้านล่างก่อนบันทึก
+              ตรวจความถูกต้องทุกสเต็ปก่อนบันทึก
             </div>
           )}
         </section>
         )}
 
-        <Section title="ประเภทและทำเล">
-          <ButtonsField name="property_type" options={OPTIONS.property_type} required {...fp}
-            icon={(o) => <TypeIcon type={o} size={20} />} color={typeColor} />
-          {isHome && SUB_TYPE_BY_TYPE[form.property_type!] && (
-            <ButtonsField name="sub_type" options={SUB_TYPE_BY_TYPE[form.property_type!]} {...fp} />
-          )}
-          <ButtonsField name="listing_type" options={OPTIONS.listing_type} required {...fp} />
-          {isHome && <TextField name="project_name" {...fp} />}
-          <div className="form-grid-2">
-            <div className="form-field">
-              <label>{LABELS.province} <span className="req">*</span></label>
-              <Combo
-                value={form.province}
-                options={provinceOptions}
-                required
-                placeholder="เลือกจังหวัด…"
-                onChange={(v) =>
-                  // เปลี่ยนจังหวัด = เขต/แขวงเดิมใช้ไม่ได้แล้ว ล้างให้เลือกใหม่
-                  setForm((f) => ({ ...f, province: v, district: null, subdistrict: null }))}
-              />
-            </div>
-            <div className="form-field">
-              <label>{LABELS.district} <span className="req">*</span></label>
-              <Combo
-                value={form.district}
-                options={districtOptions}
-                required
-                placeholder={form.province ? 'เลือกเขต/อำเภอ…' : 'เลือกจังหวัดก่อน'}
-                onChange={(v) => setForm((f) => ({ ...f, district: v, subdistrict: null }))}
-              />
-            </div>
-            <div className="form-field">
-              <label>{LABELS.subdistrict} <span className="req">*</span></label>
-              <Combo
-                value={form.subdistrict}
-                options={subdistrictOptions}
-                required
-                placeholder={form.district ? 'เลือกแขวง/ตำบล…' : 'เลือกเขต/อำเภอก่อน'}
-                onChange={(v) => set('subdistrict', v)}
-              />
-            </div>
-            {!isHome && (
-              <ComboField
-                name="color_zone" options={OPTIONS.color_zone} required {...fp}
-                renderOption={(o) => <><ZoneSwatch zone={o} />{o}</>}
-              />
-            )}
-          </div>
-          {kind === 'general' && <MultiField name="zones" options={OPTIONS.zones} {...fp} />}
-          <TextField name="nearby" {...fp} />
-        </Section>
-
-        <Section title="ข้อมูลทั่วไป">
-          <div className="form-grid-2">
-            <TextField name="record_date" type="date" required {...fp} />
-            <TextField name="code" required {...fp} />
-          </div>
-          <div className="form-field">
-            <label>{LABELS.photo_url} <span className="photo-count">{(form.photos ?? []).length}/{MAX_PHOTOS}</span></label>
-            <div className="photo-grid">
-              {(form.photos ?? []).map((url, idx) => (
-                <div className="photo-item" key={url}>
-                  <img src={url} alt={`รูป ${idx + 1}`} />
-                  {idx === 0
-                    ? <span className="photo-cover">ปก</span>
-                    : <button type="button" className="photo-setcover" onClick={() => setCover(url)}>ตั้งเป็นปก</button>}
-                  <button type="button" className="photo-x" title="ลบรูปนี้" onClick={() => removePhoto(url)}>✕</button>
-                </div>
-              ))}
-              {(form.photos ?? []).length < MAX_PHOTOS && (
-                <label className="photo-add">
-                  {uploading
-                    ? <span>กำลังอัปโหลด…</span>
-                    : <><IconCamera size={20} /><span>เพิ่มรูป</span></>}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      if (e.target.files?.length) void addPhotos(Array.from(e.target.files))
-                      e.target.value = ''
-                    }}
-                  />
-                </label>
-              )}
-            </div>
-            {isNativeApp && (form.photos ?? []).length < MAX_PHOTOS && (
-              <button
-                type="button"
-                className="btn photo-camera-btn"
-                disabled={uploading}
-                onClick={async () => {
-                  const file = await takePhoto()
-                  if (file) void addPhotos([file])
-                }}
-              >
-                <IconCamera size={16} /> ถ่ายรูปด้วยกล้อง
-              </button>
-            )}
-            <p className="photo-hint">รูปที่มีป้าย "ปก" จะโชว์ในรายการ/แผนที่ · กด "ตั้งเป็นปก" เพื่อเปลี่ยน · สูงสุด {MAX_PHOTOS} รูป</p>
-          </div>
-          <TextField name="video_url" type="url" {...fp} />
-        </Section>
-
-        <Section title="เจ้าของทรัพย์ (ผู้ให้เช่า/ผู้ขาย)">
-          <ComboField name="lessor_status" options={OPTIONS.lessor_status} {...fp} />
-          <TextField name="lessor_company" {...fp} />
-          <div className="form-grid-2">
-            <TextField name="lessor_name" required {...fp} />
-            <TextField name="phone" type="tel" required {...fp} />
-          </div>
-          <TextField name="deed_no" {...fp} />
-        </Section>
-
-        <Section title="เอกสารสิทธิ์">
-          {(form.documents ?? []).map((d, i) => (
-            <div key={d.url} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              <input
-                list="doc-name-options"
-                value={d.name}
-                placeholder="ชื่อเอกสาร เช่น สำเนาโฉนดที่ดิน (ด้านหน้า)"
-                style={{ flex: 1 }}
-                onChange={(e) => renameDoc(i, e.target.value)}
-              />
-              <a className="btn sm" href={d.url} target="_blank" rel="noreferrer">เปิด</a>
-              <button type="button" className="btn sm danger" title="ลบเอกสารนี้" onClick={() => removeDoc(i)}>✕</button>
-            </div>
-          ))}
-          <datalist id="doc-name-options">
-            {DOC_NAME_OPTIONS.map((n) => <option key={n} value={n} />)}
-          </datalist>
-          {(form.documents ?? []).length < MAX_DOCS && (
-            <label className="btn" style={{ cursor: 'pointer' }}>
-              <IconUpload size={16} /> {docUploading ? 'กำลังอัปโหลด…' : 'แนบเอกสาร (รูปหรือ PDF)'}
-              <input
-                type="file"
-                multiple
-                accept="image/*,application/pdf"
-                style={{ display: 'none' }}
-                disabled={docUploading}
-                onChange={(e) => {
-                  if (e.target.files?.length) void addDocs(Array.from(e.target.files))
-                  e.target.value = ''
-                }}
-              />
-            </label>
-          )}
-          <p className="ai-hint">
-            สำเนาโฉนดที่ดินควรมีทั้งด้านหน้าและด้านหลัง{kind === 'condo' ? ' (คอนโดใช้ใบ อ.ช.2)' : ' · ใบ ทด.13 ไม่มีก็ได้'} —
-            แนบแล้วแก้ชื่อเอกสารในช่องให้รู้ว่าเป็นใบอะไร
-          </p>
-        </Section>
-
-        <Section title="ขนาดพื้นที่">
-          {kind === 'general' && (
-            <>
-              <div className="form-grid-2">
-                <TextField name="land_wxd" {...fp} />
-                <TextField name="land_area" {...fp} />
-                <NumberField name="building_area" {...fp} />
-                <TextField name="building_wxd" {...fp} />
-              </div>
-              <ComboField name="office_floors" options={OPTIONS.office_floors} {...fp} />
-              <div className="form-grid-2">
-                <NumberField name="office_area_fl1" {...fp} />
-                <NumberField name="office_area_total" {...fp} />
-              </div>
-              <NumberField name="building_area_total" {...fp} />
-            </>
-          )}
-          {kind === 'house' && (
-            <>
-              <div className="form-grid-2">
-                <TextField name="land_area" {...fp} />
-                <NumberField name="usable_area" {...fp} />
-              </div>
-              <ComboField name="floors" options={OPTIONS.floors} {...fp} />
-              <p className="ai-hint">ขนาดที่ดินหน่วยตารางวา เช่น "54 ตร.วา" · พื้นที่ใช้สอยหน่วยตารางเมตร</p>
-            </>
-          )}
-          {kind === 'condo' && <NumberField name="usable_area" {...fp} />}
-          {kind === 'land' && (
-            <>
-              <div className="form-grid-2">
-                <TextField name="land_wxd" {...fp} />
-                <TextField name="land_area" {...fp} />
-              </div>
-              <p className="ai-hint">ขนาดที่ดินใส่เป็น ไร่-งาน-ตารางวา เช่น "2 ไร่ 1 งาน 50 ตร.วา"</p>
-            </>
-          )}
-        </Section>
-
-        {isHome && (
-          <Section title="ห้องและการตกแต่ง">
-            {kind === 'house' && (
-              <div className="form-grid-2">
-                <NumberField name="bedrooms" {...fp} />
-                <NumberField name="bathrooms" {...fp} />
-                <NumberField name="kitchens" {...fp} />
-                <NumberField name="parking_spaces" {...fp} />
-              </div>
-            )}
-            {kind === 'house' && <ButtonsField name="maid_room" options={OPTIONS.maid_room} {...fp} />}
-            {kind === 'condo' && (
-              <>
-                <div className="form-grid-2">
-                  <NumberField name="bathrooms" {...fp} />
-                  <NumberField name="kitchens" {...fp} />
-                  <ComboField name="balcony_direction" options={OPTIONS.balcony_direction} {...fp} />
-                  <TextField name="unit_building" {...fp} />
-                </div>
-                <div className="form-grid-2">
-                  <TextField name="unit_floor" {...fp} />
-                  <NumberField name="tower_floors" {...fp} />
-                </div>
-                <NumberField name="tower_count" {...fp} />
-              </>
-            )}
-            <MultiField name="appliances" options={OPTIONS.appliances} {...fp} />
-            <ButtonsField name="furniture" options={OPTIONS.furniture} {...fp} />
-          </Section>
+        {step === 0 && <StepType {...fp} />}
+        {step === 1 && (
+          <StepLocation
+            {...fp}
+            kind={kind}
+            provinceOptions={provinceOptions}
+            districtOptions={districtOptions}
+            subdistrictOptions={subdistrictOptions}
+            // เปลี่ยนจังหวัด = เขต/แขวงเดิมใช้ไม่ได้แล้ว ล้างให้เลือกใหม่
+            onPickProvince={(v) => setForm((f) => ({ ...f, province: v, district: null, subdistrict: null }))}
+            onPickDistrict={(v) => setForm((f) => ({ ...f, district: v, subdistrict: null }))}
+            onPickLatLng={(la, ln) => setForm((f) => ({ ...f, lat: la, lng: ln }))}
+            onUseMyLocation={() => void useMyLocation()}
+          />
+        )}
+        {step === 2 && (
+          <StepDetails
+            {...fp}
+            kind={kind}
+            maxDocs={MAX_DOCS}
+            docUploading={docUploading}
+            onAddDocs={(files) => void addDocs(files)}
+            onRenameDoc={renameDoc}
+            onRemoveDoc={removeDoc}
+          />
+        )}
+        {step === 3 && <StepPrice {...fp} kind={kind} />}
+        {step === 4 && (
+          <StepMedia
+            {...fp}
+            maxPhotos={MAX_PHOTOS}
+            uploading={uploading}
+            onAddPhotos={(files) => void addPhotos(files)}
+            onRemovePhoto={removePhoto}
+            onSetCover={setCover}
+          />
         )}
 
-        {kind === 'land' && (
-          <Section title="ศักยภาพที่ดิน (ดูจากกฎหมายผังเมือง/LandsMaps)">
-            <div className="form-grid-2">
-              <TextField name="far_ratio" {...fp} />
-              <TextField name="osr_ratio" {...fp} />
-              <ComboField name="road_frontage" options={OPTIONS.road_frontage} {...fp} />
-              <NumberField name="road_width" {...fp} />
-            </div>
-            <ComboField name="utilities" options={OPTIONS.utilities} {...fp} />
-          </Section>
-        )}
-
-        <Section title="ราคาและค่าใช้จ่าย">
-          <div className="form-grid-2">
-            <NumberField name="rent_per_month" {...fp} />
-            {!isHome && <NumberField name="price_per_sqm" {...fp} />}
-          </div>
-          <NumberField name="sale_price" {...fp} />
-          {kind === 'general' && (
-            <>
-              <div className="form-grid-2">
-                <ComboField name="withholding_tax" options={OPTIONS.withholding_tax} {...fp} />
-                <ComboField name="land_building_tax" options={OPTIONS.land_building_tax} {...fp} />
-                <TextField name="common_fee" {...fp} />
-                <TextField name="electricity_rate" {...fp} />
-              </div>
-              <TextField name="water_rate" {...fp} />
-            </>
+        <div className="form-actions wiz-actions">
+          {step === 0
+            ? <button type="button" className="btn" onClick={() => navigate(-1)}>ยกเลิก</button>
+            : <button type="button" className="btn" onClick={() => goStep(step - 1)}>← ย้อนกลับ</button>}
+          <span className="wiz-count">
+            ขั้นที่ {step + 1} จาก {STEPS.length} · {STEPS[step]}
+            {!editing && savedDraftAt && draftTimeText(savedDraftAt) && (
+              <><br /><span className="draft-saved">💾 เก็บร่างไว้ให้แล้ว {draftTimeText(savedDraftAt)}</span></>
+            )}
+          </span>
+          {!lastStep && (
+            <button type="button" className="btn primary" onClick={() => goStep(step + 1)}>
+              ถัดไป →
+            </button>
           )}
-          {isHome && (
-            <>
-              <TextField name="common_fee" {...fp} />
-              <p className="ai-hint">{kind === 'house' ? 'ค่าส่วนกลางหน่วย บาท/ตร.วา (กรณีโครงการจัดสรร)' : 'ค่าส่วนกลางหน่วย บาท/ตร.ม.'}</p>
-            </>
+          {/* บันทึกได้จากทุกสเต็ปตอนแก้ไข · ตอนเพิ่มใหม่ให้กดที่สเต็ปสุดท้าย (ระบบตรวจทุกสเต็ปให้ก่อนบันทึกอยู่ดี) */}
+          {(lastStep || editing) && (
+            <button type="submit" className="btn primary" disabled={saving}>
+              {saving ? 'กำลังบันทึก…' : 'บันทึก'}
+            </button>
           )}
-          {kind !== 'general' && <ComboField name="transfer_fee" options={OPTIONS.transfer_fee} {...fp} />}
-        </Section>
-
-        {kind === 'general' && (
-          <Section title="สเปกอาคาร">
-            <div className="form-grid-2">
-              <NumberField name="door_count" {...fp} />
-              <TextField name="door_wxh" {...fp} />
-              <NumberField name="building_height" {...fp} />
-              <ComboField name="floor_load" options={OPTIONS.floor_load} {...fp} />
-            </div>
-            <ComboField name="power_system" options={OPTIONS.power_system} {...fp} />
-            <TextField name="water_per_day" {...fp} />
-          </Section>
-        )}
-
-        {kind !== 'land' && (
-          <Section title="เงื่อนไขสัญญา">
-            <div className="form-grid-2">
-              <ComboField name="contract_period" options={OPTIONS.contract_period} {...fp} />
-              <ComboField name="deposit" options={OPTIONS.deposit} {...fp} />
-            </div>
-            <ComboField name="advance_rent" options={OPTIONS.advance_rent} {...fp} />
-            <div className="form-grid-2">
-              <TextField name="contract_end" type="date" {...fp} />
-              {(() => {
-                // ปุ่มช่วยคำนวณ: เริ่มสัญญาวันนี้ + ระยะสัญญา (เช่น "3 ปี") = วันสิ้นสุด
-                const years = parseInt(form.contract_period ?? '', 10)
-                if (!Number.isInteger(years) || years <= 0) return null
-                return (
-                  <div className="form-field">
-                    <label>&nbsp;</label>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => {
-                        const d = new Date()
-                        d.setFullYear(d.getFullYear() + years)
-                        set('contract_end', d.toISOString().slice(0, 10))
-                      }}
-                    >
-                      เริ่มสัญญาวันนี้ +{years} ปี
-                    </button>
-                  </div>
-                )
-              })()}
-            </div>
-            <p className="ai-hint">กรอกวันสิ้นสุดสัญญาแล้วระบบแจ้งเตือนทีมล่วงหน้าก่อนสัญญาหมด (โอกาสต่อสัญญา/หาผู้เช่าใหม่)</p>
-          </Section>
-        )}
-
-        <Section title="คุณสมบัติและการใช้งาน">
-          <MultiField name="features" options={isHome ? RESIDENTIAL_FEATURES : OPTIONS.features} {...fp} />
-          {!isHome && <MultiField name="usages" options={OPTIONS.usages} {...fp} />}
-        </Section>
-
-        <Section title="ตำแหน่ง">
-          <div className="form-field">
-            <div className="pick-toolbar">
-              <span className="pick-hint">แตะบนแผนที่เพื่อปักตำแหน่ง หรือกรอกพิกัดด้านล่าง</span>
-              <button type="button" className="btn sm" onClick={() => void useMyLocation()}>
-                <IconLocate size={15} /> ตำแหน่งฉัน
-              </button>
-            </div>
-            <LocationPicker
-              lat={form.lat}
-              lng={form.lng}
-              onPick={(la, ln) => setForm((f) => ({ ...f, lat: la, lng: ln }))}
-            />
-          </div>
-          <div className="form-grid-2">
-            <NumberField name="lat" {...fp} />
-            <NumberField name="lng" {...fp} />
-          </div>
-          <TextField name="map_url" type="url" {...fp} />
-          <div className="form-field">
-            <label>{LABELS.notes}</label>
-            <textarea
-              value={form.notes ?? ''}
-              onChange={(e) => set('notes', e.target.value || null)}
-            />
-          </div>
-        </Section>
-
-        <div className="form-actions">
-          <button type="button" className="btn" onClick={() => navigate(-1)}>ยกเลิก</button>
-          <button type="submit" className="btn primary" disabled={saving}>
-            {saving ? 'กำลังบันทึก…' : 'บันทึก'}
-          </button>
         </div>
       </form>
     </>

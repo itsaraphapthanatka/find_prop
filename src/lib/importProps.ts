@@ -1,9 +1,14 @@
 import type { PropertyInput } from '../types'
 import { LABELS } from '../labels'
 
-/** ฟิลด์ที่นำเข้าได้ เรียงตามลำดับใน LABELS — ยกเว้น documents (ไฟล์แนบ ไม่ใช่ค่าจากเซลล์) */
+/**
+ * ฟิลด์ที่นำเข้าได้ เรียงตามลำดับใน LABELS
+ * ยกเว้นฟิลด์ที่ไม่ใช่ค่าจากเซลล์เดียว: documents (ไฟล์แนบ),
+ * nearby_places / appliance_counts (โครงสร้างซ้อน กรอกในฟอร์มเท่านั้น)
+ */
+const NON_IMPORTABLE = new Set<keyof PropertyInput>(['documents', 'nearby_places', 'appliance_counts'])
 export const IMPORT_FIELDS = (Object.keys(LABELS) as (keyof PropertyInput)[]).filter(
-  (f) => f !== 'documents',
+  (f) => !NON_IMPORTABLE.has(f),
 )
 
 export const NUM_FIELDS = new Set<keyof PropertyInput>([
@@ -11,10 +16,61 @@ export const NUM_FIELDS = new Set<keyof PropertyInput>([
   'rent_per_month', 'price_per_sqm', 'sale_price', 'door_count', 'building_height',
   'usable_area', 'bedrooms', 'bathrooms', 'kitchens', 'parking_spaces',
   'tower_floors', 'tower_count', 'road_width',
+  'land_rai', 'land_ngan', 'land_wa', 'rooms', 'ceiling_height', 'floor_height', 'floor_raise_cm',
   'lat', 'lng',
 ])
 export const ARRAY_FIELDS = new Set<keyof PropertyInput>(['zones', 'features', 'usages', 'appliances'])
 export const DATE_FIELDS = new Set<keyof PropertyInput>(['record_date', 'contract_end'])
+/** ฟิลด์ ใช่/ไม่ (สเปกโกดัง-โรงงาน) — รับได้ทั้ง ใช่/มี/true/1 */
+export const BOOL_FIELDS = new Set<keyof PropertyInput>([
+  'has_crane', 'near_main_road', 'standalone_building', 'container_access',
+])
+
+/**
+ * ป้ายชื่อฟิลด์ยุคก่อน (แบบมีขีดล่างตาม AppSheet) — ไฟล์/เทมเพลตที่ดาวน์โหลดไปก่อนหน้านี้
+ * ยังนำเข้าได้เหมือนเดิม ไม่ต้องแก้หัวคอลัมน์
+ */
+const LEGACY_LABELS: Record<string, keyof PropertyInput> = {
+  'วันที่': 'record_date',
+  'รูป': 'photo_url',
+  'PIC': 'pic',
+  'สถานะ_เจ้าของทรัพย์': 'lessor_status',
+  'ชื่อบริษัท_เจ้าของทรัพย์': 'lessor_company',
+  'ชื่อเจ้าของทรัพย์': 'lessor_name',
+  'เช่า_หรือ_ขาย': 'listing_type',
+  'พื้นที่สี': 'color_zone',
+  'โซน': 'zones',
+  'กว้าง x ลึก ที่ดิน': 'land_wxd',
+  'ขนาด_ที่ดิน_รวม': 'land_area',
+  'ขนาด_อาคาร (ตร.ม.)': 'building_area',
+  'กว้าง x ลึก อาคาร': 'building_wxd',
+  'จำนวน_ชั้น_ออฟฟิศ': 'office_floors',
+  'ขนาด_ออฟฟิศ_ชั้น 1': 'office_area_fl1',
+  'ขนาด_ออฟฟิศ_รวม': 'office_area_total',
+  'ขนาด_อาคาร_รวม': 'building_area_total',
+  'ราคา_เช่า/เดือน': 'rent_per_month',
+  'ราคา/ตร.ม.': 'price_per_sqm',
+  'ภาษีหัก_ณ_ที่จ่าย': 'withholding_tax',
+  'ภาษีที่ดิน_และ_สิ่งปลูกสร้าง': 'land_building_tax',
+  'ค่าไฟฟ้า': 'electricity_rate',
+  'ค่าน้ำประปา': 'water_rate',
+  'จำนวน_ประตู': 'door_count',
+  'ประตู_กว้าง x ยาว': 'door_wxh',
+  'ความสูง_อาคาร': 'building_height',
+  'รับน้ำหนัก (ตัน)': 'floor_load',
+  'ระบบ_ไฟฟ้า': 'power_system',
+  'จำนวนน้ำ_ที่ใช้ได้ต่อวัน': 'water_per_day',
+  'ระยะ_เวลา_สัญญา': 'contract_period',
+  'ค่าประกัน': 'deposit',
+  'ค่าเช่า_ล่วงหน้า': 'advance_rent',
+  'การใช้งาน': 'usages',
+  'ห้องนอน': 'bedrooms',
+  'ห้องน้ำ': 'bathrooms',
+  'ห้องครัว': 'kitchens',
+  'วิดีโอ (ลิงก์)': 'video_url',
+  'แผนที่ (ลิงก์)': 'map_url',
+  'หมายเหตุ_ถ้ามี': 'notes',
+}
 
 /** ชื่อเรียกอื่นที่พบบ่อยในไฟล์จริง (นอกเหนือจากป้าย LABELS และชื่อฟิลด์อังกฤษ) */
 const ALIASES: Record<string, keyof PropertyInput> = {
@@ -22,11 +78,13 @@ const ALIASES: Record<string, keyof PropertyInput> = {
   'วันที่บันทึก': 'record_date', 'date': 'record_date',
   'รูปภาพ': 'photo_url', 'photo': 'photo_url', 'image': 'photo_url',
   'เบอร์โทร': 'phone', 'โทรศัพท์': 'phone', 'tel': 'phone',
-  // ชื่อป้ายเดิมยุค "ผู้ให้เช่า" — ไฟล์/เทมเพลตเก่ายังนำเข้าได้
+  // ชื่อป้ายเดิมยุค "ผู้ให้เช่า" / "เจ้าของทรัพย์" — ไฟล์/เทมเพลตเก่ายังนำเข้าได้
   'สถานะ_ผู้ให้เช่า': 'lessor_status', 'ชื่อบริษัท_ผู้ให้เช่า': 'lessor_company',
   'ชื่อผู้ให้เช่า': 'lessor_name', 'เจ้าของ': 'lessor_name', 'ชื่อเจ้าของ': 'lessor_name',
+  'สถานะ_เจ้าของทรัพย์': 'lessor_status', 'ชื่อบริษัท_เจ้าของทรัพย์': 'lessor_company',
+  'ชื่อเจ้าของทรัพย์': 'lessor_name',
   'ประเภท': 'property_type',
-  'เช่าหรือขาย': 'listing_type', 'เช่า/ขาย': 'listing_type',
+  'เช่าหรือขาย': 'listing_type', 'เช่า/ขาย': 'listing_type', 'สำหรับ': 'listing_type',
   'ตำบล': 'subdistrict', 'แขวง': 'subdistrict',
   'อำเภอ': 'district', 'เขต': 'district',
   'ค่าเช่า': 'rent_per_month', 'ค่าเช่า/เดือน': 'rent_per_month', 'ราคาเช่า': 'rent_per_month',
@@ -49,6 +107,8 @@ export function autoMapColumns(headers: string[]): Record<string, keyof Property
     byLabel.set(normalizeHeader(LABELS[f]), f)
     byLabel.set(normalizeHeader(f), f)
   }
+  // ป้ายเดิม → ป้ายใหม่ ก่อน แล้วค่อยทับด้วย ALIASES (ชื่อเรียกที่คนใช้กันจริง)
+  for (const [old, f] of Object.entries(LEGACY_LABELS)) byLabel.set(normalizeHeader(old), f)
   for (const [alias, f] of Object.entries(ALIASES)) byLabel.set(normalizeHeader(alias), f)
 
   const used = new Set<keyof PropertyInput>()
@@ -98,6 +158,14 @@ function toIso(y: number, mo: number, d: number): string | null {
 export function convertValue(field: keyof PropertyInput, raw: unknown): PropertyInput[keyof PropertyInput] {
   if (raw === null || raw === undefined) return null
   if (DATE_FIELDS.has(field)) return parseDateValue(raw)
+  if (BOOL_FIELDS.has(field)) {
+    if (typeof raw === 'boolean') return raw
+    const s = String(raw).trim().toLowerCase()
+    if (s === '') return null
+    if (['ใช่', 'มี', 'true', '1', 'y', 'yes'].includes(s)) return true
+    if (['ไม่', 'ไม่ใช่', 'ไม่มี', 'false', '0', 'n', 'no'].includes(s)) return false
+    return null
+  }
   if (NUM_FIELDS.has(field)) {
     if (typeof raw === 'number') return isFinite(raw) ? raw : null
     const n = Number(String(raw).replace(/[,฿\s]/g, ''))

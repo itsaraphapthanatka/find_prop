@@ -4,6 +4,15 @@ export interface PropertyDoc {
   url: string
 }
 
+/** สถานที่สำคัญใกล้ทรัพย์ + ระยะทาง (ตาม HOP Form STEP 2) */
+export interface NearbyPlace {
+  name: string
+  km: number | null
+}
+
+/** จำนวนเครื่องใช้ไฟฟ้าที่ให้ แยกตามชนิด เช่น { "แอร์": 3 } */
+export type ApplianceCounts = Record<string, number>
+
 export interface Property {
   id: string
   code: string
@@ -12,6 +21,7 @@ export interface Property {
   /** แกลเลอรีรูป (สูงสุด 10) — photos[0] = รูปปก = photo_url */
   photos: string[] | null
   pic: string | null
+  /** สถานะผู้ติดต่อ: เจ้าของ / เอเจนต์ (ค่าเดิม บุคคล/บริษัท ย้ายไป contact_form แล้ว) */
   lessor_status: string | null
   lessor_company: string | null
   lessor_name: string | null
@@ -19,6 +29,11 @@ export interface Property {
   deed_no: string | null
   property_type: string | null
   listing_type: string | null
+  // ── HOP Form STEP 1 (ดู docs/hop-form-spec.md) ──
+  /** ประเภทสัญญานายหน้า: ปิด (exclusive) / เปิด (open) */
+  agreement_type: string | null
+  /** รูปแบบผู้ติดต่อ: บุคคล / นิติบุคคล */
+  contact_form: string | null
   subdistrict: string | null
   district: string | null
   province: string | null
@@ -78,6 +93,37 @@ export interface Property {
   road_frontage: string | null
   road_width: number | null
   utilities: string | null
+  // ── HOP Form STEP 3 รายละเอียด (ดู docs/hop-form-spec.md) ──
+  /** บ้านหันหน้าทิศ */
+  house_direction: string | null
+  /** จำนวนเครื่องใช้ไฟฟ้าต่อชนิด — คู่กับ appliances ที่เป็นรายการชนิด */
+  appliance_counts: ApplianceCounts | null
+  /** ขนาดที่ดินแบบไทย (แทน land_area ที่เป็นข้อความ — ข้อความเดิมยังอ่านได้) */
+  land_rai: number | null
+  land_ngan: number | null
+  land_wa: number | null
+  /** จำนวนห้อง (ออฟฟิศ/โฮมออฟฟิศ) */
+  rooms: number | null
+  /** ความสูงของเพดาน (ม.) */
+  ceiling_height: number | null
+  /** ความสูงอาคารต่อชั้น (ม.) */
+  floor_height: number | null
+  /** พื้นอาคารยกสูง (ซม.) */
+  floor_raise_cm: number | null
+  has_crane: boolean | null
+  near_main_road: boolean | null
+  standalone_building: boolean | null
+  container_access: boolean | null
+  /** บ่อบำบัดน้ำเสีย: มี / ไม่มี (โรงงาน) */
+  wastewater_pond: string | null
+  /** ค่าน้ำ/ค่าไฟ/ค่าส่วนกลาง ชำระกับใคร (ราคาต่อหน่วยอยู่ที่ water_rate/electricity_rate/common_fee) */
+  water_payee: string | null
+  power_payee: string | null
+  common_fee_payee: string | null
+  /** สถานที่สำคัญใกล้เคียง + ระยะทาง (nearby = ข้อความอิสระ ยังใช้ได้ตามเดิม) */
+  nearby_places: NearbyPlace[] | null
+  /** VAT: รวมแล้ว / ไม่รวม */
+  vat: string | null
   video_url: string | null
   documents: PropertyDoc[] | null
   lat: number | null
