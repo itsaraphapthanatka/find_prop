@@ -112,9 +112,21 @@ export default function LogsPage() {
   const [group, setGroup] = useState('')
   const [q, setQ] = useState('')
   const [hasMore, setHasMore] = useState(false)
+  // ── องค์กร: แอดมินเห็นแค่องค์กรตัวเอง (RLS คุม) · super เห็นทุกองค์กร จึงต้องบอกว่าแถวไหนขององค์กรไหน ──
+  const [orgNames, setOrgNames] = useState<Map<string, string>>(new Map())
+  const [fOrg, setFOrg] = useState('') // ตัวกรององค์กร (super เท่านั้น)
+  useEffect(() => {
+    if (!isSuper) return
+    void supabase
+      .from('organizations')
+      .select('id, name')
+      .order('name')
+      .then(({ data }) =>
+        setOrgNames(new Map(((data ?? []) as { id: string; name: string }[]).map((o) => [o.id, o.name]))))
+  }, [isSuper])
 
   const load = useCallback(
-    async (offset: number, g: string) => {
+    async (offset: number, g: string, org: string) => {
       setLoading(true)
       let query = supabase
         .from('activity_logs')
@@ -122,6 +134,8 @@ export default function LogsPage() {
         .order('created_at', { ascending: false })
         .range(offset, offset + PAGE - 1)
       if (g) query = query.like('action', `${g}%`)
+      // กรองที่ฝั่งเซิร์ฟเวอร์ เพื่อให้ "โหลดเพิ่ม" ยังตรงกับองค์กรที่เลือก
+      if (org) query = query.eq('org_id', org)
       const { data, error } = await query
       if (error) {
         setError(
@@ -141,8 +155,8 @@ export default function LogsPage() {
   )
 
   useEffect(() => {
-    void load(0, group)
-  }, [load, group])
+    void load(0, group, fOrg)
+  }, [load, group, fOrg])
 
   // ค้นหาเพิ่มเติมฝั่งหน้าจอ: ชื่อคน / รหัสอ้างอิง
   const shown = useMemo(() => {
@@ -174,6 +188,18 @@ export default function LogsPage() {
                 ))}
               </select>
             </div>
+            {/* ตัวกรององค์กร — เฉพาะ super (แอดมินองค์กรเห็นแค่องค์กรตัวเองอยู่แล้วด้วย RLS) */}
+            {isSuper && orgNames.size > 0 && (
+              <div className="form-field">
+                <label>องค์กร</label>
+                <select value={fOrg} onChange={(e) => setFOrg(e.target.value)}>
+                  <option value="">ทุกองค์กร</option>
+                  {[...orgNames].map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="form-field">
               <label>ค้นหา (ชื่อคน / รหัสทรัพย์ / ชื่อแผน)</label>
               <input
@@ -185,8 +211,12 @@ export default function LogsPage() {
             </div>
           </div>
           <p className="ai-hint" style={{ marginBottom: 0 }}>
-            บันทึกอัตโนมัติเมื่อมีการ เพิ่ม/แก้/ลบทรัพย์ · แผนเยี่ยมชม · นำเข้าไฟล์ · ใช้ AI —
-            เห็นเฉพาะแอดมิน{isSuper ? ' (บัญชี super เห็นทุกองค์กร)' : 'ขององค์กรนี้'} และแก้ไข/ลบย้อนหลังไม่ได้
+            บันทึกจากฐานข้อมูลโดยตรง (trigger) จึงครบทุกช่องทาง — ทรัพย์ · ปิด/เปิดงาน · นัดติดตาม ·
+            แผนเยี่ยมชม · ทีมและสิทธิ์ · องค์กร · การสวมสิทธิ์ · นำเข้าไฟล์ · ใช้ AI ·
+            แก้ไข/ลบประวัติย้อนหลังไม่ได้ ·{' '}
+            {isSuper
+              ? 'บัญชี super เห็นทุกองค์กร (กรองได้จากช่อง "องค์กร")'
+              : 'เห็นเฉพาะประวัติขององค์กรนี้ และเฉพาะแอดมินองค์กร'}
           </p>
         </section>
 
@@ -201,6 +231,7 @@ export default function LogsPage() {
               <thead>
                 <tr>
                   <th>เวลา</th>
+                  {isSuper && <th>องค์กร</th>}
                   <th>ผู้ใช้</th>
                   <th>การกระทำ</th>
                   <th>อ้างอิง</th>
@@ -211,6 +242,11 @@ export default function LogsPage() {
                 {shown.map((l) => (
                   <tr key={l.id}>
                     <td data-label="เวลา" className="log-when">{formatWhen(l.created_at)}</td>
+                    {isSuper && (
+                      <td data-label="องค์กร">
+                        {l.org_id ? orgNames.get(l.org_id) ?? '(องค์กรถูกลบแล้ว)' : '—'}
+                      </td>
+                    )}
                     <td data-label="ผู้ใช้">{l.user_name ?? '—'}</td>
                     <td data-label="การกระทำ">
                       <span className={`log-badge ${l.action.split('.')[0]}`}>
@@ -228,7 +264,7 @@ export default function LogsPage() {
 
         {loading && <div className="empty-state">กำลังโหลด…</div>}
         {!loading && hasMore && !q && (
-          <button className="btn" style={{ margin: '12px auto', display: 'block' }} onClick={() => void load(logs.length, group)}>
+          <button className="btn" style={{ margin: '12px auto', display: 'block' }} onClick={() => void load(logs.length, group, fOrg)}>
             โหลดเพิ่ม
           </button>
         )}
