@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test:draft": "node scripts/draft-selftest.mjs",
     "test:ui": "node scripts/form-ui-test.mjs",
-    "test:import": "node scripts/import-map-selftest.mjs"
+    "test:import": "node scripts/import-map-selftest.mjs",
+    "test:edit": "node scripts/form-edit-test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",

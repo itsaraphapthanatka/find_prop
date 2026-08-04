@@ -153,6 +153,12 @@ export default function FormPage() {
   // ── ร่างอัตโนมัติ (เฉพาะเพิ่มทรัพย์ใหม่) ──
   // pendingDraft = ร่างที่เจอตอนเปิดหน้า ยังไม่ตัดสินใจว่าจะกู้คืนหรือทิ้ง
   // ระหว่างนั้น "ห้ามเขียนร่างทับ" ไม่งั้นฟอร์มเปล่าจะลบร่างเดิมทิ้งทันที
+  // เปิดฟอร์มต้องเห็นแถบสเต็ปเสมอ — เข้ามาจากรายการที่เลื่อนลงมา (กดแก้ไข) หน้าจะค้าง scroll เดิม
+  // ทำให้แถบสเต็ปอยู่เหนือจอเหมือนไม่มี · React Router ไม่รีเซ็ต scroll ให้เอง
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [id])
+
   const [store] = useState(() => (typeof window === 'undefined' ? null : browserStore()))
   const [pendingDraft, setPendingDraft] = useState<FormDraft | null>(null)
   const [savedDraftAt, setSavedDraftAt] = useState<string | null>(null)
