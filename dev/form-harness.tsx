@@ -11,6 +11,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthContext, AuthProvider } from '../src/lib/auth'
 import FormPage from '../src/pages/FormPage'
+import ProfilePage from '../src/pages/ProfilePage'
 // ต้องโหลด CSS ชุดเดียวกับ main.tsx — ถ้าไม่มี leaflet.css แผนที่จะไม่ถูก clip แล้วบังปุ่มด้านล่าง
 import 'leaflet/dist/leaflet.css'
 import '../src/styles.css'
@@ -55,6 +56,16 @@ function TallList() {
 }
 
 function App() {
+  // ?page=profile = หน้าโปรไฟล์ (ใช้ดูการ์ด "สิทธิ์ของฉันตอนนี้" — คู่กับ ?pro=1)
+  if (params.get('page') === 'profile') {
+    return (
+      <MemoryRouter initialEntries={['/me']}>
+        <Routes>
+          <Route path="/me" element={<ProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+  }
   if (navMode) {
     return (
       <MemoryRouter initialEntries={['/list']}>

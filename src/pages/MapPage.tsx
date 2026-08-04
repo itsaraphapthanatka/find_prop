@@ -141,7 +141,7 @@ export default function MapPage() {
 
   async function handleDelete(p: Property) {
     if (!window.confirm(`ลบรายการ ${p.code}?`)) return
-    const err = await deleteProperty(p.id, p.code)
+    const err = await deleteProperty(p.id)
     if (err) alert(`ลบไม่สำเร็จ: ${err}`)
     else {
       setSelected(null)

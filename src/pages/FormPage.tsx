@@ -409,7 +409,8 @@ export default function FormPage() {
     else {
       // บันทึกเข้า DB แล้ว ร่างไม่จำเป็นอีก (ลบเฉพาะกรณีเพิ่มใหม่ — ตอนแก้ไขไม่ได้แตะร่างของทรัพย์ใหม่)
       if (!editing) clearDraft(store)
-      logActivity(editing ? 'property.update' : 'property.create', form.code || null)
+      // ไม่ต้อง logActivity ที่นี่ — trigger ในฐานข้อมูลบันทึก property.create/update ให้แล้ว
+      // (supabase/logs-triggers.sql) ครอบทุกช่องทาง ไม่ใช่แค่ที่ทำผ่านเว็บ
       navigate('/')
     }
   }

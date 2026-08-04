@@ -1711,3 +1711,19 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 /* แผงนัดติดตามท้ายหน้าแก้ไขทรัพย์ — ชิดกับฟอร์มด้านบน ไม่ต้องเว้นหัวซ้ำ */
 .follow-in-form { padding-top: 0; }
 .follow-in-form .section-title:first-child { margin-top: 0; }
+
+/* ── การ์ด "สิทธิ์ของฉันตอนนี้" (หน้าโปรไฟล์) ── */
+.perm-list { list-style: none; margin: 0; padding: 0; }
+.perm-list li {
+  display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px;
+}
+.perm-list li:last-child { border-bottom: none; }
+.perm-list li > span { color: var(--muted); flex: none; }
+.perm-list li > b { text-align: right; min-width: 0; }
+.perm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.perm-chip {
+  border-radius: 999px; padding: 4px 11px; font-size: 12.5px; border: 1px solid var(--line);
+}
+.perm-chip.on { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+.perm-chip.off { background: #f8f9fb; color: var(--muted); }

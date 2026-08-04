@@ -7,6 +7,18 @@ import { reviewFabHidden, showReviewFab, useReviewMode } from '../lib/review'
 
 const roleLabel = (r: string) => (r === 'admin' ? 'แอดมิน' : 'ลูกทีม')
 
+/** ชื่อแพ็กเกจที่มีผลจริงตอนนี้ (รวมช่วงทดลองใช้) */
+function planLabel(org: ReturnType<typeof useAuth>['org'], pro: boolean): string {
+  if (onTrial(org)) return `ทดลองใช้ ${org?.trial_plan === 'pro' ? 'Pro' : 'Basic'}`
+  if (org?.plan === 'enterprise') return 'Enterprise'
+  if (pro) return 'Pro'
+  if (org?.plan === 'starter') return 'Basic'
+  return 'Free'
+}
+
+const thDate = (d?: string | null) =>
+  d ? new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : null
+
 export default function ProfilePage() {
   const { session, profile, org, orgs, signOut, refreshProfile } = useAuth()
   const access = usePlanAccess()
@@ -56,6 +68,20 @@ export default function ProfilePage() {
 
   // ── แจ้งเตือนสัญญาเช่าใกล้หมด (ต่อองค์กร) — แอดมินองค์กรตั้งเอง · เว้นว่าง = ใช้ค่ามาตรฐานระบบ ──
   const isOrgAdmin = profile?.role === 'admin' || Boolean(profile?.is_super && profile?.impersonate_org_id)
+
+  // ── สิทธิ์ของฉันตอนนี้ ──
+  // "เห็นทรัพย์ทั้งองค์กร หรือเฉพาะที่ตัวเองลง" เก็บใน memberships (RLS ให้อ่านแถวของตัวเองได้)
+  const [seeAll, setSeeAll] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!profile?.id || !org?.id) return
+    void supabase
+      .from('memberships')
+      .select('see_all_properties')
+      .eq('user_id', profile.id)
+      .eq('org_id', org.id)
+      .maybeSingle()
+      .then(({ data }) => setSeeAll((data as { see_all_properties: boolean } | null)?.see_all_properties ?? null))
+  }, [profile?.id, org?.id])
   const [alertDays, setAlertDays] = useState((org?.contract_alert_days ?? []).join(', '))
   const [alertDefault, setAlertDefault] = useState(DEFAULT_CONTRACT_ALERT.days.join(', '))
   const [alertSaving, setAlertSaving] = useState(false)
@@ -177,6 +203,91 @@ export default function ProfilePage() {
             </form>
           </section>
         )}
+
+        {/* ── สิทธิ์ของฉันตอนนี้ — สรุปให้ครบว่าตอนนี้ทำอะไรได้/ไม่ได้ เพราะสิทธิ์มาจาก 3 แกน:
+               บทบาท (super/แอดมิน/ลูกทีม) × องค์กรที่ใช้งานอยู่ × แพ็กเกจขององค์กรนั้น ── */}
+        <section className="form-card">
+          <h3>สิทธิ์ของฉันตอนนี้</h3>
+          {(() => {
+            const isSuper = Boolean(profile?.is_super)
+            const impersonating = isSuper && Boolean(profile?.impersonate_org_id)
+            const superOverview = isSuper && !impersonating
+            const expiry = onTrial(org)
+              ? thDate(org?.trial_expires_at)
+              : access.pro ? thDate(org?.sub_expires_at) : null
+            // ฟีเจอร์ที่ปลดล็อกด้วย "แพ็กเกจ" (ทุกคนในองค์กรได้เท่ากัน)
+            const byPlan: [string, boolean][] = [
+              ['สรุปภาพรวม', access.dashboard],
+              ['แผนเยี่ยมชม', access.visitPlans],
+              ['นัดติดตาม', access.followUps],
+              ['ผู้ช่วย AI + กรอกด้วยเสียง', access.ai],
+              ['นำเข้า Excel/CSV', access.importCsv],
+            ]
+            // สิทธิ์ที่มาจาก "บทบาท" ในองค์กรนี้ (ไม่เกี่ยวกับแพ็กเกจ)
+            const byRole: [string, boolean][] = [
+              ['เพิ่ม/แก้ไข/ลบทรัพย์', true],
+              ['จัดการทีม (เชิญ/ปิดสิทธิ์ลูกทีม)', isOrgAdmin || superOverview],
+              ['ดูประวัติการใช้งาน', isOrgAdmin || superOverview],
+              ['ตั้งค่าแจ้งเตือนสัญญาขององค์กร', isOrgAdmin || superOverview],
+              ['ดูแลทุกองค์กร (Super Admin)', isSuper],
+            ]
+            const Chips = ({ items }: { items: [string, boolean][] }) => (
+              <div className="perm-chips">
+                {items.map(([label, on]) => (
+                  <span key={label} className={`perm-chip ${on ? 'on' : 'off'}`}>{on ? '✅' : '🔒'} {label}</span>
+                ))}
+              </div>
+            )
+            return (
+              <>
+                <ul className="perm-list">
+                  <li>
+                    <span>ระดับบัญชี</span>
+                    <b>
+                      {isSuper ? 'Super admin' : profile?.role === 'admin' ? 'แอดมินองค์กร' : 'ลูกทีม'}
+                      {superOverview && ' · โหมดภาพรวม (เห็นข้อมูลทุกองค์กร)'}
+                    </b>
+                  </li>
+                  <li>
+                    <span>องค์กรที่ใช้งานอยู่</span>
+                    <b>
+                      {org?.name ?? (superOverview ? 'ทุกองค์กร' : '—')}
+                      {impersonating && ' · กำลังสวมสิทธิ์'}
+                      {orgs.length > 1 && ` (เป็นสมาชิก ${orgs.length} องค์กร สลับได้ที่มุมขวาบน)`}
+                    </b>
+                  </li>
+                  <li>
+                    <span>แพ็กเกจที่มีผล</span>
+                    <b>{planLabel(org, access.pro)}{expiry ? ` · ใช้ได้ถึง ${expiry}` : ''}</b>
+                  </li>
+                  <li>
+                    <span>เห็นทรัพย์ในองค์กรนี้</span>
+                    <b>
+                      {superOverview ? 'ทุกองค์กร' : seeAll === false ? 'เฉพาะที่ตัวเองลง' : 'ทั้งองค์กร'}
+                    </b>
+                  </li>
+                  <li>
+                    <span>โควตาทรัพย์</span>
+                    <b>{access.maxProperties === null ? 'ไม่จำกัด' : `${access.maxProperties.toLocaleString('th-TH')} รายการ`}</b>
+                  </li>
+                  <li>
+                    <span>ลูกทีมที่เพิ่มได้</span>
+                    <b>{access.maxMembers === null ? 'ไม่จำกัด' : access.maxMembers === 0 ? 'เพิ่มไม่ได้ (ต้องอัปเกรด)' : `${access.maxMembers} คน`}</b>
+                  </li>
+                </ul>
+
+                <p className="plan-line" style={{ marginTop: 12, marginBottom: 6 }}><b>ฟีเจอร์ตามแพ็กเกจ</b></p>
+                <Chips items={byPlan} />
+                <p className="plan-line" style={{ marginTop: 12, marginBottom: 6 }}><b>สิทธิ์ตามบทบาท</b></p>
+                <Chips items={byRole} />
+                <p className="plan-line" style={{ marginTop: 10 }}>
+                  🔒 = ยังใช้ไม่ได้ — ตามแพ็กเกจให้แอดมินองค์กรอัปเกรด · ตามบทบาทให้แอดมินองค์กรตั้งสิทธิ์ให้ในหน้า "ทีม"
+                  {orgs.length > 1 && ' · สิทธิ์อาจต่างกันในแต่ละองค์กร สลับองค์กรแล้วดูหน้านี้ซ้ำได้'}
+                </p>
+              </>
+            )
+          })()}
+        </section>
 
         {/* ── องค์กรที่สังกัด ── */}
         <section className="form-card">

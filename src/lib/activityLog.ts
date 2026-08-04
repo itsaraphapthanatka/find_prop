@@ -28,13 +28,34 @@ export function logActivity(
     .then(() => undefined)
 }
 
-/** ป้ายภาษาไทยของแต่ละการกระทำ — ใช้ทั้งหน้า logs และที่อื่นที่อยากโชว์ */
+/**
+ * ป้ายภาษาไทยของแต่ละการกระทำ — ใช้ทั้งหน้า logs และที่อื่นที่อยากโชว์
+ * ส่วนใหญ่เขียนโดย trigger ในฐานข้อมูล (supabase/logs-triggers.sql) จึงครอบทุกช่องทาง
+ * ที่เหลือ (import./ai.) มาจากฝั่งเว็บ เพราะเป็น "เจตนา" ที่ฐานข้อมูลมองไม่เห็น
+ */
 export const ACTION_LABELS: Record<string, string> = {
   'property.create': 'เพิ่มทรัพย์',
   'property.update': 'แก้ไขทรัพย์',
   'property.delete': 'ลบทรัพย์',
+  'deal.close': 'ปิดงานทรัพย์',
+  'deal.reopen': 'เปิดงานทรัพย์อีกครั้ง',
+  'followup.create': 'ตั้งนัดติดตาม',
+  'followup.done': 'ปิดนัด + บันทึกผล',
+  'followup.update': 'แก้ไขนัดติดตาม',
+  'followup.delete': 'ลบนัดติดตาม',
   'plan.create': 'สร้างแผนเยี่ยมชม',
+  'plan.update': 'แก้ไขแผนเยี่ยมชม',
   'plan.delete': 'ลบแผนเยี่ยมชม',
+  'member.add': 'เพิ่มสมาชิกในองค์กร',
+  'member.update': 'แก้สิทธิ์สมาชิก',
+  'member.remove': 'ถอดสมาชิกออกจากองค์กร',
+  'profile.rights': 'เปลี่ยนบทบาท/สถานะบัญชี',
+  'org.switch': 'สลับองค์กร',
+  'org.create': 'สร้างองค์กร',
+  'org.update': 'แก้ไของค์กร/แพ็กเกจ',
+  'org.delete': 'ลบองค์กร',
+  'super.impersonate': 'สวมสิทธิ์องค์กร',
+  'super.exit': 'ออกจากการสวมสิทธิ์',
   'import.run': 'นำเข้าข้อมูล',
   'ai.voice_fill': 'AI กรอกฟอร์มจากเสียง',
   'ai.assistant': 'สั่งงานผู้ช่วย AI',
@@ -44,7 +65,12 @@ export const ACTION_LABELS: Record<string, string> = {
 export const ACTION_GROUPS: { value: string; label: string }[] = [
   { value: '', label: 'ทุกการกระทำ' },
   { value: 'property.', label: 'ข้อมูลทรัพย์' },
+  { value: 'deal.', label: 'ปิด/เปิดงาน' },
+  { value: 'followup.', label: 'นัดติดตาม' },
   { value: 'plan.', label: 'แผนเยี่ยมชม' },
+  { value: 'member.', label: 'ทีมและสิทธิ์' },
+  { value: 'org.', label: 'องค์กร' },
+  { value: 'super.', label: 'การสวมสิทธิ์ (super)' },
   { value: 'import.', label: 'นำเข้าข้อมูล' },
   { value: 'ai.', label: 'การใช้ AI' },
 ]

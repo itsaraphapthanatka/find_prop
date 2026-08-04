@@ -6,6 +6,7 @@ import {
   ACTION_LABELS,
   type ActivityLog,
 } from '../lib/activityLog'
+import { LABELS } from '../labels'
 
 const PAGE = 100
 
@@ -49,10 +50,58 @@ function detailText(log: ActivityLog): string {
   }
   if (log.action === 'plan.create') {
     const customer = str(d.customer)
-    return customer ? `ลูกค้า ${customer}` : ''
+    const stops = num(d.stops)
+    return [customer ? `ลูกค้า ${customer}` : null, stops ? `${stops} จุดแวะ` : null].filter(Boolean).join(' · ')
   }
+  if (log.action === 'plan.update') {
+    const from = num(d.stops_from)
+    const to = num(d.stops)
+    return from !== to ? `จุดแวะ ${from} → ${to}` : 'แก้รายละเอียดแผน'
+  }
+  // ── รายละเอียดของ log ที่มาจาก trigger ในฐานข้อมูล (supabase/logs-triggers.sql) ──
+  if (log.action === 'property.update') {
+    const fields = Array.isArray(d.fields) ? (d.fields as unknown[]).map(String) : []
+    if (!fields.length) return ''
+    const names = fields.map((f) => LABELS[f as keyof typeof LABELS] ?? f)
+    return names.length <= 4
+      ? `แก้ ${names.join(', ')}`
+      : `แก้ ${names.slice(0, 4).join(', ')} และอีก ${names.length - 4} ฟิลด์`
+  }
+  if (log.action === 'deal.close') return DEAL_TEXT[String(d.to)] ?? 'ปิดงาน'
+  if (log.action === 'deal.reopen') return 'กลับมาเปิดงาน'
+  if (log.action.startsWith('followup.')) {
+    const title = str(d.title)
+    const result = str(d.result)
+    return [title ? `"${title}"` : null, result ? `ผล: ${result}` : null].filter(Boolean).join(' · ')
+  }
+  if (log.action === 'member.add') {
+    return `${d.role === 'admin' ? 'แอดมิน' : 'ลูกทีม'}${d.see_all === false ? ' · เห็นเฉพาะทรัพย์ตัวเอง' : ''}`
+  }
+  if (log.action === 'member.update' || log.action === 'profile.rights') {
+    const parts: string[] = []
+    if (str(d.role_from) && d.role !== d.role_from) parts.push(`บทบาท ${d.role_from} → ${d.role}`)
+    if (typeof d.active === 'boolean' && d.active !== d.active_from) parts.push(d.active ? 'เปิดใช้งาน' : 'ปิดใช้งาน')
+    if (typeof d.see_all === 'boolean' && d.see_all !== d.see_all_from) {
+      parts.push(d.see_all ? 'ให้เห็นทรัพย์ทั้งองค์กร' : 'ให้เห็นเฉพาะทรัพย์ตัวเอง')
+    }
+    if (typeof d.is_super === 'boolean' && d.is_super !== d.is_super_from) {
+      parts.push(d.is_super ? 'ยกเป็น super admin' : 'ถอด super admin')
+    }
+    return parts.join(' · ')
+  }
+  if (log.action === 'org.update') {
+    const parts: string[] = []
+    if (str(d.plan_from) && d.plan !== d.plan_from) parts.push(`แพ็กเกจ ${d.plan_from} → ${d.plan}`)
+    if (str(d.sub_status_from) && d.sub_status !== d.sub_status_from) parts.push(`สถานะ ${d.sub_status_from} → ${d.sub_status}`)
+    if (parts.length) return parts.join(' · ')
+    const fields = Array.isArray(d.fields) ? (d.fields as unknown[]).length : 0
+    return fields ? `แก้ ${fields} ฟิลด์` : ''
+  }
+  if (log.action === 'super.impersonate' || log.action === 'super.exit') return str(d.by) ?? ''
   return ''
 }
+
+const DEAL_TEXT: Record<string, string> = { rented: 'มีคนเช่าแล้ว', sold: 'ขายแล้ว' }
 
 export default function LogsPage() {
   const { profile } = useAuth()

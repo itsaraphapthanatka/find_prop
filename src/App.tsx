@@ -28,7 +28,9 @@ import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { isInstalledApp } from './lib/native'
-import { urlAfterOrgSwitch } from './lib/orgSwitch'
+import {
+  IMPERSONATED_OPTION, needsExitImpersonation, orgSwitchOptions, orgSwitchValue, urlAfterOrgSwitch,
+} from './lib/orgSwitch'
 import { IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
@@ -235,19 +237,30 @@ export default function App() {
           }}
         />
         <div className="user-chip">
-          {orgs.length > 1 ? (
+          {orgSwitchOptions(orgs, org, impersonating).length > 1 ? (
             <select
               className="org-switch"
-              value={org?.id ?? ''}
+              value={orgSwitchValue(orgs, org, impersonating)}
               onChange={(e) => {
-                // สลับ org แล้วโหลดหน้าใหม่ทั้งหน้า — ให้ทุกหน้าดึงข้อมูลของ org ใหม่ครบ (กันข้อมูลค้างของเก่า)
-                // อยู่หน้าไหนกลับหน้านั้น (สรุปภาพรวม/แผนที่/นัดติดตาม ไม่ต้องกดเข้าใหม่)
-                void switchOrg(e.target.value).then(() =>
-                  window.location.assign(urlAfterOrgSwitch(location.pathname, location.search)))
+                const target = e.target.value
+                if (target === IMPERSONATED_OPTION) return // เลือกองค์กรที่สวมสิทธิ์อยู่ = ไม่ต้องทำอะไร
+                void (async () => {
+                  // super ที่กำลังสวมสิทธิ์: current_org() ยึดองค์กรที่สวมเสมอ ถ้าไม่ออกจากสิทธิ์ก่อน
+                  // สลับแล้วข้อมูลจะไม่เปลี่ยน (เหมือนกดไม่ติด)
+                  if (needsExitImpersonation(impersonating, target)) {
+                    await supabase.rpc('super_impersonate', { p_org: null })
+                  }
+                  await switchOrg(target)
+                  // โหลดหน้าใหม่ทั้งหน้าเพื่อให้ทุกหน้าดึงข้อมูลขององค์กรใหม่ครบ (กันข้อมูลค้างของเก่า)
+                  // อยู่หน้าไหนกลับหน้านั้น (สรุปภาพรวม/แผนที่/นัดติดตาม ไม่ต้องกดเข้าใหม่)
+                  window.location.assign(urlAfterOrgSwitch(location.pathname, location.search))
+                })()
               }}
-              title="สลับองค์กร"
+              title={impersonating ? 'เลือกองค์กรของคุณ = ออกจากการสวมสิทธิ์แล้วสลับไปองค์กรนั้น' : 'สลับองค์กร'}
             >
-              {orgs.map((o) => <option key={o.org_id} value={o.org_id}>{o.name}</option>)}
+              {orgSwitchOptions(orgs, org, impersonating).map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </select>
           ) : (
             org && <span className="org-badge">{org.name}</span>
