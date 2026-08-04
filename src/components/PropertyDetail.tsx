@@ -17,6 +17,10 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+// ฟิลด์สำคัญที่ทีมถามหาบ่อย (เจ้าของ/เบอร์โทร/คนลง/บ้านเลขที่) — ว่างก็ต้องเห็นว่า "ไม่ได้ระบุ"
+// จะได้รู้ว่าข้อมูลไม่ได้ถูกกรอก ไม่ใช่ระบบซ่อน (ฟิลด์อื่นว่างแล้วซ่อนแถวตามเดิม)
+const NotSpecified = <span style={{ color: 'var(--muted)' }}>ไม่ได้ระบุ</span>
+
 /** ค่า ใช่/ไม่ — ไม่ระบุ (null) = ไม่โชว์แถว */
 function BoolField({ label, value }: { label: string; value: boolean | null | undefined }) {
   if (value === null || value === undefined) return null
@@ -85,22 +89,22 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           )}
 
           <Field label={LABELS.record_date} value={formatDate(p.record_date)} />
-          <Field label="ลงโดย" value={p.created_by_name} />
+          <Field label="ลงโดย" value={p.created_by_name || NotSpecified} />
 
           <div className="section-title">ผู้ติดต่อ</div>
           <Field label={LABELS.lessor_status} value={p.lessor_status} />
           <Field label={LABELS.contact_form} value={p.contact_form} />
           <Field label={LABELS.lessor_company} value={p.lessor_company} />
-          <Field label={LABELS.lessor_name} value={p.lessor_name} />
+          <Field label={LABELS.lessor_name} value={p.lessor_name || NotSpecified} />
           <Field
             label={LABELS.phone}
-            value={p.phone && (
+            value={p.phone ? (
               <>
                 {p.phone}{' '}
                 <a className="icon-btn" href={`tel:${p.phone}`} title="โทร"><IconPhone size={16} /></a>
                 <a className="icon-btn" href={`sms:${p.phone}`} title="SMS"><IconSms size={16} /></a>
               </>
-            )}
+            ) : NotSpecified}
           />
           <Field label={LABELS.deed_no} value={p.deed_no} />
           {(p.documents?.length ?? 0) > 0 && (
@@ -121,7 +125,10 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.sub_type} value={p.sub_type} />
           <Field label={LABELS.listing_type} value={p.listing_type} />
           <Field label={LABELS.agreement_type} value={p.agreement_type} />
-          <Field label={houseNoLabel(kindOf(p.property_type))} value={p.house_no} />
+          {/* ที่ดินเปล่าไม่มีเลขที่ (ฟอร์มก็ไม่มีช่องนี้) — หมวดอื่นว่างให้เห็นว่า "ไม่ได้ระบุ" */}
+          {kindOf(p.property_type) !== 'land' && (
+            <Field label={houseNoLabel(kindOf(p.property_type))} value={p.house_no || NotSpecified} />
+          )}
           <Field label={LABELS.project_name} value={p.project_name} />
           <Field label={LABELS.house_direction} value={p.house_direction} />
           <Field label={LABELS.subdistrict} value={p.subdistrict} />
