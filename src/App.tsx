@@ -28,6 +28,7 @@ import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { isInstalledApp } from './lib/native'
+import { urlAfterOrgSwitch } from './lib/orgSwitch'
 import { IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
@@ -239,8 +240,10 @@ export default function App() {
               className="org-switch"
               value={org?.id ?? ''}
               onChange={(e) => {
-                // สลับ org แล้วโหลดหน้าใหม่ที่ '/' — ให้ทุกหน้าดึงข้อมูลของ org ใหม่ครบ (กันข้อมูลค้างของเก่า)
-                void switchOrg(e.target.value).then(() => window.location.assign('/'))
+                // สลับ org แล้วโหลดหน้าใหม่ทั้งหน้า — ให้ทุกหน้าดึงข้อมูลของ org ใหม่ครบ (กันข้อมูลค้างของเก่า)
+                // อยู่หน้าไหนกลับหน้านั้น (สรุปภาพรวม/แผนที่/นัดติดตาม ไม่ต้องกดเข้าใหม่)
+                void switchOrg(e.target.value).then(() =>
+                  window.location.assign(urlAfterOrgSwitch(location.pathname, location.search)))
               }}
               title="สลับองค์กร"
             >

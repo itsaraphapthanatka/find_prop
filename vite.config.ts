@@ -84,7 +84,9 @@ export default defineConfig({
           },
         ],
       },
-      devOptions: { enabled: true },
+      // ปิด SW ตอน dev — แคชของ SW ทำให้แก้โค้ดแล้วเบราว์เซอร์ยังโชว์ของเก่า (ดู src/main.tsx)
+      // ทดสอบ PWA/offline ให้ build จริงแล้ว npm run preview
+      devOptions: { enabled: false },
     }),
   ],
 })

@@ -358,11 +358,8 @@ export default function FormPage() {
       return v === null || v === undefined || v === ''
     })
     if (missing.length) return `กรอกให้ครบก่อน: ${missing.map((k) => LABELS[k]).join(', ')}`
-    // เอกสารสิทธิ์ — spec บังคับสำเนาโฉนดหน้า-หลังสำหรับบ้าน/คอนโด/ที่ดิน
-    // ทรัพย์ใหม่บังคับจริง · ทรัพย์เดิม (แก้ไข) เตือนแต่ไม่บล็อก เพื่อไม่ให้แก้ข้อมูลเก่าไม่ได้
-    if (i === 2 && !editing && ['house', 'condo', 'land'].includes(kind) && (form.documents ?? []).length === 0) {
-      return 'ต้องแนบสำเนาโฉนด (ด้านหน้าและด้านหลัง) ก่อนไปขั้นถัดไป'
-    }
+    // เอกสารสิทธิ์ไม่บังคับ — หน้างานมักได้ไฟล์โฉนดตามมาทีหลัง ห้ามขวางการลงทรัพย์
+    // (เหลือเป็นคำแนะนำในฟอร์มเท่านั้น)
     return null
   }
 
@@ -400,9 +397,6 @@ export default function FormPage() {
         alert(problem)
         return
       }
-    }
-    if (editing && ['house', 'condo', 'land'].includes(kind) && (form.documents ?? []).length === 0) {
-      if (!window.confirm('ทรัพย์นี้ยังไม่มีเอกสารสิทธิ์แนบ (spec กำหนดว่าต้องมีสำเนาโฉนด) — บันทึกต่อไหม?')) return
     }
     setSaving(true)
     // super ระบุองค์กรปลายทางเอง / สมาชิกปกติปล่อยให้ระบบผูกองค์กรตัวเองอัตโนมัติ

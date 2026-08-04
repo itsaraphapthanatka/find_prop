@@ -232,7 +232,8 @@ function DocsSection({
   maxDocs: number
 }) {
   const docs = form.documents ?? []
-  const required = kind === 'house' || kind === 'condo' || kind === 'land'
+  // โฉนดเป็นแค่คำแนะนำ ไม่บังคับ — หน้างานมักได้ไฟล์ตามมาทีหลัง แนบเพิ่มตอนแก้ไขได้เสมอ
+  const deedHint = kind === 'house' || kind === 'condo' || kind === 'land'
   return (
     <Section title="เอกสารสิทธิ์">
       <TextField name="deed_no" form={form} set={set} />
@@ -269,9 +270,8 @@ function DocsSection({
         </label>
       )}
       <p className="ai-hint" style={{ marginTop: 10 }}>
-        {required && <b>ต้องมีสำเนาโฉนดหน้า-หลัง</b>}
-        {required ? ' — ' : ''}
-        สำเนาโฉนด{kind === 'condo' ? ' (คอนโดใช้ใบ อ.ช.2)' : 'ที่ดิน · ใบ ทด.13 ไม่มีก็ได้'} —
+        {deedHint && 'ควรมีสำเนาโฉนดหน้า-หลัง (ไม่บังคับ — ยังไม่มีก็บันทึกทรัพย์ได้ แนบเพิ่มภายหลังได้) · '}
+        {kind === 'condo' ? 'คอนโดใช้ใบ อ.ช.2' : 'ใบ ทด.13 ไม่มีก็ได้'} —
         แนบแล้วแก้ชื่อเอกสารในช่องให้รู้ว่าเป็นใบอะไร
       </p>
     </Section>

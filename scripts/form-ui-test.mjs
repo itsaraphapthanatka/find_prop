@@ -211,16 +211,17 @@ check('บ้าน: มีห้องนอน/ห้องน้ำ/ห้อ
   (await field('จำนวนห้องนอน').count()) === 1 && (await field('จำนวนห้องน้ำ').count()) === 1 && (await field('ห้องแม่บ้าน').count()) === 1)
 check('บ้าน: ไม่มีสเปกโกดัง (พื้นยกสูง/เครน)',
   (await field('พื้นอาคารยกสูง (ซม.)').count()) === 0 && (await boolField('มีเครน').count()) === 0)
-check('บ้าน: บอกว่าต้องมีสำเนาโฉนด', await seen('ต้องมีสำเนาโฉนดหน้า-หลัง'))
+check('บ้าน: แนะนำเรื่องโฉนดแบบไม่บังคับ', await seen('ควรมีสำเนาโฉนดหน้า-หลัง (ไม่บังคับ'))
 const shot6 = await shot(page, 'step3-house')
 
-// เอกสารสิทธิ์บังคับ (ทรัพย์ใหม่) — กดถัดไปต้องถูกกั้น
+// เอกสารสิทธิ์ไม่บังคับ — ยังไม่แนบก็ต้องไปขั้นถัดไปได้ ไม่มี popup ขวาง
+const dialogsBeforeDocs = dialogs.length
 await btn('ถัดไป →').click()
-await page.waitForTimeout(300)
-check('บ้านใหม่ไม่แนบโฉนด → กั้นไม่ให้ไปขั้นถัดไป', lastDialog().includes('ต้องแนบสำเนาโฉนด'), lastDialog())
-check('ยังอยู่ขั้น 3', (await activeStep()) === 'รายละเอียด')
+await page.waitForTimeout(400)
+check('บ้านใหม่ยังไม่แนบโฉนด → ไม่มี popup ขวาง', dialogs.length === dialogsBeforeDocs, lastDialog())
+check('บ้านใหม่ยังไม่แนบโฉนด → ไปขั้น 4 ได้', (await activeStep()) === 'ราคา', await activeStep())
 
-// ══ ขั้น 4 ฝั่ง "ขาย" (ใช้โรงงาน เพราะไม่ติดเงื่อนไขต้องแนบโฉนด) ══
+// ══ ขั้น 4 ฝั่ง "ขาย" (ใช้โรงงาน) ══
 await page.locator('.wiz-step').first().click()
 await page.waitForTimeout(300)
 await selectOpt('เชิงอุตสาหกรรม')
