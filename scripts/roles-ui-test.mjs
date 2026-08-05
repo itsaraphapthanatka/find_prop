@@ -153,6 +153,17 @@ check('เปิด /docs/features ได้ (HTTP 200)', featRes.status() === 2
   check('เอกสารฟีเจอร์มีตารางบทบาททั้ง 8', ['Owner', 'Manager', 'Associate', 'Analyst', 'Survey', 'Temporary', 'Social Media Admin', 'Trainee'].every((r) => t.includes(r)))
   check('เอกสารฟีเจอร์มีตารางฟีเจอร์ × แพ็กเกจ', t.includes('ฟีเจอร์ × แพ็กเกจ'))
 }
+// เอกสารนักลงทุน — เอกสารภายใน: เปิดได้เฉพาะตอน dev และต้องไม่ถูกก๊อปขึ้น production
+const invRes = await page.request.get('http://localhost:5173/docs/investor')
+check('เปิด /docs/investor ได้ตอน dev (HTTP 200)', invRes.status() === 200, String(invRes.status()))
+check('เอกสารนักลงทุนไม่ถูกก๊อปขึ้น production (dist/docs)', !existsSync('dist/docs/investor.html'))
+{
+  const t = await invRes.text()
+  check('เอกสารนักลงทุนมี 18 หัวข้อ', (t.match(/<h2 id=/g) ?? []).length === 18,
+    String((t.match(/<h2 id=/g) ?? []).length))
+  check('เอกสารนักลงทุนมีราคาจริงจากระบบ', t.includes('฿1,190 / 1,390 / 1,590') && t.includes('฿290'))
+  check('เอกสารนักลงทุนเตือนให้กรอกตัวเลขจริง', t.includes('ต้องกรอกด้วยตัวเลขจริงก่อนส่งให้นักลงทุน'))
+}
 // ลิงก์เก่าแบบมี .html ยังเปิดได้ (dev) — บน prod redirect ไปตัวไม่มีนามสกุล
 const oldRes = await page.request.get('http://localhost:5173/docs/TRAINING.html')
 check('ลิงก์เก่า .html ยังไม่ตาย', oldRes.status() === 200, String(oldRes.status()))

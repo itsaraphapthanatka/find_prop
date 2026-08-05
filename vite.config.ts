@@ -20,14 +20,20 @@ function buildId(): string {
 
 /**
  * คู่มือ HTML ใน docs/ ให้เปิดได้จากในแอปโดย "ไม่โชว์ .html" ใน URL
+ * ⚠️ ไฟล์ใน PRIVATE_DOCS ไม่ถูกก๊อปขึ้น production (เอกสารภายใน เช่นเอกสารนำเสนอนักลงทุน)
+ *    — เปิดได้เฉพาะตอน dev หรือดับเบิลคลิกไฟล์เปิดในเบราว์เซอร์ (ไฟล์ self-contained)
  *   /docs/training → docs/TRAINING.html   ·   /docs/system → docs/SYSTEM.html
  * - dev: เสิร์ฟผ่าน middleware (รับทั้งแบบไม่มีนามสกุลและแบบเต็มชื่อไฟล์ เผื่อลิงก์เก่า)
  * - build: ก๊อปไป dist/docs/ เป็นชื่อพิมพ์เล็ก (training.html) แล้วให้ vercel.json rewrite
  *          จาก /docs/training → /docs/training.html (rewrite ไม่เปลี่ยน URL บนแถบที่อยู่)
  * เก็บไฟล์ต้นทางไว้ที่ docs/ ที่เดียว ไม่ต้องมีสำเนาใน public/ (กันแก้แล้วลืมอีกที่)
  */
+/** เอกสารภายใน — ห้ามขึ้น production (เทียบชื่อไฟล์แบบไม่สนตัวพิมพ์) */
+const PRIVATE_DOCS = ['investor.html']
+
 function docsPlugin(): Plugin {
   const files = () => (existsSync('docs') ? readdirSync('docs').filter((f) => f.endsWith('.html')) : [])
+  const isPrivate = (f: string) => PRIVATE_DOCS.includes(f.toLowerCase())
   /** ชื่อที่ผู้ใช้ขอ (training / TRAINING.html) → ชื่อไฟล์จริงใน docs/ */
   const resolve = (want: string) => {
     const slug = want.replace(/\.html$/i, '').toLowerCase()
@@ -45,7 +51,7 @@ function docsPlugin(): Plugin {
       })
     },
     closeBundle() {
-      const list = files()
+      const list = files().filter((f) => !isPrivate(f))   // เอกสารภายในไม่ขึ้น production
       if (list.length === 0) return
       mkdirSync('dist/docs', { recursive: true })
       // ชื่อไฟล์พิมพ์เล็กเสมอ — URL สวยและตรงกับ rewrite ใน vercel.json
