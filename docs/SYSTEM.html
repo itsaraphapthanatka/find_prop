@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOP — เอกสารอธิบายการทำงานของระบบ</title>
+<style>
+  :root {
+    --ink: #101114; --muted: #6b7280; --line: #e5e7eb; --bg: #ffffff;
+    --surface: #f8f9fb; --purple: #7132f5; --purple-soft: #f1eafe;
+    --good: #0a8f4d; --warn: #b45309; --code-bg: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e7e9ee; --muted: #9aa1ad; --line: #2a2d34; --bg: #131417;
+      --surface: #1a1c21; --purple: #a78bfa; --purple-soft: #2a2140;
+      --good: #34d399; --warn: #fbbf24; --code-bg: #22242b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', 'Sukhumvit Set', sans-serif;
+    line-height: 1.75; font-size: 15.5px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  h1 .brand { color: var(--purple); }
+  h2 {
+    font-size: 21px; margin: 48px 0 12px; padding: 10px 14px;
+    background: var(--purple-soft); border-radius: 10px; border-left: 4px solid var(--purple);
+  }
+  h3 { font-size: 17px; margin: 26px 0 8px; }
+  p { margin: 8px 0; }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--surface); white-space: nowrap; }
+  code {
+    background: var(--code-bg); padding: 1px 6px; border-radius: 6px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px;
+  }
+  .toc { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 26px; }
+  .toc ol { margin: 6px 0; padding-left: 22px; columns: 2; column-gap: 40px; }
+  .toc a { color: var(--purple); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .box {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+    padding: 14px 18px; margin: 12px 0;
+  }
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+  .flow .node {
+    background: var(--bg); border: 1.5px solid var(--purple); border-radius: 10px;
+    padding: 6px 14px; font-size: 13.5px; font-weight: 600;
+  }
+  .flow .arrow { color: var(--muted); font-weight: 700; }
+  .tag { display: inline-block; border-radius: 20px; padding: 1px 10px; font-size: 12px; font-weight: 700; }
+  .tag.pro { background: var(--purple-soft); color: var(--purple); }
+  .tag.free { background: var(--code-bg); color: var(--muted); }
+  .note { border-left: 4px solid var(--warn); background: var(--surface); padding: 10px 14px; border-radius: 8px; margin: 12px 0; font-size: 14px; }
+  .ok { color: var(--good); font-weight: 700; }
+  ul, ol { margin: 8px 0; padding-left: 26px; }
+  li { margin: 3px 0; }
+  .arch { display: grid; gap: 10px; margin: 14px 0; }
+  .arch .tier { border: 1px dashed var(--line); border-radius: 12px; padding: 12px 16px; background: var(--surface); }
+  .arch .tier b { display: block; margin-bottom: 6px; color: var(--purple); }
+  .arch .items { display: flex; flex-wrap: wrap; gap: 8px; }
+  .arch .items span { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 13px; }
+  footer { margin-top: 60px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="brand">HOP</span> — เอกสารอธิบายการทำงานของระบบ</h1>
+<p class="sub">ฐานข้อมูลทรัพย์ให้เช่า/ขาย สำหรับทีมนายหน้าอสังหาริมทรัพย์ (multi-tenant SaaS) · อัปเดตล่าสุด สิงหาคม 2026</p>
+
+<div class="toc">
+<b>สารบัญ</b>
+<ol>
+<li><a href="#arch">ภาพรวมสถาปัตยกรรม</a></li>
+<li><a href="#structure">โครงสร้างโปรเจกต์</a></li>
+<li><a href="#auth">ผู้ใช้ การล็อกอิน และสิทธิ์</a></li>
+<li><a href="#org">องค์กรและ Multi-tenant</a></li>
+<li><a href="#property">ระบบทรัพย์ (หัวใจของแอป)</a></li>
+<li><a href="#plans">แพ็กเกจและโควตา</a></li>
+<li><a href="#payment">การชำระเงิน (PunPay)</a></li>
+<li><a href="#team">ทีมและการเชิญลูกทีม</a></li>
+<li><a href="#features">ฟีเจอร์การทำงาน</a></li>
+<li><a href="#notify">การแจ้งเตือน</a></li>
+<li><a href="#super">Super Admin</a></li>
+<li><a href="#email">ระบบอีเมล</a></li>
+<li><a href="#mobile">แอปมือถือ (Capacitor)</a></li>
+<li><a href="#api">Serverless API ทั้งหมด</a></li>
+<li><a href="#db">ตารางฐานข้อมูล</a></li>
+<li><a href="#security">ความปลอดภัย</a></li>
+<li><a href="#deploy">การ Deploy และงานดูแลระบบ</a></li>
+</ol>
+</div>
+
+<!-- ═══════════════ 1 ═══════════════ -->
+<h2 id="arch">1. ภาพรวมสถาปัตยกรรม</h2>
+<p>HOP เป็น Single Page Application ที่ฝั่งหน้าบ้านคุยกับ Supabase โดยตรง (ผ่าน Row Level Security) และมี Vercel Serverless Functions เป็นหลังบ้านเฉพาะงานที่ต้องใช้ความลับฝั่งเซิร์ฟเวอร์ เช่น การเงิน อีเมล และ AI</p>
+
+<div class="arch">
+  <div class="tier"><b>ผู้ใช้เข้าถึงผ่าน</b>
+    <div class="items"><span>เว็บ hop-property.vercel.app (PWA ติดตั้งได้)</span><span>แอป Android — Capacitor (APK)</span></div>
+  </div>
+  <div class="tier"><b>Frontend — React 18 + Vite + TypeScript</b>
+    <div class="items"><span>react-router (HashRouter)</span><span>Leaflet (แผนที่)</span><span>xlsx (นำเข้า Excel)</span><span>Service Worker / PWA (เว็บเท่านั้น)</span><span>Vercel Analytics + Speed Insights</span></div>
+  </div>
+  <div class="tier"><b>Vercel Serverless (โฟลเดอร์ api/)</b>
+    <div class="items"><span>ai.js</span><span>create-charge.js</span><span>verify-charge.js</span><span>punpay-webhook.js</span><span>send-invite.js</span><span>create-member.js</span><span>push-cron.js</span></div>
+  </div>
+  <div class="tier"><b>Supabase</b>
+    <div class="items"><span>PostgreSQL + RLS ทุกตาราง</span><span>Auth (อีเมล+รหัสผ่าน, Google OAuth)</span><span>Storage (รูป/เอกสาร)</span><span>Realtime (เด้งข้อมูลสด)</span><span>RPC (SECURITY DEFINER)</span></div>
+  </div>
+  <div class="tier"><b>บริการภายนอก</b>
+    <div class="items"><span>PunPay — รับชำระ PromptPay</span><span>Gmail SMTP / Resend — ส่งอีเมล</span><span>LLM API — ผู้ช่วย AI (ผ่าน proxy)</span><span>GitHub Actions — build APK</span></div>
+  </div>
+</div>
+
+<p><b>หลักการสำคัญ:</b> ฝั่ง client ถือเฉพาะ <code>anon key</code> ของ Supabase ซึ่งถูกจำกัดสิทธิ์ด้วย RLS — การตัดสินใจเรื่องสิทธิ์/โควตา/เงิน ทำที่ฐานข้อมูล (policy, trigger, RPC) หรือที่ serverless function เสมอ ฝั่งหน้าบ้านเป็นแค่ตัวแสดงผลและด่านแรกที่เตือนผู้ใช้ก่อน</p>
+
+<!-- ═══════════════ 2 ═══════════════ -->
+<h2 id="structure">2. โครงสร้างโปรเจกต์</h2>
+<table>
+<tr><th>โฟลเดอร์/ไฟล์</th><th>หน้าที่</th></tr>
+<tr><td><code>src/pages/</code></td><td>หน้าจอหลักทั้งหมด — List, Form, Dashboard, Map, Plans, FollowUp, Compare, Import, Team, Profile, Upgrade, Logs, Login, Landing, SuperAdmin, SuperStats</td></tr>
+<tr><td><code>src/components/</code></td><td>ชิ้นส่วน UI ใช้ซ้ำ เช่น PropertyDetail (หน้ารายละเอียดทรัพย์), LocationPicker, Combo, FollowUpSection</td></tr>
+<tr><td><code>src/lib/</code></td><td>ตรรกะกลาง — auth, plan (สิทธิ์ตามแพ็กเกจ), payments, deviceSession (ล็อกอินทีละเครื่อง), push, review, image (บีบอัดรูป), thaiLocations (จังหวัด/เขต/แขวง), activityLog, appUpdate (live-update แอป), ai, native</td></tr>
+<tr><td><code>src/hooks/useProperties.ts</code></td><td>โหลดรายการทรัพย์ + จับคู่ชื่อองค์กร/ชื่อคนลงข้อมูล</td></tr>
+<tr><td><code>api/</code></td><td>Vercel Serverless Functions (ดูหัวข้อ 14)</td></tr>
+<tr><td><code>supabase/*.sql</code></td><td>สคริปต์ฐานข้อมูลทั้งหมด — รันใน SQL Editor เป็นก้อน idempotent (รันซ้ำได้)</td></tr>
+<tr><td><code>android/</code> + <code>capacitor.config.ts</code></td><td>โปรเจกต์แอปมือถือ (appId <code>com.hobproperty.app</code>)</td></tr>
+<tr><td><code>scripts/</code></td><td>สคริปต์ทดสอบอัตโนมัติ (Playwright) — ฟอร์ม, แก้ไข, นำเข้า, สลับองค์กร, พิกัด</td></tr>
+<tr><td><code>docs/</code></td><td>เอกสารภายใน (COSTS.html เป็นความลับ — ถูก gitignore)</td></tr>
+</table>
+
+<!-- ═══════════════ 3 ═══════════════ -->
+<h2 id="auth">3. ผู้ใช้ การล็อกอิน และสิทธิ์</h2>
+
+<h3>3.1 วิธีเข้าสู่ระบบ</h3>
+<ul>
+<li><b>อีเมล + รหัสผ่าน</b> — สมัครเองได้ (self-serve) ถ้าเปิดยืนยันอีเมลไว้ Supabase จะส่งลิงก์ยืนยันก่อนใช้งาน</li>
+<li><b>Google OAuth (PKCE)</b> — บนเว็บ redirect กลับหน้าเดิมอัตโนมัติ · ในแอปเปิด in-app browser แล้วรับ deep link <code>com.hobproperty.app://auth-callback</code> มาแลก session เอง</li>
+</ul>
+<p>สมัครแล้วระบบสร้างแถวใน <code>profiles</code> อัตโนมัติ (trigger ที่ <code>auth.users</code>) จากนั้นผู้ใช้ตั้งชื่อองค์กรของตัวเอง → ได้เป็นแอดมินขององค์กรนั้น</p>
+
+<h3>3.2 ล็อกอินได้ทีละเครื่อง (single device login)</h3>
+<div class="flow">
+<span class="node">ล็อกอินสำเร็จ</span><span class="arrow">→</span>
+<span class="node">สุ่มรหัสประจำเครื่องเก็บ localStorage</span><span class="arrow">→</span>
+<span class="node">จดลง profiles.current_session_id (RPC)</span><span class="arrow">→</span>
+<span class="node">เครื่องเก่าเห็นรหัสไม่ตรง → เด้งออก</span>
+</div>
+<ul>
+<li>เครื่องเก่ารู้ตัวผ่าน Realtime ทันที + เช็คซ้ำทุก 60 วินาที + ตอนสลับกลับมาที่แท็บ/แอป</li>
+<li>หลายแท็บบนเครื่องเดียวกันใช้รหัสเดียวกัน — ไม่เด้งกันเอง</li>
+<li>โค้ด: <code>src/lib/deviceSession.ts</code> · ฐานข้อมูล: <code>supabase/single-device.sql</code></li>
+</ul>
+
+<h3>3.3 บทบาท (role)</h3>
+<table>
+<tr><th>บทบาท</th><th>สิทธิ์</th></tr>
+<tr><td><b>super</b></td><td>ทีมงาน HOP — เห็นทุกองค์กร จัดการแพ็กเกจ/ราคา/ตั้งค่าระบบ สวมสิทธิ์เข้าองค์กรใดก็ได้ (impersonate) · ไม่มีสังกัดองค์กร</td></tr>
+<tr><td><b>admin</b></td><td>เจ้าของ/หัวหน้าทีมองค์กร — จัดการลูกทีม เชิญสมาชิก ตั้งค่าองค์กร เห็นทรัพย์ทั้งองค์กรเสมอ ดูประวัติการใช้งาน</td></tr>
+<tr><td><b>member</b></td><td>ลูกทีม — ลงและจัดการทรัพย์ · แอดมินเลือกได้ต่อคนว่าให้เห็นทรัพย์ทั้งทีมหรือเห็นเฉพาะที่ตัวเองลง (<code>see_all_properties</code>)</td></tr>
+</table>
+
+<!-- ═══════════════ 4 ═══════════════ -->
+<h2 id="org">4. องค์กรและ Multi-tenant</h2>
+<ul>
+<li>ทุกข้อมูลผูกกับ <code>org_id</code> — RLS บังคับว่าสมาชิกเห็นเฉพาะข้อมูลองค์กรตัวเอง (1 องค์กร = 1 ทีมลูกค้า)</li>
+<li>ผู้ใช้หนึ่งคนเป็นสมาชิกได้หลายองค์กร (ตาราง <code>memberships</code>) และสลับองค์กรที่ใช้งานได้จากเมนู (RPC <code>switch_org</code>)</li>
+<li>สถานะองค์กร: ใช้งานได้เมื่อไม่ถูกระงับ (<code>sub_status ≠ suspended</code>) + แพ็กเกจไม่หมดอายุ + ช่วงทดลองไม่หมด — ตรรกะเดียวกันทั้งใน DB (<code>org_ok()</code>) และ client (<code>orgOk()</code>)</li>
+<li>องค์กร Demo Estate มีทรัพย์ตัวอย่างทุกประเภทไว้ให้ลูกค้าใหม่ดูเป็นแนวทาง</li>
+</ul>
+<div class="note">⚠️ การลบองค์กรจะลบทรัพย์ทั้งหมดแบบ cascade — กู้คืนไม่ได้</div>
+
+<!-- ═══════════════ 5 ═══════════════ -->
+<h2 id="property">5. ระบบทรัพย์ (หัวใจของแอป)</h2>
+
+<h3>5.1 การลงทรัพย์ — ฟอร์มปรับตามประเภท</h3>
+<p>ฟอร์มเป็นขั้นตอน (step) และ<b>ช่องข้อมูลเปลี่ยนตามประเภททรัพย์</b> เช่น โกดัง/โรงงานถามเรื่องเครน ความสูงอาคาร รถคอนเทนเนอร์เข้าได้ · บ้าน/คอนโดถามห้องนอน เฟอร์นิเจอร์ เครื่องใช้ไฟฟ้า · ที่ดินถามไร่-งาน-ตร.วา ผังสี (พร้อมแถบสีตัวอย่าง) FAR/OSR</p>
+<ul>
+<li><b>ที่ตั้ง:</b> บ้านเลขที่ (คอนโดเป็น "เลขที่ห้อง" · ที่ดินเปล่าไม่มีช่องนี้) + จังหวัด → เขต → แขวง เป็น dropdown ต่อเนื่องกัน + ปักหมุดแผนที่/ใช้ตำแหน่งปัจจุบัน/วางพิกัด lat,lng ช่องเดียว</li>
+<li><b>ผู้ติดต่อ:</b> สถานะเจ้าของ (เจ้าของตรง/ตัวแทน) ชื่อ บริษัท เบอร์โทร เลขโฉนด</li>
+<li><b>รูปภาพ:</b> อัปโหลดหลายรูป — ระบบบีบอัดอัตโนมัติฝั่งเครื่องผู้ใช้ก่อนอัปขึ้น Storage (ไฟล์เล็กลง คุณภาพคงเดิม)</li>
+<li><b>เอกสารแนบ:</b> โฉนด สัญญา ฯลฯ แยกจากรูปภาพ</li>
+<li><b>ราคา:</b> ค่าเช่า/เดือน หรือราคาขาย + ภาษี ค่าธรรมเนียม ค่าส่วนกลาง ค่าน้ำ-ไฟ</li>
+<li><b>สถานะดีล:</b> ว่าง / เช่าแล้ว / ขายแล้ว — ใช้กรองในหน้ารายการ</li>
+</ul>
+
+<h3>5.2 หน้ารายการและรายละเอียด</h3>
+<ul>
+<li>หน้ารายการ (List) — ค้นหา + กรองตามประเภท/ลงประกาศ/สถานะดีล/จังหวัด/ช่วงราคา · การ์ดบนมือถือมีแถบปุ่มลัด โทร/SMS/แผนที่/แก้ไข</li>
+<li>หน้ารายละเอียด (PropertyDetail) — แสดงทุกฟิลด์ที่มีข้อมูล · ฟิลด์สำคัญ (ชื่อเจ้าของ เบอร์โทร คนลงข้อมูล บ้านเลขที่) แสดงเสมอ ถ้าว่างขึ้น "ไม่ได้ระบุ" เพื่อให้รู้ว่ายังไม่กรอก ไม่ใช่ระบบซ่อน</li>
+<li>หน้าแผนที่ (Map) — ปักหมุดทรัพย์ทั้งหมดบน Leaflet</li>
+<li>เปรียบเทียบ (Compare) — เลือกทรัพย์หลายรายการวางเทียบเป็นตาราง</li>
+<li>นำเข้า Excel/CSV — จับคู่คอลัมน์อัตโนมัติ + insert เป็นก้อน (แพ็กเกจ Pro)</li>
+</ul>
+
+<h3>5.3 การมองเห็นทรัพย์ต่อรายคน</h3>
+<p>ทรัพย์ทุกแถวจดว่าใครลง (<code>created_by</code>) — แอดมินตั้งค่าลูกทีมแต่ละคนได้ว่า "เห็นทรัพย์ทั้งทีม" (ค่าเริ่มต้น) หรือ "เห็นเฉพาะที่ตัวเองลง" กติกาบังคับที่ RLS (<code>can_see_prop()</code>): เห็นไม่ได้ = อ่าน/แก้/ลบไม่ได้เลย · ทรัพย์เก่าที่ไม่มีข้อมูลคนลงถือเป็นของกลาง เห็นได้ทุกคน</p>
+
+<!-- ═══════════════ 6 ═══════════════ -->
+<h2 id="plans">6. แพ็กเกจและโควตา</h2>
+<table>
+<tr><th>แพ็กเกจ</th><th>ทรัพย์</th><th>ลูกทีม</th><th>ราคา/เดือน</th><th>ฟีเจอร์</th></tr>
+<tr><td><b>Free</b></td><td>5</td><td>ไม่มี</td><td>0</td><td>พื้นฐาน (ลง/ค้นหา/รายละเอียดทรัพย์)</td></tr>
+<tr><td><b>Basic</b> <span class="tag free">คีย์ใน DB = 'starter'</span></td><td>100 / 250 / 500 ตามระดับ</td><td>ตามแพ็กเกจ</td><td>590 / 790 / 990</td><td>พื้นฐาน + ทีม + นำเข้า Excel</td></tr>
+<tr><td><b>Pro</b></td><td>100 / 250 / 500 ตามระดับ</td><td>ตามแพ็กเกจ</td><td>1,190 / 1,390 / 1,590</td><td>ทุกอย่าง + Dashboard + แผนเยี่ยมชม + นัดติดตาม</td></tr>
+<tr><td><b>Enterprise</b></td><td>&gt;500</td><td>ไม่จำกัด</td><td>คุยกับเซลล์</td><td>ทุกอย่าง</td></tr>
+</table>
+<ul>
+<li><b>รายปีลด 15%</b> (ราคาเดือน × 12 × 0.85)</li>
+<li><b>ระดับโควตา (tier)</b> เก็บที่ <code>organizations.plan_tier</code> (100/250/500 · null = ลูกค้าเก่า ตีความเป็น 500)</li>
+<li><b>ทดลองใช้ (trial):</b> องค์กรใหม่ได้สิทธิ์ Pro ชั่วคราวตามที่ super ตั้งไว้ — หมดแล้วยังไม่จ่ายจะล็อกองค์กรจนกว่าจะเลือกแพ็กเกจ</li>
+<li><b>ลำดับการตีความสิทธิ์ (effectivePlan):</b> จ่ายเงินอยู่ &gt; trial ที่ยังไม่หมด &gt; free — ตรรกะเดียวกันทั้ง SQL และ <code>src/lib/plan.ts</code></li>
+<li><b>บังคับโควตาจริงที่ DB:</b> trigger <code>enforce_property_limit</code> กัน insert เกินลิมิต (Free 5 · Basic/Pro ตาม tier · trial 500) — ฝั่งหน้าเว็บแค่เตือนก่อนถึงฟอร์ม</li>
+<li><b>ราคาแก้ได้จากหน้า Super Admin</b> เก็บในตาราง <code>plan_prices</code> — มีค่า default สำรองใน 3 ที่ที่ต้องแก้ให้ตรงกัน: <code>api/_lib/prices.js</code>, <code>src/lib/payments.ts</code>, <code>supabase/plan-tiers.sql</code></li>
+<li><b>Referral:</b> ชวนเพื่อนสมัคร — คนชวนได้ Pro ฟรีตามเงื่อนไขที่ super ตั้งค่า</li>
+</ul>
+
+<!-- ═══════════════ 7 ═══════════════ -->
+<h2 id="payment">7. การชำระเงิน (PunPay — PromptPay)</h2>
+<div class="flow">
+<span class="node">ผู้ใช้เลือกแพ็กเกจ+ระดับ+รอบบิล</span><span class="arrow">→</span>
+<span class="node">api/create-charge.js สร้าง QR</span><span class="arrow">→</span>
+<span class="node">ผู้ใช้สแกนจ่าย</span><span class="arrow">→</span>
+<span class="node">punpay-webhook.js รับผลจาก PunPay</span><span class="arrow">→</span>
+<span class="node">RPC apply_payment เปิดแพ็กเกจ</span>
+</div>
+<ul>
+<li>ราคาคำนวณ<b>ฝั่งเซิร์ฟเวอร์เท่านั้น</b> (อ่านจาก <code>plan_prices</code> → fallback <code>api/_lib/prices.js</code>) — client ส่งแค่ plan/tier/billing มา ปลอมราคาไม่ได้</li>
+<li>webhook ตรวจลายเซ็นจาก PunPay ด้วย <code>PUNPAY_SECRET_KEY</code> ก่อนเชื่อผล</li>
+<li>มี <code>verify-charge.js</code> ให้หน้าเว็บ poll เช็คสถานะ — เป็นตาข่ายสำรองถ้า webhook มาช้า</li>
+<li><code>apply_payment</code> บันทึกลงตาราง <code>payments</code> + อัปเดตแพ็กเกจ/วันหมดอายุขององค์กรเป็นทรานแซกชันเดียว</li>
+<li>โหมดทดสอบ: สวิตช์ <code>payment_test</code> ใน app_settings + env <code>PUNPAY_TEST_AMOUNT</code> (ต้องปิด/ลบก่อนเปิดตัวจริง)</li>
+</ul>
+
+<!-- ═══════════════ 8 ═══════════════ -->
+<h2 id="team">8. ทีมและการเชิญลูกทีม</h2>
+<ul>
+<li>แอดมินเชิญได้ 2 ทาง: <b>สร้างลิงก์เชิญ</b> ส่งเองทางไหนก็ได้ หรือ<b>ส่งอีเมลอัตโนมัติ</b> (ผ่าน <code>api/send-invite.js</code>)</li>
+<li>คำเชิญสร้างผ่าน RPC <code>create_team_invite</code> — ตรวจสิทธิ์แอดมิน + โควตาลูกทีมตามแพ็กเกจในตัว → ได้ token ในตาราง <code>team_invites</code></li>
+<li>ผู้ถูกเชิญเปิดลิงก์ <code>/#/login?invite=…</code> — สมัครหรือล็อกอินด้วยอีเมลที่ถูกเชิญ แล้วกดยอมรับเข้าทีม</li>
+<li>แอดมินสร้างบัญชีให้ลูกทีมตรงๆ ก็ได้ (<code>api/create-member.js</code> ใช้ service role สร้าง user ยืนยันแล้วทันที ไม่ติดลิมิตอีเมล)</li>
+<li>หน้า Team: เปิด/ปิดการใช้งานสมาชิก เปลี่ยน role ตั้งค่าการมองเห็นทรัพย์ต่อคน</li>
+</ul>
+
+<!-- ═══════════════ 9 ═══════════════ -->
+<h2 id="features">9. ฟีเจอร์การทำงาน</h2>
+<table>
+<tr><th>ฟีเจอร์</th><th>แพ็กเกจ</th><th>การทำงาน</th></tr>
+<tr><td>Dashboard สรุปภาพรวม</td><td><span class="tag pro">Pro</span></td><td>สถิติทรัพย์ตามประเภท/สถานะ/จังหวัด — จิ้มกราฟแล้วเด้งไปหน้ารายการพร้อมตัวกรอง</td></tr>
+<tr><td>แผนเยี่ยมชม (รูทเยี่ยมชม)</td><td><span class="tag pro">Pro</span></td><td>จัดชุดทรัพย์ที่จะพาลูกค้าไปดูเป็นรูท เรียงลำดับจุดแวะ แสดงชื่อเจ้าของ+ปุ่มโทร/SMS/เปิด Google Maps ต่อจุด (ตาราง <code>visit_plans</code>)</td></tr>
+<tr><td>นัดติดตาม (Follow-ups)</td><td><span class="tag pro">Pro</span></td><td>ตั้งนัดต่อทรัพย์ (โทรกลับ พาดูของ ต่อรอง) + บันทึกผล + แจ้งเตือนเมื่อถึงนัด (ตาราง <code>follow_ups</code>)</td></tr>
+<tr><td>นำเข้า Excel/CSV</td><td><span class="tag pro">Basic/Pro</span></td><td>อ่านไฟล์ จับคู่คอลัมน์ → insert ทีละก้อน แถวที่พังไม่ล้มทั้งไฟล์</td></tr>
+<tr><td>เปรียบเทียบทรัพย์</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>เลือกหลายรายการวางเทียบข้างกัน</td></tr>
+<tr><td>ผู้ช่วย AI</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>ช่วยเขียนคำอธิบายประกาศ ฯลฯ — เรียกผ่าน <code>api/ai.js</code> เท่านั้น (คีย์ LLM อยู่ฝั่งเซิร์ฟเวอร์)</td></tr>
+<tr><td>ประวัติการใช้งาน (Logs)</td><td><span class="tag free">admin</span></td><td>ใครเพิ่ม/แก้/ลบทรัพย์ เข้าระบบ ฯลฯ — บันทึกโดย trigger ฝั่ง DB ลงตาราง <code>activity_logs</code> กรองตามองค์กร</td></tr>
+<tr><td>ปุ่มรีวิว (FAB)</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>ปุ่มลอยเก็บความเห็นผู้ใช้ ลากย้ายตำแหน่งได้ ปิดชั่วคราวได้ (เด้งกลับทุก 1 ชม.) — super เปิด/ปิดทั้งระบบได้</td></tr>
+</table>
+
+<!-- ═══════════════ 10 ═══════════════ -->
+<h2 id="notify">10. การแจ้งเตือน</h2>
+<ul>
+<li><b>ช่องทาง: Web Push เท่านั้น</b> (ยังไม่มี LINE bot) — ผู้ใช้กดอนุญาตรับแจ้งเตือน เครื่องถูกจดในตาราง <code>device_tokens</code></li>
+<li><b>ตัวส่ง:</b> <code>api/push-cron.js</code> ถูกเรียกตามเวลา (Vercel Cron) — กวาดหาเรื่องที่ต้องแจ้งแล้วยิง push</li>
+<li><b>สัญญาเช่าใกล้หมด:</b> แจ้งล่วงหน้าตามเกณฑ์ (มาตรฐาน 60 และ 30 วัน) — แอดมินแต่ละองค์กรตั้งเกณฑ์เองได้ (<code>organizations.contract_alert_days</code>) ไม่ตั้งใช้ค่ากลางจาก app_settings</li>
+<li><b>นัดติดตามถึงกำหนด:</b> แจ้งเจ้าของนัด</li>
+<li>ในแอปมือถือใช้ Capacitor Push Notifications (FCM)</li>
+</ul>
+
+<!-- ═══════════════ 11 ═══════════════ -->
+<h2 id="super">11. Super Admin</h2>
+<ul>
+<li><b>หน้า /super:</b> เห็นทุกองค์กร — เปลี่ยนแพ็กเกจ/ระดับ/วันหมดอายุ ระงับองค์กร ตั้งราคาแพ็กเกจ (plan_prices) ตั้งค่า trial/referral/โหมดทดสอบจ่ายเงิน/เกณฑ์เตือนสัญญาค่ากลาง/ช่องทางติดต่อ (LINE OA, โทร, อีเมล — ไปโชว์ที่ landing page) และเปิด-ปิดปุ่มรีวิว</li>
+<li><b>สวมสิทธิ์ (impersonate):</b> เข้าไปเห็นระบบเหมือนเป็นสมาชิกองค์กรนั้นจริง (จดใน <code>profiles.impersonate_org_id</code>) — ใช้ช่วยลูกค้าแก้ปัญหา</li>
+<li><b>หน้า /superstats:</b> Dashboard ยอดสมัคร realtime — องค์กรทั้งหมด ผู้ใช้รวม จ่ายเงินอยู่/ทดลอง/ฟรี MRR โดยประมาณ กราฟสมัครใหม่รายเดือน 12 เดือน องค์กรล่าสุด 10 ราย (Realtime + polling 60 วิ)</li>
+</ul>
+
+<!-- ═══════════════ 12 ═══════════════ -->
+<h2 id="email">12. ระบบอีเมล</h2>
+<table>
+<tr><th>ประเภทอีเมล</th><th>ผู้ส่ง</th><th>ตั้งค่าที่</th></tr>
+<tr><td>ยืนยันสมัคร / ลืมรหัสผ่าน</td><td>Supabase Auth ผ่าน SMTP</td><td>Supabase Dashboard → Authentication → SMTP Settings</td></tr>
+<tr><td>เชิญลูกทีม</td><td><code>api/send-invite.js</code> — ลอง SMTP ก่อน → Resend → ถ้าไม่มีทั้งคู่คืนลิงก์ให้คัดลอกส่งเอง</td><td>Vercel env: <code>SMTP_HOST/USER/PASS</code> หรือ <code>RESEND_API_KEY</code> + <code>INVITE_FROM</code></td></tr>
+</table>
+<div class="note">⚠️ Gmail App Password มี 2 ที่ต้องอัปเดตให้ตรงกัน (Supabase + Vercel) · รหัส 16 ตัวห้ามมีเว้นวรรค · Google เพิกถอนอัตโนมัติเมื่อเปลี่ยนรหัสผ่านบัญชี · เปลี่ยน env ใน Vercel แล้วต้องกด Redeploy · ระยะยาวแนะนำย้ายไป Resend (ต้องมีโดเมนของตัวเอง)</div>
+
+<!-- ═══════════════ 13 ═══════════════ -->
+<h2 id="mobile">13. แอปมือถือ (Capacitor)</h2>
+<ul>
+<li>แอป Android ห่อเว็บด้วย Capacitor — appId <code>com.hobproperty.app</code> (ห้ามเปลี่ยนหลังขึ้น store)</li>
+<li>APK build ผ่าน GitHub Actions (ไม่ฝัง secret ใด ๆ ในแอป)</li>
+<li><b>Live-update:</b> แอปตามเว็บ production อัตโนมัติผ่าน <code>@capgo/capacitor-updater</code> — แก้เว็บแล้วผู้ใช้แอปได้ของใหม่โดยไม่ต้องลง APK ใหม่ (เปิดแอปใหม่หนึ่งครั้ง)</li>
+<li>ในแอป<b>ไม่ลงทะเบียน Service Worker</b> (สาเหตุคลาสสิกของจอขาว) และไม่โหลด Vercel Analytics</li>
+<li>ปลั๊กอินที่ใช้: Camera (ถ่าย/เลือกรูป), Geolocation (ตำแหน่งปัจจุบัน), Push Notifications, Browser (Google login), App (deep link)</li>
+</ul>
+
+<!-- ═══════════════ 14 ═══════════════ -->
+<h2 id="api">14. Serverless API ทั้งหมด (โฟลเดอร์ api/)</h2>
+<table>
+<tr><th>ไฟล์</th><th>หน้าที่</th><th>ความลับที่ใช้</th></tr>
+<tr><td><code>ai.js</code></td><td>proxy เรียก LLM — client ห้ามถือคีย์</td><td><code>AI_API_KEY</code></td></tr>
+<tr><td><code>create-charge.js</code></td><td>สร้าง QR PromptPay — คำนวณราคาฝั่งเซิร์ฟเวอร์</td><td><code>PUNPAY_SECRET_KEY</code></td></tr>
+<tr><td><code>verify-charge.js</code></td><td>เช็คสถานะจ่ายเงิน (หน้าเว็บ poll)</td><td><code>PUNPAY_SECRET_KEY</code>, service role</td></tr>
+<tr><td><code>punpay-webhook.js</code></td><td>รับผลจ่ายเงินจาก PunPay (ตรวจลายเซ็น) → apply_payment</td><td><code>PUNPAY_SECRET_KEY</code>, service role</td></tr>
+<tr><td><code>send-invite.js</code></td><td>สร้างคำเชิญ + ส่งอีเมลเชิญลูกทีม</td><td><code>SMTP_*</code> / <code>RESEND_API_KEY</code></td></tr>
+<tr><td><code>create-member.js</code></td><td>แอดมินสร้างบัญชีลูกทีมโดยตรง (ยืนยันแล้วทันที)</td><td>service role</td></tr>
+<tr><td><code>push-cron.js</code></td><td>งานตามเวลา — แจ้งเตือนสัญญาใกล้หมด/นัดติดตาม</td><td>service role, VAPID keys</td></tr>
+</table>
+
+<!-- ═══════════════ 15 ═══════════════ -->
+<h2 id="db">15. ตารางฐานข้อมูล</h2>
+<table>
+<tr><th>ตาราง</th><th>เก็บอะไร</th></tr>
+<tr><td><code>organizations</code></td><td>องค์กร — ชื่อ แพ็กเกจ ระดับโควตา สถานะ วันหมดอายุ trial เกณฑ์เตือนสัญญา</td></tr>
+<tr><td><code>profiles</code></td><td>ผู้ใช้ — ชื่อ อีเมล role สังกัด สถานะใช้งาน การมองเห็นทรัพย์ รหัสเครื่องที่ล็อกอิน (single device) ธง super/impersonate</td></tr>
+<tr><td><code>memberships</code></td><td>ความเป็นสมาชิกหลายองค์กรของผู้ใช้หนึ่งคน</td></tr>
+<tr><td><code>properties</code></td><td>ทรัพย์ — ฟิลด์ทั้งหมดของทุกประเภท (ที่ตั้ง ราคา สเปก รูป เอกสาร พิกัด ผู้ติดต่อ สถานะดีล คนลงข้อมูล)</td></tr>
+<tr><td><code>visit_plans</code></td><td>แผนเยี่ยมชม — ชุดจุดแวะเรียงลำดับ</td></tr>
+<tr><td><code>follow_ups</code></td><td>นัดติดตามต่อทรัพย์ + ผลการติดตาม</td></tr>
+<tr><td><code>team_invites</code></td><td>คำเชิญเข้าทีม (token + อีเมล + สถานะ)</td></tr>
+<tr><td><code>payments</code></td><td>ประวัติการชำระเงิน</td></tr>
+<tr><td><code>plan_prices</code></td><td>ราคาแพ็กเกจ×ระดับ (super แก้ได้)</td></tr>
+<tr><td><code>app_settings</code></td><td>ตั้งค่าระบบเป็น jsonb ต่อคีย์ — trial, referral, payment_test, contract_alert, contact (LINE OA/โทร/อีเมล), review_mode (อ่านได้แบบ anon เพื่อโชว์บน landing)</td></tr>
+<tr><td><code>activity_logs</code></td><td>ประวัติการใช้งาน (บันทึกโดย trigger)</td></tr>
+<tr><td><code>device_tokens</code></td><td>เครื่องที่รับ push notification</td></tr>
+<tr><td><code>flow_reviews</code></td><td>คะแนน/ความเห็นจากปุ่มรีวิว</td></tr>
+</table>
+<p>ทุกตารางเปิด RLS — สคริปต์ทั้งหมดอยู่ใน <code>supabase/*.sql</code> เขียนแบบ idempotent (รันซ้ำได้ไม่พัง ยกเว้นที่ระบุไว้ในคอมเมนต์หัวไฟล์ เช่น grant-trial-to-free.sql)</p>
+
+<!-- ═══════════════ 16 ═══════════════ -->
+<h2 id="security">16. ความปลอดภัย</h2>
+<ul>
+<li><b>RLS เป็นด่านจริง:</b> สิทธิ์ทุกอย่างบังคับที่ฐานข้อมูล — ต่อให้เรียก API ตรงด้วย anon key ก็เห็น/แก้ได้เท่าที่ policy อนุญาต</li>
+<li><b>งานที่ต้องข้าม RLS ใช้ RPC แบบ SECURITY DEFINER</b> ที่ตรวจสิทธิ์เองในฟังก์ชัน (เช่น switch_org, create_team_invite, apply_payment, claim_device_session, org_member_names)</li>
+<li><b>ความลับอยู่ฝั่งเซิร์ฟเวอร์เท่านั้น:</b> <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>PUNPAY_SECRET_KEY</code>, <code>AI_API_KEY</code>, SMTP — เก็บใน Vercel env ไม่เคยลง repo/client</li>
+<li><b>.env / .env.local ถูก gitignore</b> — client มีแค่ URL + anon key ของ Supabase</li>
+<li><b>ราคา/โควตาตัดสินที่เซิร์ฟเวอร์:</b> create-charge คำนวณราคาเอง, trigger กันเพิ่มทรัพย์เกินลิมิต, RPC ตรวจ admin ก่อนเชิญสมาชิก</li>
+<li><b>webhook ตรวจลายเซ็น</b> ก่อนเชื่อผลการจ่ายเงิน · trigger ฝั่ง DB ยกเว้น service_role เพื่อให้ระบบหลังบ้านทำงานได้</li>
+<li><b>ล็อกอินทีละเครื่อง</b> ลดการแชร์บัญชีใช้งานพร้อมกัน</li>
+</ul>
+
+<!-- ═══════════════ 17 ═══════════════ -->
+<h2 id="deploy">17. การ Deploy และงานดูแลระบบ</h2>
+<ul>
+<li><b>เว็บ:</b> push ขึ้น GitHub (branch main) → Vercel build + deploy อัตโนมัติ → แอปมือถือได้ของใหม่ตามผ่าน live-update</li>
+<li><b>ฐานข้อมูล:</b> รันสคริปต์จาก <code>supabase/*.sql</code> ใน SQL Editor — <b>ต้องรันก่อน deploy โค้ดที่พึ่งพาสคริปต์นั้น</b></li>
+<li><b>ตรวจก่อน push:</b> <code>npx tsc -p tsconfig.app.json --noEmit && npx vite build</code> + สคริปต์ทดสอบใน <code>scripts/</code> (Playwright)</li>
+<li><b>เปลี่ยน env ใน Vercel</b> → ต้องกด Redeploy ถึงจะมีผล</li>
+<li><b>เช็คลิสต์ก่อนเปิดตัวจริง:</b> ลบ env <code>PUNPAY_TEST_AMOUNT</code> + ปิดสวิตช์ payment_test · ลบแพ็กเกจทดสอบ ฿1 · กรอกช่องทางติดต่อจริง (LINE OA/โทร/อีเมล) ในหน้า Super Admin</li>
+<li><b>วัดผล:</b> Vercel Speed Insights (ความเร็ว Core Web Vitals) + Web Analytics (ยอดเข้าชม) — เฉพาะเว็บ production</li>
+</ul>
+
+<footer>เอกสารภายในทีม HOP — สร้างจากโค้ดจริงของระบบ · ไฟล์นี้อยู่ที่ <code>docs/SYSTEM.html</code> อัปเดตได้เมื่อระบบเปลี่ยน</footer>
+</div>
+</body>
+</html>

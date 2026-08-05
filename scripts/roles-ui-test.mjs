@@ -44,6 +44,15 @@ for (const [role, seeContact, seeLoc, canEdit, canDel] of CASES) {
   if (!seeContact) {
     check(`${role}: บอกว่าปิดตามสิทธิ์ (ไม่ใช่ไม่มีข้อมูล)`, t.includes('ปิดตามสิทธิ์'))
     check(`${role}: ให้ติดต่อคนลงข้อมูลแทน`, t.includes('0899999999'))
+    // ห้ามขึ้น "ไม่ได้ระบุ" ในแถวที่ถูกปิด — ไม่งั้นอ่านผิดเป็น "เจ้าของไม่ได้กรอกข้อมูล"
+    const contactRows = page.locator('.field').filter({ hasText: 'ชื่อผู้ติดต่อ' })
+    check(`${role}: แถวชื่อผู้ติดต่อถูกซ่อน ไม่ขึ้น "ไม่ได้ระบุ"`, (await contactRows.count()) === 0,
+      await contactRows.first().innerText().catch(() => ''))
+    const phoneRows = page.locator('.field').filter({ hasText: 'เบอร์โทรติดต่อ' })
+    check(`${role}: แถวเบอร์โทรติดต่อถูกซ่อน ไม่ขึ้น "ไม่ได้ระบุ"`, (await phoneRows.count()) === 0)
+  } else {
+    // บทบาทที่เห็นข้อมูล: ถ้าค่าว่างต้องขึ้น "ไม่ได้ระบุ" ตามที่ตกลงไว้ (บ้านเลขที่ในทรัพย์ตัวอย่างว่าง)
+    check(`${role}: ค่าว่างจริงขึ้น "ไม่ได้ระบุ"`, t.includes('ไม่ได้ระบุ'))
   }
   check(`${role}: ปุ่มแก้ไข ${canEdit ? 'โชว์' : 'ไม่โชว์'}`, (await btn('แก้ไข').count()) === (canEdit ? 1 : 0))
   check(`${role}: ปุ่มลบ ${canDel ? 'โชว์' : 'ไม่โชว์'}`, (await btn('ลบ').count()) === (canDel ? 1 : 0))
