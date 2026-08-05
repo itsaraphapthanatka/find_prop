@@ -143,6 +143,26 @@ eq('อ่านคอลัมน์ของตาราง properties จา�
   eq('view ส่งฟิลด์ที่แอปใช้มาครบ (ยกเว้น org_name ที่จับคู่ฝั่งแอป)', notInView, [])
 }
 
+// ── ไฟล์ SQL ต้องรันซ้ำได้ (idempotent) ──
+// (เคยพลาด: create policy "membership owner update" ไม่มี drop คู่กัน → รันไฟล์ซ้ำ error 42710)
+for (const f of ['roles.sql', 'seats.sql']) {
+  const t = readFileSync(`supabase/${f}`, 'utf8')
+  const created = [...t.matchAll(/create policy "([^"]+)" on ([a-z_.]+)/g)].map((m) => `${m[1]}@${m[2]}`)
+  const dropped = new Set(
+    [...t.matchAll(/drop policy if exists "([^"]+)" on ([a-z_.]+)/g)].map((m) => `${m[1]}@${m[2]}`))
+  eq(`${f}: ทุก create policy มี drop if exists คู่กัน`, created.filter((c) => !dropped.has(c)), [])
+  // constraint ที่ add ต้องมี drop if exists ก่อน (ไม่มี if not exists ให้ใช้)
+  const addedC = [...t.matchAll(/add constraint ([a-z_0-9]+)/g)].map((m) => m[1])
+  const droppedC = new Set([...t.matchAll(/drop constraint if exists ([a-z_0-9]+)/g)].map((m) => m[1]))
+  eq(`${f}: ทุก add constraint มี drop if exists คู่กัน`, addedC.filter((c) => !droppedC.has(c)), [])
+  // create index/table/function ต้องเป็นแบบรันซ้ำได้
+  eq(`${f}: create index ใช้ if not exists`, /create (unique )?index (?!if not exists)/.test(t), false)
+  eq(`${f}: create table ใช้ if not exists`, /create table (?!if not exists)/.test(t), false)
+  eq(`${f}: create function ใช้ or replace`, /create function /.test(t), false)
+  eq(`${f}: create view ใช้ drop view if exists ก่อน`,
+    !/create view /.test(t) || /drop view if exists/.test(t), true)
+}
+
 // ── ฝั่งแอปต้องอ่านทรัพย์จาก view เท่านั้น ──
 for (const f of ['src/hooks/useProperties.ts', 'src/pages/FormPage.tsx', 'src/pages/FollowUpPage.tsx']) {
   const src = readFileSync(f, 'utf8')

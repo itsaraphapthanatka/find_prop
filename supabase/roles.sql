@@ -292,6 +292,9 @@ drop policy if exists "membership update" on public.memberships;
 drop policy if exists "membership delete" on public.memberships;
 drop policy if exists "membership admin write" on public.memberships;
 drop policy if exists "membership owner write" on public.memberships;
+-- ต้องลบชื่อใหม่ด้วย ไม่งั้นรันไฟล์นี้ซ้ำจะ error 42710 (policy already exists)
+drop policy if exists "membership owner update" on public.memberships;
+drop policy if exists "membership owner delete" on public.memberships;
 create policy "membership owner update" on public.memberships for update using (
   public.is_super() or (org_id = public.current_org() and public.is_owner())
 ) with check (
