@@ -3,6 +3,7 @@ import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } 
 import L from 'leaflet'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
+import { usePerm } from '../hooks/usePerm'
 import { OrgFilterSelect, useOrgFilter } from '../hooks/useOrgFilter'
 import { useAuth } from '../lib/auth'
 import type { Property } from '../types'
@@ -85,6 +86,7 @@ function ClickCatcher({ enabled, onPick }: {
 export default function MapPage() {
   const { items, loading, reload } = useProperties()
   const { profile } = useAuth()
+  const perm = usePerm()
   // ชื่อองค์กรใน popup เฉพาะ super โหมดภาพรวม — ตอนสวมสิทธิ์มุมมองเหมือนสมาชิกจริง
   const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
   const [selected, setSelected] = useState<Property | null>(null)
@@ -441,8 +443,8 @@ export default function MapPage() {
         <PropertyDetail
           property={selected}
           onClose={() => setSelected(null)}
-          onEdit={() => navigate(`/edit/${selected.id}`)}
-          onDelete={() => void handleDelete(selected)}
+          onEdit={perm.canEdit(selected) ? () => navigate(`/edit/${selected.id}`) : null}
+          onDelete={perm.canDelete(selected) ? () => void handleDelete(selected) : null}
         />
       )}
     </div>

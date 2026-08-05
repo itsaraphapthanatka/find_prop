@@ -3,14 +3,49 @@ import { supabase } from './supabase'
 
 // ลิมิตแพ็กเกจ Free (ต้องตรงกับฝั่งเซิร์ฟเวอร์ใน supabase/plan-tiers.sql + api/create-member.js)
 export const FREE_MAX_PROPERTIES = 5
-export const FREE_MAX_MEMBERS = 0 // Free ไม่มีลูกทีม
+export const FREE_SEATS = 1 // Free = เจ้าของคนเดียว (ไม่มีลูกทีม)
 /** ระดับมาตรฐานเมื่อองค์กรยังไม่มี plan_tier (ลูกค้าเดิม/ช่วงทดลอง) */
 export const DEFAULT_TIER = 500
+
+/**
+ * ที่นั่งที่แถมมากับแพ็กเกจ — 1 ที่นั่ง = 1 บัญชีในองค์กร (นับแอดมิน/เจ้าของด้วย)
+ * ⚠️ ต้องตรงกับ plan_base_seats() ใน supabase/seats.sql และ api/_lib/seats.js
+ */
+export const SEATS_BY_PLAN: Record<'starter' | 'pro', Record<number, number>> = {
+  starter: { 100: 3, 250: 5, 500: 10 },
+  pro: { 100: 5, 250: 10, 500: 20 },
+}
+
+/** ที่นั่งพื้นฐานของแพ็กเกจ (ยังไม่รวมที่นั่งที่ซื้อเพิ่ม) — null = ไม่จำกัด (enterprise) */
+export function baseSeats(plan?: string | null, tier?: number | null): number | null {
+  if (plan === 'enterprise') return null
+  const table = plan === 'pro' ? SEATS_BY_PLAN.pro : plan === 'starter' ? SEATS_BY_PLAN.starter : null
+  if (!table) return FREE_SEATS
+  return table[tier ?? DEFAULT_TIER] ?? table[DEFAULT_TIER]
+}
+
+/**
+ * ที่นั่งทั้งหมดที่องค์กรใช้ได้ = ของแพ็กเกจ + ที่ซื้อเพิ่ม (ที่ยังไม่หมดอายุ) — null = ไม่จำกัด
+ * ตรงกับ org_seat_limit() ในฐานข้อมูล (ฐานข้อมูลเป็นตัวบังคับจริง อันนี้ไว้โชว์/กันกดเปล่า)
+ */
+export function seatLimit(org?: Organization | null): number | null {
+  const base = baseSeats(effectivePlan(org), org?.plan_tier)
+  if (base === null) return null
+  return base + activeExtraSeats(org)
+}
+
+/** ที่นั่งที่ซื้อเพิ่มและยังไม่หมดอายุ */
+export function activeExtraSeats(org?: Organization | null): number {
+  const qty = org?.extra_seats ?? 0
+  if (qty <= 0 || !org?.extra_seats_expires_at) return 0
+  return org.extra_seats_expires_at >= new Date().toISOString().slice(0, 10) ? qty : 0
+}
 
 export interface PlanAccess {
   pro: boolean
   maxProperties: number | null // null = ไม่จำกัด (enterprise) · Basic/Pro = ตามระดับ 100/250/500
-  maxMembers: number | null
+  /** ที่นั่งพื้นฐานของแพ็กเกจ (ไม่รวมที่ซื้อเพิ่ม — ใช้ seatLimit(org) ถ้าต้องการยอดจริง) · null = ไม่จำกัด */
+  maxSeats: number | null
   dashboard: boolean // สรุปภาพรวม
   visitPlans: boolean // แผนเยี่ยมชม
   followUps: boolean // นัดติดตาม
@@ -25,7 +60,7 @@ export function planAccess(plan?: string | null, tier?: number | null): PlanAcce
     pro,
     // Basic/Pro จำกัดทรัพย์ตามระดับที่ซื้อ (100/250/500) · enterprise ไม่จำกัด · free = 5
     maxProperties: plan === 'enterprise' ? null : paid ? (tier ?? DEFAULT_TIER) : FREE_MAX_PROPERTIES,
-    maxMembers: paid ? null : FREE_MAX_MEMBERS,
+    maxSeats: baseSeats(plan, tier),
     dashboard: pro,
     visitPlans: pro,
     followUps: pro,

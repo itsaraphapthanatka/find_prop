@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { roleName } from '../lib/roles'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import {
@@ -75,11 +76,11 @@ function detailText(log: ActivityLog): string {
     return [title ? `"${title}"` : null, result ? `ผล: ${result}` : null].filter(Boolean).join(' · ')
   }
   if (log.action === 'member.add') {
-    return `${d.role === 'admin' ? 'แอดมิน' : 'ลูกทีม'}${d.see_all === false ? ' · เห็นเฉพาะทรัพย์ตัวเอง' : ''}`
+    return `${roleName(str(d.role))}${d.see_all === false ? ' · เห็นเฉพาะทรัพย์ตัวเอง' : ''}`
   }
   if (log.action === 'member.update' || log.action === 'profile.rights') {
     const parts: string[] = []
-    if (str(d.role_from) && d.role !== d.role_from) parts.push(`บทบาท ${d.role_from} → ${d.role}`)
+    if (str(d.role_from) && d.role !== d.role_from) parts.push(`บทบาท ${roleName(str(d.role_from))} → ${roleName(str(d.role))}`)
     if (typeof d.active === 'boolean' && d.active !== d.active_from) parts.push(d.active ? 'เปิดใช้งาน' : 'ปิดใช้งาน')
     if (typeof d.see_all === 'boolean' && d.see_all !== d.see_all_from) {
       parts.push(d.see_all ? 'ให้เห็นทรัพย์ทั้งองค์กร' : 'ให้เห็นเฉพาะทรัพย์ตัวเอง')

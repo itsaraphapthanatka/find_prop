@@ -6,6 +6,7 @@
 //   • อัปเกรดผ่าน RPC apply_payment (service-role) — กันอัปเกรดซ้ำด้วย charge_id (idempotent)
 
 import { fetchPlanPrices } from './_lib/prices.js'
+import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
 
 const PAID_STATUSES = ['paid', 'succeeded', 'success', 'completed', 'complete']
 
@@ -66,7 +67,9 @@ export default async function handler(req, res) {
     )
     const prof = ((await pRes.json().catch(() => [])) || [])[0]
     orgId = (prof?.is_super ? prof?.impersonate_org_id : null) || prof?.org_id
-    const isAdmin = (prof?.role === 'admin' && prof?.active === true) || Boolean(prof?.is_super && prof?.impersonate_org_id)
+    // จัดการแพ็กเกจ/ชำระเงิน = บทบาท Owner ('admin' = ชื่อเดิมก่อนแปลงบทบาท)
+    const isAdmin = ((prof?.role === 'owner' || prof?.role === 'admin') && prof?.active === true)
+      || Boolean(prof?.is_super && prof?.impersonate_org_id)
     if (!orgId || !isAdmin) return res.status(403).json({ error: 'เฉพาะแอดมินขององค์กรเท่านั้น' })
   } catch {
     return res.status(502).json({ error: 'ตรวจสอบสิทธิ์ไม่สำเร็จ' })
@@ -102,6 +105,40 @@ export default async function handler(req, res) {
   if (meta.org_id !== orgId) {
     return res.status(403).json({ error: 'รายการนี้ไม่ใช่ขององค์กรคุณ' })
   }
+
+  // ── ซื้อที่นั่งเพิ่ม: ไม่แตะแพ็กเกจ/วันหมดอายุ subscription แค่เพิ่ม extra_seats ──
+  if (plan === 'seats') {
+    const qty = Math.floor(Number(meta.qty))
+    const sp = await fetchSeatPrice(supaUrl, serviceKey)
+    const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
+    const wantSeat = testAmt > 0 ? testAmt : (cycle === 'yearly' ? sp.yearly : sp.monthly) * qty
+    if (!(qty >= 1 && qty <= MAX_SEAT_QTY) || ![1, 12].includes(months) || Number(charge.amount) !== wantSeat) {
+      return res.status(400).json({ error: 'ข้อมูลที่นั่ง/ยอดเงินไม่ถูกต้อง' })
+    }
+    try {
+      const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
+      const rpc = await fetch(`${supaUrl}/rest/v1/rpc/apply_seat_payment`, {
+        method: 'POST',
+        headers: svc,
+        body: JSON.stringify({ p_charge_id: chargeId, p_org: orgId, p_qty: qty, p_months: months, p_amount: wantSeat }),
+      })
+      const out = await rpc.json().catch(() => null)
+      if (!rpc.ok) {
+        return res.status(502).json({ error: 'เพิ่มที่นั่งไม่สำเร็จ', detail: out?.message || `HTTP ${rpc.status}` })
+      }
+      const row = Array.isArray(out) ? out[0] : out
+      return res.status(200).json({
+        paid: true,
+        plan: 'seats',
+        applied: row?.applied ?? false, // false = charge นี้ลงบัญชีไปแล้ว (กันซ้ำ)
+        seats: row?.seats ?? null,
+        expires: row?.expires ?? null,
+      })
+    } catch {
+      return res.status(502).json({ error: 'เพิ่มที่นั่งไม่สำเร็จ (เชื่อมต่อฐานข้อมูล)' })
+    }
+  }
+
   const prices = await fetchPlanPrices(supaUrl, serviceKey)
   const want = expectedAmount(plan, meta.tier, cycle, prices)
   if (want === null || Number(charge.amount) !== want || ![1, 12].includes(months)) {

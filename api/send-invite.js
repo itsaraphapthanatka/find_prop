@@ -21,6 +21,10 @@ export default async function handler(req, res) {
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
   const email = String(req.body?.email ?? '').trim()
+  // บทบาทของคนที่ถูกเชิญ (8 ระดับ — ดู supabase/roles.sql) · ไม่ส่งมา = manager
+  const ROLE_KEYS = ['owner', 'manager', 'associate', 'analyst', 'survey', 'temporary', 'social', 'trainee']
+  const roleIn = String(req.body?.role ?? '').trim()
+  const role = ROLE_KEYS.includes(roleIn) ? roleIn : 'manager'
   if (!url || !anonKey) return res.status(500).json({ error: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า Supabase' })
   if (!token) return res.status(401).json({ error: 'ต้องเข้าสู่ระบบก่อน' })
   if (!email) return res.status(400).json({ error: 'ต้องระบุอีเมล' })
@@ -31,7 +35,7 @@ export default async function handler(req, res) {
   let inviteToken
   try {
     const r = await fetch(`${url}/rest/v1/rpc/create_team_invite`, {
-      method: 'POST', headers: auth, body: JSON.stringify({ p_email: email }),
+      method: 'POST', headers: auth, body: JSON.stringify({ p_email: email, p_role: role }),
     })
     const out = await r.json().catch(() => null)
     if (!r.ok) return res.status(400).json({ error: (out && (out.message || out.hint)) || 'สร้างคำเชิญไม่สำเร็จ' })

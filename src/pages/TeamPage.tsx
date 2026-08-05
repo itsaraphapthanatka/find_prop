@@ -1,23 +1,28 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { ROLES, ROLE_INFO, roleName, rolePerm, type Role } from '../lib/roles'
+import Combo from '../components/Combo'
+import { loadThaiLocations, type ThaiLocations } from '../lib/thaiLocations'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, onTrial } from '../lib/plan'
+import {
+  fetchReferralSetting, DEFAULT_REFERRAL, onTrial,
+  activeExtraSeats, baseSeats, effectivePlan, seatLimit,
+} from '../lib/plan'
 
 // สมาชิก = membership (ใครอยู่ org นี้) + ข้อมูลโปรไฟล์ (ชื่อ/อีเมล) · id = user_id
 type MemberRow = {
   id: string
   full_name: string | null
   email: string
-  role: 'admin' | 'member'
+  role: Role
   active: boolean
   see_all_properties: boolean
 }
 
 export default function TeamPage() {
   const { profile: me, org, refreshProfile } = useAuth()
-  const access = usePlanAccess()
   const [members, setMembers] = useState<MemberRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +30,7 @@ export default function TeamPage() {
   const [savingOrg, setSavingOrg] = useState(false)
 
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<Role>('manager')
   const [inviting, setInviting] = useState(false)
   const [inviteErr, setInviteErr] = useState<string | null>(null)
   const [lastInvite, setLastInvite] = useState<{ email: string; link: string; emailed: boolean; reason?: string } | null>(null)
@@ -59,7 +65,7 @@ export default function TeamPage() {
       return
     }
     const rows = (ms ?? []) as {
-      user_id: string; role: 'admin' | 'member'; active: boolean; see_all_properties: boolean
+      user_id: string; role: Role; active: boolean; see_all_properties: boolean
     }[]
     const prof = new Map<string, { full_name: string | null; email: string }>()
     if (rows.length) {
@@ -110,8 +116,94 @@ export default function TeamPage() {
     void fetchReferralSetting().then(setRefSet)
   }, [])
   const toNext = refStat ? refSet.need - (refStat.referred_count % refSet.need) : refSet.need
-  // แพ็กเกจ Free ไม่มีลูกทีม — Basic/Pro (รวมช่วงทดลอง) เชิญได้ไม่จำกัด
-  const atMemberLimit = access.maxMembers !== null
+
+  // ── ที่นั่งทีม: 1 ที่นั่ง = 1 บัญชี (นับแอดมินด้วย) + คำเชิญที่ยังไม่ตอบ ──
+  // ฐานข้อมูลเป็นตัวบังคับจริง (org_seat_limit) — ที่นี่อ่านมาโชว์ ถ้า RPC ยังไม่มีก็คำนวณในเครื่อง
+  const [seat, setSeat] = useState<{
+    used: number; limit: number | null; base: number | null; extra: number; extraExpires: string | null
+  } | null>(null)
+  const activeMembers = members.filter((m) => m.active).length
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const { data, error } = await supabase.rpc('my_seat_usage')
+      const row = ((data ?? []) as {
+        used: number; seat_limit: number | null; base: number | null; extra: number; extra_expires: string | null
+      }[])[0]
+      if (cancelled) return
+      if (!error && row) {
+        setSeat({
+          used: Number(row.used), limit: row.seat_limit === null ? null : Number(row.seat_limit),
+          base: row.base === null ? null : Number(row.base),
+          extra: Number(row.extra ?? 0), extraExpires: row.extra_expires ?? null,
+        })
+        return
+      }
+      // ยังไม่ได้รัน supabase/seats.sql → คำนวณจากข้อมูลที่มีในหน้า
+      setSeat({
+        // ต่ำสุด 1 เสมอ — คนที่เปิดหน้านี้ก็อยู่ในองค์กร (กันโชว์ 0 ตอนอ่านรายชื่อไม่สำเร็จ)
+        used: Math.max(1, activeMembers + invites.length),
+        limit: seatLimit(org),
+        base: baseSeats(effectivePlan(org), org?.plan_tier),
+        extra: activeExtraSeats(org),
+        extraExpires: org?.extra_seats_expires_at ?? null,
+      })
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, activeMembers, invites.length, org?.plan, org?.plan_tier, org?.extra_seats])
+
+  // ── เขตที่กำหนดให้ (Survey/Temporary) — 1 แถว = 1 ขอบเขต · ไม่ระบุอำเภอ = ทั้งจังหวัด ──
+  type AreaRow = { id: string; user_id: string; province: string; district: string | null }
+  const [areas, setAreas] = useState<AreaRow[]>([])
+  const [areaFor, setAreaFor] = useState<string | null>(null)   // กำลังแก้เขตของใคร
+  const [areaProv, setAreaProv] = useState<string | null>(null)
+  const [areaDist, setAreaDist] = useState<string | null>(null)
+  const [areaErr, setAreaErr] = useState<string | null>(null)
+  const [thLoc, setThLoc] = useState<ThaiLocations | null>(null)
+  useEffect(() => { void loadThaiLocations().then(setThLoc) }, [])
+  useEffect(() => {
+    if (!orgId) { setAreas([]); return }
+    void supabase
+      .from('member_areas')
+      .select('id, user_id, province, district')
+      .eq('org_id', orgId)
+      .then(({ data }) => setAreas((data ?? []) as AreaRow[]))
+  }, [orgId])
+
+  const myAreas = (userId: string) => areas.filter((a) => a.user_id === userId)
+
+  async function reloadAreas() {
+    if (!orgId) return
+    const { data } = await supabase
+      .from('member_areas').select('id, user_id, province, district').eq('org_id', orgId)
+    setAreas((data ?? []) as AreaRow[])
+  }
+  async function addArea(userId: string) {
+    setAreaErr(null)
+    if (!areaProv) { setAreaErr('เลือกจังหวัดก่อน'); return }
+    const { error } = await supabase.from('member_areas').insert({
+      org_id: orgId, user_id: userId, province: areaProv, district: areaDist || null,
+    })
+    if (error) {
+      setAreaErr(error.message.includes('member_areas')
+        ? 'ยังไม่ได้ติดตั้งฟีเจอร์นี้ — รัน supabase/roles.sql ก่อน'
+        : error.message.includes('duplicate') ? 'เขตนี้ถูกกำหนดไว้แล้ว' : error.message)
+      return
+    }
+    setAreaProv(null)
+    setAreaDist(null)
+    await reloadAreas()
+  }
+  async function removeArea(id: string) {
+    const { error } = await supabase.from('member_areas').delete().eq('id', id)
+    if (error) setAreaErr(error.message)
+    else await reloadAreas()
+  }
+
+  const seatFull = seat !== null && seat.limit !== null && seat.used >= seat.limit
+  const seatFree = seat !== null && seat.limit !== null && seat.limit <= 1 // Free = เจ้าของคนเดียว
+  const seatLeft = seat && seat.limit !== null ? Math.max(0, seat.limit - seat.used) : null
 
   async function copyRefLink() {
     try {
@@ -158,7 +250,7 @@ export default function TeamPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${s.session?.access_token ?? ''}`,
         },
-        body: JSON.stringify({ email: inviteEmail.trim() }),
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       })
       const out = await res.json().catch(() => ({}))
       setInviting(false)
@@ -280,19 +372,75 @@ export default function TeamPage() {
           </section>
         )}
 
+        {/* ── ที่นั่งทีม ── */}
+        {seat && (
+          <section className="form-card">
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0 }}>ที่นั่งทีม</h3>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>
+                {seat.limit === null
+                  ? <>{seat.used} คน · <span style={{ color: 'var(--muted)', fontWeight: 600 }}>ไม่จำกัดที่นั่ง</span></>
+                  : <span style={{ color: seatFull ? 'var(--danger, #d93025)' : undefined }}>
+                      ใช้ {seat.used} จาก {seat.limit} ที่นั่ง
+                    </span>}
+              </div>
+            </div>
+            {seat.limit !== null && (
+              <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '10px 0 8px' }}>
+                <div style={{
+                  height: '100%', borderRadius: 999,
+                  width: `${Math.min(100, Math.round((seat.used / Math.max(1, seat.limit)) * 100))}%`,
+                  background: seatFull ? 'var(--danger, #d93025)' : 'var(--purple)',
+                }} />
+              </div>
+            )}
+            <p className="plan-line" style={{ marginTop: 4 }}>
+              นับ 1 ที่นั่งต่อ 1 บัญชี รวมแอดมินและคำเชิญที่ยังไม่ตอบรับ
+              {invites.length > 0 && <> · ค้างเชิญ {invites.length} คน (กด "ยกเลิก" ที่คำเชิญเพื่อคืนที่นั่ง)</>}
+            </p>
+            <p className="plan-line" style={{ marginTop: 2 }}>
+              {seat.base === null
+                ? 'แพ็กเกจ Enterprise — ไม่จำกัดจำนวนคน'
+                : <>แพ็กเกจให้ {seat.base} ที่นั่ง{seat.extra > 0 && <> + ซื้อเพิ่ม {seat.extra} ที่นั่ง{seat.extraExpires && <> (ถึง {new Date(seat.extraExpires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })})</>}</>}</>}
+            </p>
+            {seatFull && (
+              <div style={{
+                background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 10,
+                padding: '8px 12px', fontSize: 13, margin: '10px 0 0', lineHeight: 1.5,
+              }}>
+                {seatFree
+                  ? <>🔒 แพ็กเกจ Free ใช้ได้คนเดียว — อัปเกรดเป็น Basic/Pro เพื่อเพิ่มทีม หรือชวนเพื่อน {refSet.need} คน (การ์ดด้านบน) รับ Pro ฟรี</>
+                  : <>ที่นั่งเต็มแล้ว — ซื้อที่นั่งเพิ่ม หรืออัปเกรดระดับแพ็กเกจ (ระดับสูงขึ้นแถมที่นั่งมากขึ้น)</>}
+              </div>
+            )}
+            {seat.limit !== null && (
+              <div className="org-row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+                <Link className={`btn ${seatFull ? 'primary' : ''}`} to="/upgrade#seats">ซื้อที่นั่งเพิ่ม</Link>
+                <Link className="btn" to="/upgrade">อัปเกรดแพ็กเกจ</Link>
+              </div>
+            )}
+          </section>
+        )}
+
         <section className="form-card" data-tour="team-add">
           <h3>เชิญลูกทีม</h3>
           <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75, lineHeight: 1.5 }}>
             กรอกอีเมลลูกทีม → สร้างลิงก์เชิญ → ส่งลิงก์ให้เขา (LINE/อีเมล) · เปิดลิงก์แล้วสมัคร/ล็อกอิน<b>ด้วยอีเมลนั้น</b> จะเข้าองค์กรเป็นลูกทีมอัตโนมัติ (ตั้งรหัสผ่านเอง/ใช้ Google)
+            {seatLeft !== null && !seatFull && <> · เชิญเพิ่มได้อีก <b>{seatLeft}</b> คน</>}
           </p>
-          {atMemberLimit && (
+          {seatFull && (
             <div style={{
               background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 10,
               padding: '8px 12px', fontSize: 13, marginBottom: 12, lineHeight: 1.5,
             }}>
-              🔒 แพ็กเกจ Free ไม่รองรับลูกทีม — เลือกแพ็กเกจ Basic/Pro เพื่อเชิญทีมได้ไม่จำกัด หรือชวนเพื่อน {refSet.need} คน (การ์ดด้านบน) รับ Pro ฟรี
+              {seatFree
+                ? <>🔒 แพ็กเกจ Free ไม่รองรับลูกทีม — อัปเกรดเป็น Basic/Pro เพื่อเพิ่มทีม</>
+                : <>🔒 ที่นั่งเต็ม (ใช้ {seat?.used} จาก {seat?.limit}) — <Link to="/upgrade#seats">ซื้อที่นั่งเพิ่ม</Link> หรืออัปเกรดระดับแพ็กเกจ</>}
             </div>
           )}
+          <p className="plan-line" style={{ marginTop: 0, marginBottom: 10 }}>
+            <b>{ROLE_INFO[inviteRole].short}</b> — {ROLE_INFO[inviteRole].desc}
+          </p>
           {inviteErr && <div className="auth-error">{inviteErr}</div>}
           <form onSubmit={(e) => void createInvite(e)}>
             <div className="org-row">
@@ -300,7 +448,18 @@ export default function TeamPage() {
                 <label>อีเมลลูกทีม <span className="req">*</span></label>
                 <input type="email" required value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
               </div>
-              <button className="btn primary" type="submit" disabled={inviting || atMemberLimit}>
+              <div className="form-field" style={{ marginBottom: 0, minWidth: 150 }}>
+                <label>บทบาท</label>
+                <select
+                  className="org-switch"
+                  value={inviteRole}
+                  title={ROLE_INFO[inviteRole].desc}
+                  onChange={(e) => setInviteRole(e.target.value as Role)}
+                >
+                  {ROLES.map((r) => <option key={r} value={r}>{ROLE_INFO[r].short}</option>)}
+                </select>
+              </div>
+              <button className="btn primary" type="submit" disabled={inviting || seatFull}>
                 {inviting ? 'กำลังสร้าง…' : 'สร้างลิงก์เชิญ'}
               </button>
             </div>
@@ -358,7 +517,8 @@ export default function TeamPage() {
           <h3>สมาชิกทั้งหมด</h3>
           {error && <div className="auth-error">{error}</div>}
           <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.7 }}>
-            การมองเห็นทรัพย์: “เห็นทั้งทีม” = เห็นทรัพย์ทุกชิ้นขององค์กร · “เฉพาะของตัวเอง” = เห็นเฉพาะทรัพย์ที่ตัวเองลง (แอดมินเห็นทั้งองค์กรเสมอ)
+            บทบาทกำหนดว่าเห็นอะไร/ทำอะไรได้ (ชี้ที่ช่องบทบาทเพื่อดูคำอธิบาย) · ปุ่ม “เฉพาะของตัวเอง” จำกัดเพิ่มได้อีกชั้น
+            · <b>Survey / Temporary ต้องกำหนด “เขต” ก่อน</b> ไม่งั้นยังไม่เห็นพิกัด/ทรัพย์ของใคร
           </p>
           {loading && <div className="loading">กำลังโหลด…</div>}
           {!loading && (
@@ -371,6 +531,7 @@ export default function TeamPage() {
                     <th>บทบาท</th>
                     <th>สถานะ</th>
                     <th>การมองเห็นทรัพย์</th>
+                    <th>เขตที่กำหนด</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -378,13 +539,28 @@ export default function TeamPage() {
                   {members.map((m) => {
                     const seeAll = m.see_all_properties ?? true
                     return (
-                    <tr key={m.id}>
+                    <Fragment key={m.id}>
+                    <tr>
                       <td data-label="ชื่อ" className="td-main">{m.full_name || '—'}{m.id === me?.id && <span className="role-badge" style={{ marginLeft: 6 }}>คุณ</span>}</td>
                       <td data-label="อีเมล">{m.email}</td>
                       <td data-label="บทบาท">
-                        <span className={`role-badge ${m.role === 'admin' ? '' : 'plain'}`}>
-                          {m.role === 'admin' ? 'แอดมิน' : 'ลูกทีม'}
-                        </span>
+                        {m.id === me?.id ? (
+                          // ตัวเองเปลี่ยนบทบาทตัวเองไม่ได้ (กันเผลอถอดสิทธิ์ Owner ทิ้ง)
+                          <span className={`role-badge ${rolePerm(m.role).canManageOrg ? '' : 'plain'}`}>
+                            {roleName(m.role)}
+                          </span>
+                        ) : (
+                          <select
+                            className="org-switch"
+                            value={m.role}
+                            title={ROLE_INFO[m.role]?.desc}
+                            onChange={(e) => void setField(m, { role: e.target.value as Role })}
+                          >
+                            {ROLES.map((r) => (
+                              <option key={r} value={r}>{ROLE_INFO[r].short}</option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td data-label="สถานะ">
                         <span className={`status-pill ${m.active ? 'on' : ''}`}>
@@ -392,7 +568,11 @@ export default function TeamPage() {
                         </span>
                       </td>
                       <td data-label="การมองเห็นทรัพย์">
-                        {m.role === 'admin' ? (
+                        {!rolePerm(m.role).seeOthers ? (
+                          <span className="status-pill">เฉพาะของตัวเอง (ตามบทบาท)</span>
+                        ) : rolePerm(m.role).areaScoped ? (
+                          <span className="status-pill on">เฉพาะเขตที่กำหนด</span>
+                        ) : rolePerm(m.role).canManageOrg ? (
                           <span className="status-pill on">ทั้งองค์กร</span>
                         ) : (
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -408,6 +588,34 @@ export default function TeamPage() {
                           </div>
                         )}
                       </td>
+                      <td data-label="เขตที่กำหนด">
+                        {/* เขตมีผลกับ Survey (เห็นพิกัดเฉพาะเขต) และ Temporary (เห็นทรัพย์เฉพาะเขต) */}
+                        {rolePerm(m.role).areaScoped || rolePerm(m.role).maskLocation === 'area' ? (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {myAreas(m.id).length === 0
+                              ? <span className="status-pill">ยังไม่กำหนด (ยังไม่เห็นของใคร)</span>
+                              : myAreas(m.id).map((a) => (
+                                  <span key={a.id} className="chip chip-x">
+                                    {a.province}{a.district ? ` · ${a.district}` : ' (ทั้งจังหวัด)'}
+                                    <button
+                                      type="button"
+                                      className="chip-remove"
+                                      title="ลบเขตนี้"
+                                      onClick={() => void removeArea(a.id)}
+                                    >×</button>
+                                  </span>
+                                ))}
+                            <button
+                              className="btn sm"
+                              onClick={() => { setAreaFor(areaFor === m.id ? null : m.id); setAreaErr(null) }}
+                            >
+                              {areaFor === m.id ? 'ปิด' : '+ เพิ่มเขต'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--muted)' }}>—</span>
+                        )}
+                      </td>
                       <td className="row-btns">
                         {m.id !== me?.id && (
                           <>
@@ -417,16 +625,39 @@ export default function TeamPage() {
                             >
                               {m.active ? 'ปิดการใช้งาน' : 'อนุมัติ'}
                             </button>
-                            <button
-                              className="btn sm"
-                              onClick={() => void setField(m, { role: m.role === 'admin' ? 'member' : 'admin' })}
-                            >
-                              {m.role === 'admin' ? 'ลดเป็นลูกทีม' : 'ตั้งเป็นแอดมิน'}
-                            </button>
                           </>
                         )}
                       </td>
                     </tr>
+                    {areaFor === m.id && (
+                      <tr key={`${m.id}-area`}>
+                        <td colSpan={7}>
+                          <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                            <div className="form-field" style={{ marginBottom: 0, minWidth: 190 }}>
+                              <label>จังหวัด</label>
+                              <Combo
+                                value={areaProv}
+                                options={thLoc ? Object.keys(thLoc) : []}
+                                placeholder="เลือกจังหวัด…"
+                                onChange={(v) => { setAreaProv(v); setAreaDist(null) }}
+                              />
+                            </div>
+                            <div className="form-field" style={{ marginBottom: 0, minWidth: 190 }}>
+                              <label>เขต/อำเภอ (เว้นว่าง = ทั้งจังหวัด)</label>
+                              <Combo
+                                value={areaDist}
+                                options={areaProv && thLoc?.[areaProv] ? Object.keys(thLoc[areaProv]) : []}
+                                placeholder={areaProv ? 'ทั้งจังหวัด' : 'เลือกจังหวัดก่อน'}
+                                onChange={setAreaDist}
+                              />
+                            </div>
+                            <button className="btn primary" onClick={() => void addArea(m.id)}>เพิ่มเขต</button>
+                          </div>
+                          {areaErr && <div className="auth-error" style={{ marginTop: 8 }}>{areaErr}</div>}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                     )
                   })}
                 </tbody>

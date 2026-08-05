@@ -12,7 +12,11 @@
     "test:import": "node scripts/import-map-selftest.mjs",
     "test:edit": "node scripts/form-edit-test.mjs",
     "test:nav": "node scripts/org-switch-selftest.mjs",
-    "test:latlng": "node scripts/latlng-selftest.mjs"
+    "test:latlng": "node scripts/latlng-selftest.mjs",
+    "test:seats": "node scripts/seats-selftest.mjs",
+    "test:seats-ui": "node scripts/seats-ui-test.mjs",
+    "test:roles": "node scripts/roles-selftest.mjs",
+    "test:roles-ui": "node scripts/roles-ui-test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",

@@ -14,6 +14,8 @@ export interface VerifyResult {
   plan?: string
   applied?: boolean
   expires?: string | null
+  /** รวมที่นั่งที่ซื้อเพิ่มทั้งหมดหลังรายการนี้ (เฉพาะ plan = 'seats') */
+  seats?: number | null
 }
 
 async function authedPost<T>(path: string, body: unknown): Promise<T> {
@@ -36,7 +38,8 @@ async function authedPost<T>(path: string, body: unknown): Promise<T> {
 
 // 'test' = แพ็กเกจทดสอบ ฿1 (ได้สิทธิ์ Basic ระดับ 100 หนึ่งเดือน) — ⚠️ ปิดสวิตช์ก่อนเปิดใช้จริง
 // 'starter' = แพ็ก Basic (คีย์เดิมใน DB — เปลี่ยนเฉพาะชื่อที่แสดง)
-export type PlanKey = 'starter' | 'pro' | 'test'
+// 'seats'  = ซื้อที่นั่งเพิ่ม (ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุของ subscription)
+export type PlanKey = 'starter' | 'pro' | 'test' | 'seats'
 /** ระดับแพ็กเกจ = โควตาทรัพย์สูงสุด · เกิน 500 = Enterprise (คุยกับทีมงาน) */
 export type Tier = 100 | 250 | 500
 export const TIERS: Tier[] = [100, 250, 500]
@@ -56,6 +59,29 @@ export const DEFAULT_PRICES: PlanPrices = {
     250: { monthly: 1390, yearly: 14178 },
     500: { monthly: 1590, yearly: 16218 },
   },
+}
+
+// ── ราคาที่นั่งเพิ่ม (app_settings 'seats') — ต้องตรงกับ api/_lib/seats.js + supabase/seats.sql ──
+export const DEFAULT_SEAT_PRICE: PlanPrice = { monthly: 290, yearly: 2958 } // รายปี = ×12 ลด 15%
+/** จำนวนที่นั่งที่ซื้อได้ในครั้งเดียว (ฝั่งเซิร์ฟเวอร์บังคับซ้ำ) */
+export const MAX_SEAT_QTY = 50
+
+/** โหลดราคาที่นั่งเพิ่ม — ไม่ throw (อ่านพลาด = ใช้ราคามาตรฐาน) */
+export async function fetchSeatPrice(): Promise<PlanPrice> {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'seats').maybeSingle()
+    let v: unknown = data?.value ?? null
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v) } catch { return DEFAULT_SEAT_PRICE }
+    }
+    const p = v as { monthly?: number; yearly?: number } | null
+    const monthly = Number(p?.monthly)
+    const yearly = Number(p?.yearly)
+    if (monthly > 0 && yearly > 0) return { monthly, yearly }
+    return DEFAULT_SEAT_PRICE
+  } catch {
+    return DEFAULT_SEAT_PRICE
+  }
 }
 
 /** สวิตช์แพ็กเกจทดสอบ ฿1 (app_settings 'payment_test') — super เปิด-ปิดได้ · อ่านพลาด = ปิด */
@@ -93,6 +119,11 @@ export async function fetchPlanPrices(): Promise<PlanPrices> {
 /** สร้างรายการชำระเงิน → คืน checkout_url ให้พาผู้ใช้ไปจ่าย (ยอดเงินคำนวณฝั่งเซิร์ฟเวอร์) */
 export function createCharge(plan: PlanKey, tier: Tier, cycle: 'monthly' | 'yearly'): Promise<Charge> {
   return authedPost<Charge>('create-charge', { plan, tier, cycle })
+}
+
+/** ซื้อที่นั่งเพิ่ม qty ที่นั่ง — ไม่แตะแพ็กเกจ/วันหมดอายุของ subscription */
+export function createSeatCharge(qty: number, cycle: 'monthly' | 'yearly'): Promise<Charge> {
+  return authedPost<Charge>('create-charge', { plan: 'seats', qty, cycle })
 }
 
 /** ถามเซิร์ฟเวอร์ว่าจ่ายแล้วหรือยัง (เซิร์ฟเวอร์ยืนยันกับ PunPay + อัปเกรดให้ถ้าจ่ายจริง) */

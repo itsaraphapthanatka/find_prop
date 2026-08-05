@@ -27,6 +27,7 @@ import { buildTourSteps, startTour } from './lib/tour'
 import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
+import { rolePerm, roleName } from './lib/roles'
 import { isInstalledApp } from './lib/native'
 import {
   IMPERSONATED_OPTION, needsExitImpersonation, orgSwitchOptions, orgSwitchValue, urlAfterOrgSwitch,
@@ -104,7 +105,7 @@ export default function App() {
       buildTourSteps({
         isSuper: Boolean(profile?.is_super),
         canTeam: Boolean(
-          (profile?.role === 'admin' && profile?.org_id) ||
+          (rolePerm(profile?.role).canManageOrg && profile?.org_id) ||
             (profile?.is_super && profile?.impersonate_org_id),
         ),
       }),
@@ -159,7 +160,7 @@ export default function App() {
     const suspended = org?.sub_status === 'suspended'
     const subExpired = Boolean(org?.sub_expires_at && org.sub_expires_at < today)
     // แอดมินองค์กร + ล็อกเพราะ "หมดอายุ/หมดทดลอง" (ไม่ใช่โดนระงับ) → จ่ายเงินต่อเองได้เลย
-    if (!suspended && profile.role === 'admin') {
+    if (!suspended && rolePerm(profile.role).canManageOrg) {
       return (
         <div style={{ maxWidth: 980, margin: '0 auto', padding: '20px 16px 40px' }}>
           <div style={{
@@ -185,7 +186,9 @@ export default function App() {
     )
   }
 
-  const isAdmin = profile.role === 'admin'
+  // สิทธิ์ตามบทบาท 8 ระดับ (src/lib/roles.ts) — super = owner เสมอ · ฐานข้อมูลบังคับซ้ำอีกชั้น
+  const perm = rolePerm(isSuper ? 'owner' : profile.role)
+  const canManageOrg = perm.canManageOrg
   const impersonating = Boolean(isSuper && profile.impersonate_org_id)
   // สิทธิ์ตามแพ็กเกจ — super (โหมดภาพรวม) = เต็ม · สวมสิทธิ์/ปกติ = ตามแพ็กเกจองค์กร
   // แพ็กเกจที่มีผลจริง (รวมช่วงทดลองใช้) — ตรงกับฝั่งเซิร์ฟเวอร์ org_effective_plan
@@ -267,7 +270,7 @@ export default function App() {
           )}
           <span className="user-name">{profile.full_name || profile.email}</span>
           {isSuper && <span className="role-badge super">SUPER</span>}
-          {!isSuper && isAdmin && <span className="role-badge">แอดมิน</span>}
+          {!isSuper && <span className={`role-badge ${canManageOrg ? '' : 'plain'}`}>{roleName(profile.role)}</span>}
           <div className="user-menu" ref={menuRef}>
             <button
               className="btn sm user-menu-btn"
@@ -288,7 +291,7 @@ export default function App() {
                 <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/me') }}>
                   <IconUser size={16} /> โปรไฟล์ของฉัน
                 </button>
-                {(isAdmin || impersonating) && (
+                {(canManageOrg || impersonating) && (
                   <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/upgrade') }}>
                     อัปเกรดแพ็กเกจ
                   </button>
@@ -307,12 +310,15 @@ export default function App() {
       <div className="main">
         <nav className="sidebar">
           <NavLink to="/map" data-tour="nav-map"><IconMap /><NavText full="แผนที่" /></NavLink>
-          <NavLink to="/new" data-tour="nav-form"><IconForm /><NavText full="ฟอร์ม" /></NavLink>
+          {/* social = ดูได้อย่างเดียว จึงไม่ต้องมีเมนูฟอร์ม (ฐานข้อมูลก็ปฏิเสธการเขียนอยู่แล้ว) */}
+          {!perm.readOnly && (
+            <NavLink to="/new" data-tour="nav-form"><IconForm /><NavText full="ฟอร์ม" /></NavLink>
+          )}
           <NavLink to="/" end data-tour="nav-list"><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
           <NavLink to="/dashboard" data-tour="nav-dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>
           <NavLink to="/plans" data-tour="nav-plans"><IconRoute /><NavText full="แผนเยี่ยมชม" short="แผนเยี่ยม" /></NavLink>
           {/* เมนูนัดติดตามถูกปิดไว้ — ใช้งานผ่านการ์ดรายละเอียดทรัพย์/ผู้ช่วย AI (หน้า /followups ยังเข้าตรงได้) */}
-          {((isAdmin && profile.org_id) || impersonating) && (
+          {((canManageOrg && profile.org_id) || impersonating) && (
             <NavLink to="/team" data-tour="nav-team"><IconUsers /><NavText full="ทีม" /></NavLink>
           )}
           {isSuper && <NavLink to="/super" data-tour="nav-super"><IconShield /><NavText full="Super Admin" short="Super" /></NavLink>}
@@ -333,7 +339,7 @@ export default function App() {
             <Route
               path="/import"
               element={
-                access.importCsv ? (
+                access.importCsv && !perm.readOnly ? (
                   <Suspense fallback={<div className="loading">กำลังโหลด…</div>}>
                     <ImportPage />
                   </Suspense>
@@ -345,7 +351,7 @@ export default function App() {
             <Route
               path="/team"
               element={
-                (isAdmin && profile.org_id) || impersonating
+                (canManageOrg && profile.org_id) || impersonating
                   ? <TeamPage />
                   : <Navigate to="/" replace />
               }
@@ -360,7 +366,7 @@ export default function App() {
             />
             <Route
               path="/logs"
-              element={isAdmin || isSuper ? <LogsPage /> : <Navigate to="/" replace />}
+              element={perm.canSeeLogs || isSuper ? <LogsPage /> : <Navigate to="/" replace />}
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

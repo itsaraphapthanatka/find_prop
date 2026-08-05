@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { createCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, DEFAULT_PRICES, TIERS, type PlanKey, type PlanPrices, type Tier } from '../lib/payments'
-import { onTrial, fetchContactSetting, DEFAULT_CONTACT } from '../lib/plan'
+import {
+  createCharge, createSeatCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, fetchSeatPrice,
+  DEFAULT_PRICES, DEFAULT_SEAT_PRICE, MAX_SEAT_QTY, TIERS,
+  type PlanKey, type PlanPrice, type PlanPrices, type Tier,
+} from '../lib/payments'
+import { rolePerm } from '../lib/roles'
+import {
+  onTrial, fetchContactSetting, DEFAULT_CONTACT,
+  seatLimit, baseSeats, effectivePlan, activeExtraSeats, SEATS_BY_PLAN,
+} from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
 // จำนวนทรัพย์ = ตามระดับที่เลือก (100/250/500) — แสดงใน UI ตัวเลือกระดับ
+// จำนวนที่นั่งของแต่ละแพ็ก/ระดับ ดึงจาก SEATS_BY_PLAN (src/lib/plan.ts) ตอนเรนเดอร์ — ที่นี่มีแค่ข้อความอื่น
 const PLANS = [
   {
     key: 'starter' as const,
     name: 'Basic',
-    points: ['ลูกทีมไม่จำกัด', 'ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มตามประเภททรัพย์', 'เอกสารสิทธิ์ + เอกสารเปรียบเทียบ', 'ใช้ได้ทั้งเว็บและแอปมือถือ'],
+    points: ['ฐานข้อมูล + แผนที่ดาวเทียม + ฟอร์มตามประเภททรัพย์', 'เอกสารสิทธิ์ + เอกสารเปรียบเทียบ', 'ใช้ได้ทั้งเว็บและแอปมือถือ'],
     featured: false,
   },
   {
@@ -26,7 +35,9 @@ type ActiveCharge = { charge_id: string; checkout_url?: string; plan?: PlanKey }
 export default function UpgradePage() {
   const navigate = useNavigate()
   const { profile, org, refreshProfile } = useAuth()
-  const isAdmin = profile?.role === 'admin' || Boolean(profile?.is_super && profile?.impersonate_org_id)
+  // จัดการแพ็กเกจ/ชำระเงิน = บทบาท Owner (หรือ super ที่สวมสิทธิ์องค์กรนั้น)
+  const isAdmin = rolePerm(profile?.is_super ? 'owner' : profile?.role).canManageOrg
+    || Boolean(profile?.is_super && profile?.impersonate_org_id)
 
   const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly')
   // ระดับ = โควตาทรัพย์ — ค่าเริ่มต้นตามระดับปัจจุบันขององค์กร (ไม่มี = เล็กสุด ให้อัปเองตามใช้จริง)
@@ -39,6 +50,9 @@ export default function UpgradePage() {
   const [err, setErr] = useState<string | null>(null)
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
   const pollRef = useRef<number | null>(null)
+  // ที่นั่งเพิ่ม — ราคาต่อที่นั่ง/รอบ + จำนวนที่จะซื้อ
+  const [seatPrice, setSeatPrice] = useState<PlanPrice>(DEFAULT_SEAT_PRICE)
+  const [seatQty, setSeatQty] = useState(1)
 
   // การ์ดทดสอบ ฿1 โชว์เฉพาะตอน super เปิดสวิตช์ payment_test (เซิร์ฟเวอร์บังคับซ้ำอีกชั้น)
   const [testOn, setTestOn] = useState(false)
@@ -48,6 +62,17 @@ export default function UpgradePage() {
     void fetchPlanPrices().then(setPrices)
     void fetchPaymentTestEnabled().then(setTestOn)
     void fetchContactSetting().then(setContact)
+    void fetchSeatPrice().then(setSeatPrice)
+  }, [])
+
+  // มาจากลิงก์ "ซื้อที่นั่งเพิ่ม" (/upgrade#seats) → เลื่อนไปการ์ดที่นั่งให้เลย
+  useEffect(() => {
+    if (window.location.hash.endsWith('#seats')) {
+      const t = window.setTimeout(() => {
+        document.getElementById('seats')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 250)
+      return () => window.clearTimeout(t)
+    }
   }, [])
 
   const perMonth = (p: { monthly: number; yearly: number }) =>
@@ -104,6 +129,24 @@ export default function UpgradePage() {
     }
   }
 
+  /** ซื้อที่นั่งเพิ่ม — ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุ subscription */
+  async function paySeats() {
+    setErr(null)
+    setBusy('seats')
+    try {
+      const c = await createSeatCharge(seatQty, cycle)
+      setCharge({ charge_id: c.charge_id, checkout_url: c.checkout_url, plan: 'seats' })
+      try { localStorage.setItem('hop_charge', c.charge_id) } catch { /* ข้าม */ }
+      window.open(c.checkout_url, '_blank', 'noopener')
+      setStatus('เปิดหน้าชำระเงินแล้ว — สแกน PromptPay แล้วอัปโหลดสลิป จากนั้นระบบจะตรวจสอบให้อัตโนมัติ')
+      startPoll(c.charge_id)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'สร้างรายการไม่สำเร็จ')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   // มีรายการค้างจากการรีโหลด → ตรวจต่อ
   useEffect(() => {
     let saved: string | null = null
@@ -131,7 +174,7 @@ export default function UpgradePage() {
         <div className="view-header"><h1>อัปเกรดแพ็กเกจ</h1></div>
         <div className="team-wrap">
           <section className="form-card">
-            <p style={{ margin: 0 }}>เฉพาะแอดมินขององค์กรเท่านั้นที่จัดการการชำระเงินได้ — ติดต่อแอดมินของทีมคุณ</p>
+            <p style={{ margin: 0 }}>เฉพาะเจ้าขององค์กร (Owner) เท่านั้นที่จัดการแพ็กเกจ/ชำระเงินได้ — ติดต่อ Owner ของทีมคุณ</p>
           </section>
         </div>
       </>
@@ -145,12 +188,20 @@ export default function UpgradePage() {
         {done ? (
           <section className="form-card" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 46, marginBottom: 6 }}>🎉</div>
-            <h3>อัปเกรดสำเร็จ!</h3>
+            <h3>{done.plan === 'seats' ? 'เพิ่มที่นั่งสำเร็จ!' : 'อัปเกรดสำเร็จ!'}</h3>
             <p className="plan-line">
-              องค์กร <b>{org?.name}</b> เป็นแพ็กเกจ <b>{done.plan === 'pro' ? 'Pro' : 'Basic'}</b> แล้ว
-              {done.expires ? ` · ใช้ได้ถึง ${new Date(done.expires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}
+              {done.plan === 'seats' ? (
+                <>องค์กร <b>{org?.name}</b> มีที่นั่งเพิ่มแล้ว — ตอนนี้ใช้ได้ <b>{seatLimit(org) ?? 'ไม่จำกัด'}</b> ที่นั่ง
+                  {done.expires ? ` · ที่นั่งเพิ่มใช้ได้ถึง ${new Date(done.expires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}</>
+              ) : (
+                <>องค์กร <b>{org?.name}</b> เป็นแพ็กเกจ <b>{done.plan === 'pro' ? 'Pro' : 'Basic'}</b> แล้ว
+                  {done.expires ? ` · ใช้ได้ถึง ${new Date(done.expires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}</>
+              )}
             </p>
-            <button className="btn primary" onClick={() => navigate('/')}>เริ่มใช้งาน</button>
+            <div className="org-row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+              {done.plan === 'seats' && <button className="btn" onClick={() => navigate('/team')}>ไปเชิญลูกทีม</button>}
+              <button className="btn primary" onClick={() => navigate('/')}>เริ่มใช้งาน</button>
+            </div>
           </section>
         ) : charge ? (
           <section className="form-card">
@@ -220,6 +271,8 @@ export default function UpgradePage() {
                       : `จ่ายรายปีเหลือ ฿${Math.round(priceOf(p.key).yearly / 12).toLocaleString()}/เดือน`}
                   </p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: 7, fontSize: 14 }}>
+                    {/* ที่นั่ง = จำนวนบัญชีในองค์กร (รวมแอดมิน) — ซื้อเพิ่มรายที่นั่งได้ในการ์ดด้านล่าง */}
+                    <li>✓ ทีม {SEATS_BY_PLAN[p.key][tier]} ที่นั่ง (เพิ่มได้)</li>
                     {p.points.map((pt) => <li key={pt}>✓ {pt}</li>)}
                   </ul>
                   <button className="btn primary" style={{ width: '100%' }} disabled={busy !== null} onClick={() => void pay(p.key)}>
@@ -228,6 +281,40 @@ export default function UpgradePage() {
                 </section>
               ))}
             </div>
+            {/* ที่นั่งเพิ่ม — ซื้อแยกจากแพ็กเกจ ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุ subscription */}
+            <section className="form-card" id="seats" style={{ marginTop: 14 }}>
+              <h3 style={{ margin: '0 0 2px' }}>ที่นั่งเพิ่ม</h3>
+              <p className="plan-line">
+                แพ็กเกจปัจจุบันให้ <b>{baseSeats(effectivePlan(org), org?.plan_tier) ?? 'ไม่จำกัด'}</b> ที่นั่ง
+                {activeExtraSeats(org) > 0 && <> + ซื้อเพิ่มไว้แล้ว <b>{activeExtraSeats(org)}</b> ที่นั่ง</>}
+                {' '}· ต้องการมากกว่านี้ ซื้อเพิ่มรายที่นั่งได้เลย (1 ที่นั่ง = 1 บัญชี)
+              </p>
+              <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div className="form-field" style={{ marginBottom: 0, maxWidth: 150 }}>
+                  <label>จำนวนที่นั่ง</label>
+                  <input
+                    type="number" min={1} max={MAX_SEAT_QTY} value={seatQty}
+                    onChange={(e) => {
+                      const n = Math.floor(Number(e.target.value))
+                      setSeatQty(Number.isFinite(n) ? Math.min(MAX_SEAT_QTY, Math.max(1, n)) : 1)
+                    }}
+                  />
+                </div>
+                <p style={{ margin: 0, fontSize: 15 }}>
+                  ฿{((cycle === 'yearly' ? seatPrice.yearly : seatPrice.monthly) * seatQty).toLocaleString()}
+                  <span style={{ color: 'var(--muted)' }}>
+                    {cycle === 'yearly' ? '/ปี' : '/เดือน'} (฿{(cycle === 'yearly' ? Math.round(seatPrice.yearly / 12) : seatPrice.monthly).toLocaleString()} ต่อที่นั่ง/เดือน)
+                  </span>
+                </p>
+                <button className="btn primary" disabled={busy !== null} onClick={() => void paySeats()}>
+                  {busy === 'seats' ? 'กำลังสร้างรายการ…' : 'จ่ายด้วย PromptPay'}
+                </button>
+              </div>
+              <p className="plan-line" style={{ marginTop: 10 }}>
+                ที่นั่งที่ซื้อมีอายุตามรอบที่จ่าย (ต่ออายุจากวันหมดอายุเดิม) · หมดอายุแล้วจะ<b>เชิญคนใหม่ไม่ได้</b> แต่ไม่มีใครถูกนำออกจากองค์กร
+              </p>
+            </section>
+
             {/* ทรัพย์เกิน 500 = Enterprise — ตั้งราคาต่อดีล คุยกับทีมงานเท่านั้น */}
             <section className="form-card" style={{ marginTop: 14 }}>
               <h3 style={{ margin: '0 0 2px' }}>Enterprise</h3>

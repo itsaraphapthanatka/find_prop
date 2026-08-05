@@ -12,6 +12,7 @@
 
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { paymentTestEnabled } from './_lib/settings.js'
+import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
 
 // คืนยอดเงิน (บาท) + จำนวนเดือน จาก (plan, tier, cycle, ราคาจาก DB) — ไม่รู้จัก = null
 function quote(plan, tier, cycle, prices) {
@@ -79,7 +80,9 @@ export default async function handler(req, res) {
     )
     const prof = ((await pRes.json().catch(() => [])) || [])[0]
     orgId = (prof?.is_super ? prof?.impersonate_org_id : null) || prof?.org_id
-    const isAdmin = (prof?.role === 'admin' && prof?.active === true) || Boolean(prof?.is_super && prof?.impersonate_org_id)
+    // จัดการแพ็กเกจ/ชำระเงิน = บทบาท Owner (ดู supabase/roles.sql) · 'admin' = ชื่อบทบาทยุคก่อนแปลง
+    const isAdmin = ((prof?.role === 'owner' || prof?.role === 'admin') && prof?.active === true)
+      || Boolean(prof?.is_super && prof?.impersonate_org_id)
     if (!orgId || !isAdmin) {
       return res.status(403).json({ error: 'เฉพาะแอดมินขององค์กรเท่านั้นที่ทำรายการชำระเงินได้' })
     }
@@ -89,6 +92,31 @@ export default async function handler(req, res) {
 
   // ── รับ plan/tier/cycle จาก client แล้วคำนวณยอดเอง (ไม่รับ amount จาก client) ──
   const { plan, cycle } = req.body || {}
+
+  // ── ซื้อที่นั่งเพิ่ม (ไม่ใช่แพ็กเกจ) — ยอด = ราคาที่นั่ง × จำนวน ──
+  if (plan === 'seats') {
+    const qty = Math.floor(Number((req.body || {}).qty))
+    if (!(qty >= 1 && qty <= MAX_SEAT_QTY)) {
+      return res.status(400).json({ error: `จำนวนที่นั่งต้องอยู่ระหว่าง 1–${MAX_SEAT_QTY}` })
+    }
+    if (!['monthly', 'yearly'].includes(cycle)) {
+      return res.status(400).json({ error: 'รอบชำระไม่ถูกต้อง (cycle: monthly|yearly)' })
+    }
+    const sp = await fetchSeatPrice(supaUrl, anonKey)
+    const months = cycle === 'yearly' ? 12 : 1
+    let amount = (cycle === 'yearly' ? sp.yearly : sp.monthly) * qty
+    const testAmt = Number(process.env.PUNPAY_TEST_AMOUNT)
+    if (testAmt > 0) amount = testAmt // ⚠️ โหมดทดสอบ — ต้องตรงกับ verify-charge
+    const seatRef = `hop-${orgId}-seats${qty}-${cycle}-${Date.now()}`
+    return await createPunpayCharge(res, {
+      punpayBase, secretKey, accountId,
+      amount,
+      description: `HOP ที่นั่งเพิ่ม ${qty} ที่นั่ง (${cycle === 'yearly' ? 'รายปี' : 'รายเดือน'})`,
+      reference: seatRef,
+      metadata: { org_id: orgId, plan: 'seats', qty, cycle, months, source: 'hop' },
+    })
+  }
+
   // ระดับ = โควตาทรัพย์ (100/250/500) · test = ระดับ 100 เสมอ
   const tier = plan === 'test' ? 100 : Number((req.body || {}).tier)
   if (plan !== 'test' && !TIERS.includes(tier)) {
@@ -105,19 +133,24 @@ export default async function handler(req, res) {
   }
 
   // reference ไม่ซ้ำ ใช้ผูก charge กับองค์กร/แพ็กเกจ (verify-charge จะอ่าน metadata)
-  const reference = `hop-${orgId}-${plan}${tier}-${cycle}-${Date.now()}`
-  const body = {
+  return await createPunpayCharge(res, {
+    punpayBase, secretKey, accountId,
     amount: q.amount,
     description: plan === 'test'
       ? 'HOP ทดสอบระบบชำระเงิน (฿1)'
       : `HOP ${plan === 'pro' ? 'Pro' : 'Basic'} ≤${tier} ทรัพย์ (${cycle === 'yearly' ? 'รายปี' : 'รายเดือน'})`,
-    reference,
+    reference: `hop-${orgId}-${plan}${tier}-${cycle}-${Date.now()}`,
     metadata: { org_id: orgId, plan, tier, cycle, months: q.months, source: 'hop' },
+  })
+}
+
+/** เรียก PunPay สร้าง charge แล้วตอบ client (ใช้ร่วมทั้งซื้อแพ็กเกจและซื้อที่นั่งเพิ่ม) */
+async function createPunpayCharge(res, { punpayBase, secretKey, accountId, amount, description, reference, metadata }) {
+  const body = {
+    amount, description, reference, metadata,
     expires_in: 3600, // QR หมดอายุใน 1 ชม.
     ...(accountId ? { account_id: accountId } : {}),
   }
-
-  // ── เรียก PunPay สร้าง charge ──
   try {
     const cRes = await fetch(`${punpayBase}/api/v1/charges`, {
       method: 'POST',

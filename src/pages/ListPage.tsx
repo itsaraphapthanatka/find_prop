@@ -2,13 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
+import { usePerm } from '../hooks/usePerm'
 import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
-import { IconCompare, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
+import { IconCompare, IconDownload, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
 import { ContractTag, DealTag, ListingTag, TypeTag } from '../lib/propertyStyle'
 import { usePlanAccess } from '../lib/plan'
+import { buildPropertiesCsv } from '../lib/importProps'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -26,6 +28,7 @@ export default function ListPage({ search }: { search: string }) {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const access = usePlanAccess()
+  const perm = usePerm()
 
   function addProperty() {
     // โควตาทรัพย์ตามแพ็กเกจ: Free 5 · Basic/Pro ตามระดับ (100/250/500) · Enterprise ไม่จำกัด
@@ -120,6 +123,17 @@ export default function ListPage({ search }: { search: string }) {
     setPriceMax('')
   }
 
+  /** นำรายการที่กรองอยู่ออกเป็น CSV (หัวคอลัมน์ไทยชุดเดียวกับการนำเข้า → นำเข้ากลับได้) */
+  function exportCsv() {
+    const csv = buildPropertiesCsv(filtered)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `hop-properties-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   async function handleDelete(p: Property) {
     if (!window.confirm(`ลบรายการ ${p.code}?`)) return
     const err = await deleteProperty(p.id)
@@ -135,13 +149,22 @@ export default function ListPage({ search }: { search: string }) {
       <div className="view-header">
         <h1>รายการทรัพย์ <span className="count-badge">{filtered.length}</span></h1>
         <div className="header-actions" data-tour="list-actions">
-          <button className="btn mob-icon" onClick={() => navigate('/import')} title="นำเข้าจาก Excel/CSV">
-            <IconUpload size={16} /><span className="btn-label">นำเข้า</span>
-          </button>
+          {/* บทบาทดูล้วน (Social Media Admin) เพิ่ม/นำเข้าไม่ได้ */}
+          {!perm.readOnly && (
+            <button className="btn mob-icon" onClick={() => navigate('/import')} title="นำเข้าจาก Excel/CSV">
+              <IconUpload size={16} /><span className="btn-label">นำเข้า</span>
+            </button>
+          )}
           <button className="btn mob-icon" onClick={() => navigate('/compare')} title="เปรียบเทียบทรัพย์">
             <IconCompare size={16} /><span className="btn-label">เปรียบเทียบ</span>
           </button>
-          <button className="btn primary" onClick={addProperty}>+ เพิ่มทรัพย์</button>
+          {/* นำข้อมูลออกได้เฉพาะบทบาท Owner (ฐานข้อมูลมี can_export() คู่กัน) */}
+          {perm.canExport && (
+            <button className="btn mob-icon" onClick={exportCsv} title="นำออกเป็นไฟล์ CSV (เปิดใน Excel ได้)">
+              <IconDownload size={16} /><span className="btn-label">นำออก</span>
+            </button>
+          )}
+          {!perm.readOnly && <button className="btn primary" onClick={addProperty}>+ เพิ่มทรัพย์</button>}
         </div>
       </div>
 
@@ -286,8 +309,13 @@ export default function ListPage({ search }: { search: string }) {
               {p.lat != null && p.lng != null && (
                 <button className="icon-btn" title="ดูบนแผนที่" onClick={() => navigate(`/map?focus=${p.id}`)}><IconPin /></button>
               )}
-              <button className="icon-btn" title="แก้ไข" onClick={() => navigate(`/edit/${p.id}`)}><IconEdit /></button>
-              <button className="icon-btn danger" title="ลบ" onClick={() => void handleDelete(p)}><IconTrash /></button>
+              {/* ปุ่มแก้/ลบโชว์ตามบทบาท (ฐานข้อมูลบังคับซ้ำอีกชั้น) — ดู src/lib/roles.ts */}
+              {perm.canEdit(p) && (
+                <button className="icon-btn" title="แก้ไข" onClick={() => navigate(`/edit/${p.id}`)}><IconEdit /></button>
+              )}
+              {perm.canDelete(p) && (
+                <button className="icon-btn danger" title="ลบ" onClick={() => void handleDelete(p)}><IconTrash /></button>
+              )}
             </div>
           </div>
         ))}
@@ -297,8 +325,8 @@ export default function ListPage({ search }: { search: string }) {
         <PropertyDetail
           property={selected}
           onClose={() => setSelected(null)}
-          onEdit={() => navigate(`/edit/${selected.id}`)}
-          onDelete={() => void handleDelete(selected)}
+          onEdit={perm.canEdit(selected) ? () => navigate(`/edit/${selected.id}`) : null}
+          onDelete={perm.canDelete(selected) ? () => void handleDelete(selected) : null}
         />
       )}
     </>

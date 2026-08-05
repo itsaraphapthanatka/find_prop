@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { rolePerm } from '../lib/roles'
 import { useAuth } from '../lib/auth'
 import { fetchReferralSetting, DEFAULT_REFERRAL } from '../lib/plan'
 
 /** หน้าจอ "ฟีเจอร์นี้เฉพาะ Pro" — โชว์แทนหน้าที่ถูกล็อกสำหรับแพ็กเกจ Free */
 export default function UpgradeNotice({ feature }: { feature: string }) {
   const { profile } = useAuth()
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = rolePerm(profile?.role).canManageOrg
   const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
   useEffect(() => {
     void fetchReferralSetting().then(setRefSet)

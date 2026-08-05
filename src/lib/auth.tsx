@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
+import type { Role } from './roles'
 import { setLogActor } from './activityLog'
 import { isNativeApp } from './native'
 import { claimDeviceSession, watchDeviceSession } from './deviceSession'
@@ -13,7 +14,8 @@ export interface Profile {
   id: string
   email: string
   full_name: string | null
-  role: 'admin' | 'member'
+  /** บทบาทใน org ที่ active อยู่ (8 ระดับ — ดู src/lib/roles.ts) */
+  role: Role
   active: boolean
   org_id: string | null
   is_super?: boolean
@@ -34,6 +36,9 @@ export interface Organization {
   trial_expires_at?: string | null // วันสุดท้ายของช่วงทดลอง — หมดแล้วล็อกองค์กรจนกว่าจะเลือกแพ็กเกจ
   /** เกณฑ์แจ้งเตือนสัญญาใกล้หมดขององค์กร (วันล่วงหน้า) — null = ใช้ค่ามาตรฐานระบบ */
   contract_alert_days?: number[] | null
+  /** ที่นั่งที่ซื้อเพิ่มนอกเหนือจากแพ็กเกจ (supabase/seats.sql) */
+  extra_seats?: number | null
+  extra_seats_expires_at?: string | null
 }
 
 /** องค์กรใช้งานได้มั้ย (ไม่ถูกระงับ + sub ไม่หมดอายุ + ช่วงทดลองไม่หมด) — ตรรกะเดียวกับ org_ok ในฐานข้อมูล */

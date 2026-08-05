@@ -4,6 +4,7 @@
 // ความปลอดภัย: ตรวจว่าผู้เรียกเป็นแอดมิน/super จริง แล้วดึงเข้า "องค์กรของผู้เรียก" เท่านั้น
 
 import { effectivePlan } from './_lib/plan.js'
+import { baseSeats } from './_lib/seats.js'
 
 export default async function handler(req, res) {
   const ALLOWED_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost:5173']
@@ -53,21 +54,29 @@ export default async function handler(req, res) {
   const caller = ((await profRes.json().catch(() => [])) || [])[0]
   if (!caller) return res.status(403).json({ error: 'ไม่พบโปรไฟล์ผู้เรียก' })
   const isSuper = caller.is_super === true
-  const isAdmin = caller.role === 'admin' && caller.active === true
+  // เพิ่มสมาชิก = บทบาท Owner ('admin' = ชื่อเดิมก่อนแปลงบทบาท)
+  const isAdmin = (caller.role === 'owner' || caller.role === 'admin') && caller.active === true
   if (!isSuper && !isAdmin) return res.status(403).json({ error: 'เฉพาะแอดมินเท่านั้นที่เพิ่มลูกทีมได้' })
   const targetOrg = (isSuper ? caller.impersonate_org_id : null) || caller.org_id
   if (!targetOrg) return res.status(400).json({ error: 'ยังไม่ได้เลือกองค์กร (super ต้องสวมสิทธิ์องค์กรก่อน)' })
 
-  // แพ็กเกจ Free ไม่มีลูกทีม (super ไม่ติดลิมิต) — Basic/Pro (รวมช่วงทดลอง) ลูกทีมไม่จำกัด
+  // โควตาที่นั่ง (super ไม่ติดลิมิต) — Free = 1 ที่นั่ง · Basic/Pro = ตามระดับ + ที่นั่งที่ซื้อเพิ่ม
+  // ถามฐานข้อมูลตรงๆ (org_seat_limit/org_seats_used) เพื่อให้ใช้กติกาชุดเดียวกับ create_team_invite
   if (!isSuper) {
     const oRes = await fetch(
-      `${url}/rest/v1/organizations?id=eq.${targetOrg}&select=plan,trial_plan,trial_expires_at`,
+      `${url}/rest/v1/organizations?id=eq.${targetOrg}&select=plan,plan_tier,trial_plan,trial_expires_at,extra_seats,extra_seats_expires_at`,
       { headers: svc },
     )
     const orgRow = ((await oRes.json().catch(() => [])) || [])[0]
     if (effectivePlan(orgRow) === 'free') {
       return res.status(403).json({
-        error: 'แพ็กเกจ Free ไม่รองรับลูกทีม — เลือกแพ็กเกจ Basic หรือ Pro เพื่อเชิญทีมได้ไม่จำกัด',
+        error: 'แพ็กเกจ Free ไม่รองรับลูกทีม — เลือกแพ็กเกจ Basic หรือ Pro เพื่อเพิ่มทีม',
+      })
+    }
+    const seat = await seatUsage(url, svc, targetOrg, orgRow)
+    if (seat.limit !== null && seat.used + 1 > seat.limit) {
+      return res.status(403).json({
+        error: `ที่นั่งเต็ม (ใช้ ${seat.used} จาก ${seat.limit} ที่นั่ง) — ซื้อที่นั่งเพิ่ม หรืออัปเกรดระดับแพ็กเกจ`,
       })
     }
   }
@@ -100,4 +109,40 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ ok: true, id: newId })
+}
+
+/**
+ * ที่นั่งที่ใช้ไป/ใช้ได้ของ org — ถามฐานข้อมูลก่อน (กติกาชุดเดียวกับ create_team_invite)
+ * ถ้า RPC ยังไม่มี (ยังไม่รัน supabase/seats.sql) ถอยไปคำนวณจากตาราง org + จำนวนสมาชิก
+ */
+async function seatUsage(url, svc, orgId, orgRow) {
+  const rpc = async (fn, body) => {
+    const r = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+      method: 'POST', headers: { ...svc, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    if (!r.ok) throw new Error(`${fn} ${r.status}`)
+    return await r.json()
+  }
+  try {
+    const [limit, used] = await Promise.all([
+      rpc('org_seat_limit', { p_org: orgId }),
+      rpc('org_seats_used', { p_org: orgId }),
+    ])
+    return { limit: limit === null ? null : Number(limit), used: Number(used) }
+  } catch {
+    // fallback: โควตาตามแพ็กเกจ + ที่นั่งที่ซื้อเพิ่ม · ใช้ไป = สมาชิกที่ยัง active
+    const base = baseSeats(effectivePlan(orgRow), orgRow?.plan_tier)
+    const today = new Date().toISOString().slice(0, 10)
+    const extra = orgRow?.extra_seats_expires_at && orgRow.extra_seats_expires_at >= today
+      ? Number(orgRow.extra_seats || 0) : 0
+    let used = 0
+    try {
+      const r = await fetch(
+        `${url}/rest/v1/memberships?org_id=eq.${orgId}&active=is.true&select=user_id`,
+        { headers: { ...svc, Prefer: 'count=exact' } },
+      )
+      used = ((await r.json().catch(() => [])) || []).length
+    } catch { used = 0 }
+    return { limit: base === null ? null : base + extra, used }
+  }
 }

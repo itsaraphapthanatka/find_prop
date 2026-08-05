@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
+import { ROLE_INFO, roleName, rolePerm, type Role } from '../lib/roles'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
-import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, fetchContractAlertSetting, DEFAULT_CONTRACT_ALERT, onTrial } from '../lib/plan'
+import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, fetchContractAlertSetting, DEFAULT_CONTRACT_ALERT, onTrial, seatLimit, activeExtraSeats } from '../lib/plan'
 import { reviewFabHidden, showReviewFab, useReviewMode } from '../lib/review'
 
-const roleLabel = (r: string) => (r === 'admin' ? 'แอดมิน' : 'ลูกทีม')
+const roleLabel = (r: string) => roleName(r)
 
 /** ชื่อแพ็กเกจที่มีผลจริงตอนนี้ (รวมช่วงทดลองใช้) */
 function planLabel(org: ReturnType<typeof useAuth>['org'], pro: boolean): string {
@@ -22,6 +23,9 @@ const thDate = (d?: string | null) =>
 export default function ProfilePage() {
   const { session, profile, org, orgs, signOut, refreshProfile } = useAuth()
   const access = usePlanAccess()
+  // ที่นั่งทีมทั้งหมด (แพ็กเกจ + ที่ซื้อเพิ่มที่ยังไม่หมดอายุ) · null = ไม่จำกัด
+  const seats = seatLimit(org)
+  const extraSeats = activeExtraSeats(org)
 
   // ── ชื่อที่แสดง ──
   const [name, setName] = useState(profile?.full_name ?? '')
@@ -67,7 +71,8 @@ export default function ProfilePage() {
   const [fabHidden, setFabHidden] = useState(reviewFabHidden())
 
   // ── แจ้งเตือนสัญญาเช่าใกล้หมด (ต่อองค์กร) — แอดมินองค์กรตั้งเอง · เว้นว่าง = ใช้ค่ามาตรฐานระบบ ──
-  const isOrgAdmin = profile?.role === 'admin' || Boolean(profile?.is_super && profile?.impersonate_org_id)
+  const perm = rolePerm(profile?.is_super ? 'owner' : profile?.role)
+  const isOrgAdmin = perm.canManageOrg || Boolean(profile?.is_super && profile?.impersonate_org_id)
 
   // ── สิทธิ์ของฉันตอนนี้ ──
   // "เห็นทรัพย์ทั้งองค์กร หรือเฉพาะที่ตัวเองลง" เก็บใน memberships (RLS ให้อ่านแถวของตัวเองได้)
@@ -224,11 +229,17 @@ export default function ProfilePage() {
               ['นำเข้า Excel/CSV', access.importCsv],
             ]
             // สิทธิ์ที่มาจาก "บทบาท" ในองค์กรนี้ (ไม่เกี่ยวกับแพ็กเกจ)
+            // สิทธิ์ตามบทบาท 8 ระดับ — ตรงกับ ROLE_PERM (src/lib/roles.ts) และฟังก์ชันใน supabase/roles.sql
             const byRole: [string, boolean][] = [
-              ['เพิ่ม/แก้ไข/ลบทรัพย์', true],
-              ['จัดการทีม (เชิญ/ปิดสิทธิ์ลูกทีม)', isOrgAdmin || superOverview],
-              ['ดูประวัติการใช้งาน', isOrgAdmin || superOverview],
-              ['ตั้งค่าแจ้งเตือนสัญญาขององค์กร', isOrgAdmin || superOverview],
+              ['เพิ่มทรัพย์ใหม่', !perm.readOnly],
+              ['แก้ไขทรัพย์ของคนอื่น', perm.editOthers],
+              ['ลบทรัพย์ของคนอื่น', perm.deleteOthers],
+              ['ลบทรัพย์ที่ Owner ลงไว้', perm.deleteOwnerData],
+              ['เห็นข้อมูลติดต่อเจ้าของทรัพย์ของคนอื่น', !perm.maskContact],
+              ['เห็นพิกัด/ลิงก์แผนที่ของคนอื่น', perm.maskLocation === false],
+              ['นำข้อมูลออก Excel/CSV', perm.canExport],
+              ['จัดการทีม/บทบาท/แพ็กเกจ', isOrgAdmin || superOverview],
+              ['ดูประวัติการใช้งาน', perm.canSeeLogs || superOverview],
               ['ดูแลทุกองค์กร (Super Admin)', isSuper],
             ]
             const Chips = ({ items }: { items: [string, boolean][] }) => (
@@ -244,7 +255,7 @@ export default function ProfilePage() {
                   <li>
                     <span>ระดับบัญชี</span>
                     <b>
-                      {isSuper ? 'Super admin' : profile?.role === 'admin' ? 'แอดมินองค์กร' : 'ลูกทีม'}
+                      {isSuper ? 'Super admin' : ROLE_INFO[(profile?.role ?? '') as Role]?.name ?? profile?.role ?? '—'}
                       {superOverview && ' · โหมดภาพรวม (เห็นข้อมูลทุกองค์กร)'}
                     </b>
                   </li>
@@ -263,16 +274,25 @@ export default function ProfilePage() {
                   <li>
                     <span>เห็นทรัพย์ในองค์กรนี้</span>
                     <b>
-                      {superOverview ? 'ทุกองค์กร' : seeAll === false ? 'เฉพาะที่ตัวเองลง' : 'ทั้งองค์กร'}
+                      {superOverview ? 'ทุกองค์กร'
+                        : seeAll === false || !perm.seeOthers ? 'เฉพาะที่ตัวเองลง'
+                          : perm.areaScoped ? 'เฉพาะเขตที่ถูกกำหนดให้' : 'ทั้งองค์กร'}
                     </b>
+                  </li>
+                  <li>
+                    <span>หน้าที่ในทีม</span>
+                    <b>{ROLE_INFO[(profile?.role ?? '') as Role]?.desc ?? '—'}</b>
                   </li>
                   <li>
                     <span>โควตาทรัพย์</span>
                     <b>{access.maxProperties === null ? 'ไม่จำกัด' : `${access.maxProperties.toLocaleString('th-TH')} รายการ`}</b>
                   </li>
                   <li>
-                    <span>ลูกทีมที่เพิ่มได้</span>
-                    <b>{access.maxMembers === null ? 'ไม่จำกัด' : access.maxMembers === 0 ? 'เพิ่มไม่ได้ (ต้องอัปเกรด)' : `${access.maxMembers} คน`}</b>
+                    <span>ที่นั่งทีม (รวมตัวเอง)</span>
+                    <b>
+                      {seats === null ? 'ไม่จำกัด' : `${seats} ที่นั่ง`}
+                      {extraSeats > 0 && ` (แพ็กเกจ ${access.maxSeats} + ซื้อเพิ่ม ${extraSeats})`}
+                    </b>
                   </li>
                 </ul>
 

@@ -1,4 +1,4 @@
-import type { PropertyInput } from '../types'
+import type { Property, PropertyInput } from '../types'
 import { LABELS } from '../labels'
 
 /**
@@ -219,4 +219,22 @@ export function buildTemplateCsv(): string {
   }
   const row = IMPORT_FIELDS.map((f) => esc(example[f] ?? ''))
   return '﻿' + headers.join(',') + '\n' + row.join(',') + '\n'
+}
+
+/**
+ * ทำ CSV จากทรัพย์ที่เห็นอยู่ (ปุ่ม "นำออก" — เฉพาะบทบาท Owner ดู src/lib/roles.ts)
+ * หัวคอลัมน์ใช้ป้ายไทยชุดเดียวกับการนำเข้า → นำออกแล้วนำเข้ากลับได้ทันที
+ * ค่าที่ถูกปิดตามสิทธิ์จะออกมาเป็นช่องว่างอยู่แล้ว เพราะอ่านผ่าน properties_view
+ */
+export function buildPropertiesCsv(rows: Property[]): string {
+  const esc = (v: unknown) => {
+    if (v === null || v === undefined) return ''
+    const s = Array.isArray(v) ? v.join(', ') : String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const headers = IMPORT_FIELDS.map((f) => esc(LABELS[f]))
+  const lines = rows.map((r) =>
+    IMPORT_FIELDS.map((f) => esc((r as unknown as Record<string, unknown>)[f])).join(','))
+  // ﻿ = BOM ให้ Excel อ่านภาษาไทยไม่เพี้ยน
+  return '﻿' + [headers.join(','), ...lines].join('\n') + '\n'
 }

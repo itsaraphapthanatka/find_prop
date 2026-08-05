@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Property } from '../types'
 import { formatDate } from '../labels'
 import { supabase } from '../lib/supabase'
+import { usePerm } from '../hooks/usePerm'
 
 interface FuRow {
   id: string
@@ -20,6 +21,10 @@ const DEAL_LABELS: Record<string, string> = { rented: 'มีคนเช่า�
 /** นัดติดตามของทรัพย์แปลงนี้ — ตามต่อไปเรื่อยๆ จนกด "ปิดงาน" (มีคนเช่า/ขายแล้ว) */
 export default function FollowUpSection({ property }: { property: Property }) {
   const propertyId = property.id
+  // แก้ทรัพย์ชิ้นนี้ไม่ได้ = ปิดงาน/เพิ่มนัด/บันทึกผล ไม่ได้ด้วย (เหลือดูประวัติ)
+  // ฐานข้อมูลปฏิเสธอยู่แล้ว (can_edit_property + policy ของ follow_ups) — ที่นี่กันกดแล้ว error
+  const perm = usePerm()
+  const canWrite = perm.canEdit(property)
   const today = new Date().toISOString().slice(0, 10)
   const [rows, setRows] = useState<FuRow[]>([])
   const [installed, setInstalled] = useState(true) // false = ยังไม่ได้รัน follow-ups.sql
@@ -167,7 +172,9 @@ export default function FollowUpSection({ property }: { property: Property }) {
         <span className={`status-pill ${!jobClosed ? 'on' : ''}`}>
           {jobClosed ? `ปิดงานแล้ว — ${DEAL_LABELS[dealStatus]}` : 'เปิดงานอยู่'}
         </span>
-        {jobClosed ? (
+        {!canWrite ? (
+          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>🔒 ดูได้เท่านั้น (ตามสิทธิ์ของบทบาทคุณ)</span>
+        ) : jobClosed ? (
           <button className="btn sm" disabled={busy} onClick={() => void reopenJob()}>เปิดงานอีกครั้ง</button>
         ) : (
           <>
@@ -188,7 +195,7 @@ export default function FollowUpSection({ property }: { property: Property }) {
             <input
               type="checkbox"
               checked={closing?.id === r.id}
-              disabled={busy}
+              disabled={busy || !canWrite}
               onChange={() =>
                 setClosing(closing?.id === r.id ? null : { id: r.id, result: '', nextDate: tomorrow })
               }
@@ -240,7 +247,7 @@ export default function FollowUpSection({ property }: { property: Property }) {
       {!jobClosed && pending.length === 0 && (
         <div style={{ fontSize: 13, color: 'var(--muted)', padding: '2px 0 6px' }}>ไม่มีนัดค้างของทรัพย์นี้</div>
       )}
-      {!jobClosed && (
+      {!jobClosed && canWrite && (
       <form
         onSubmit={(e) => {
           e.preventDefault()

@@ -235,14 +235,19 @@ export default function FormPage() {
   useEffect(() => {
     if (!id || !supabaseConfigured) return
     void supabase
-      .from('properties')
+      .from('properties_view')   // อ่านผ่าน view (ปิดข้อมูลตามสิทธิ์) — เขียนยังเขียนที่ตาราง properties
       .select('*')
       .eq('id', id)
       .single()
       .then(({ data, error }) => {
         if (error) alert(`โหลดข้อมูลไม่สำเร็จ: ${error.message}`)
         else if (data) {
-          const { id: _id, created_at: _c, org_id, org_name: _o, created_by: _cb, created_by_name: _cbn, ...rest } = data as Property
+          // ตัดคอลัมน์ที่ "อ่านได้แต่เขียนไม่ได้" ออกก่อนใส่ในฟอร์ม — ไม่งั้นตอนบันทึกจะส่งคอลัมน์
+          // ที่ไม่มีในตาราง (created_by_phone/contact_masked/location_masked มาจาก view เท่านั้น)
+          const {
+            id: _id, created_at: _c, org_id, org_name: _o, created_by: _cb, created_by_name: _cbn,
+            created_by_phone: _cbp, contact_masked: _cm, location_masked: _lm, ...rest
+          } = data as Property
           setForm({ ...emptyForm, ...rest })
           setDealStatus((data as Property).deal_status ?? 'open')
           if (org_id) setFormOrg(org_id)

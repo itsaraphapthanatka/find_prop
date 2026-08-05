@@ -6,12 +6,20 @@
 //   (ไม่ใส่อะไร) = เพิ่มทรัพย์ใหม่
 //   ?edit=<id>   = โหมดแก้ไข /edit/:id (โหลดข้อมูลจริงไม่ได้เพราะไม่ได้ล็อกอิน — ดูแค่โครงฟอร์ม)
 //   ?nav=1       = จำลองกด "แก้ไข" จากรายการที่เลื่อนลงมา เพื่อตรวจว่าฟอร์มเลื่อนขึ้นบนสุดให้เอง
+//   ?page=profile|team|upgrade|detail (+ &pro=1) = หน้าอื่นที่ต้องมี auth ปลอม
+//   ?page=detail&role=<บทบาท>&mine=1 = การ์ดรายละเอียดทรัพย์ (ดูการปิดข้อมูล/ปุ่มตามบทบาท)
+//   &plan=starter|pro|free|enterprise &tier=100|250|500 &extra=<ที่นั่งที่ซื้อเพิ่ม> = ปรับแพ็กเกจปลอม
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthContext, AuthProvider } from '../src/lib/auth'
 import FormPage from '../src/pages/FormPage'
 import ProfilePage from '../src/pages/ProfilePage'
+import TeamPage from '../src/pages/TeamPage'
+import UpgradePage from '../src/pages/UpgradePage'
+import PropertyDetail from '../src/components/PropertyDetail'
+import { canDelete, canEdit, rolePerm, type Role } from '../src/lib/roles'
+import type { Property } from '../src/types'
 // ต้องโหลด CSS ชุดเดียวกับ main.tsx — ถ้าไม่มี leaflet.css แผนที่จะไม่ถูก clip แล้วบังปุ่มด้านล่าง
 import 'leaflet/dist/leaflet.css'
 import '../src/styles.css'
@@ -24,10 +32,21 @@ const proMode = params.has('pro')
 
 /** สถานะผู้ใช้ปลอมแพ็กเกจ Pro — ใช้เฉพาะหน้าทดสอบนี้ */
 const noop = async () => {}
+// แพ็กเกจ/ระดับ/ที่นั่งที่ซื้อเพิ่ม ปรับได้จาก query (ใช้ทดสอบโควตาที่นั่ง)
+const fakePlan = params.get('plan') || 'pro'
+const fakeTier = Number(params.get('tier')) || null
+const fakeExtra = Number(params.get('extra')) || 0
+const fakeRole = (params.get('role') || 'owner') as Role
 const fakeAuth = {
   session: { user: { id: 'fake-user' } },
-  profile: { id: 'fake-user', email: 'test@example.com', role: 'admin', active: true },
-  org: { id: 'fake-org', name: 'ทดสอบ', plan: 'pro' },
+  profile: { id: 'fake-user', email: 'test@example.com', role: fakeRole, active: true },
+  org: {
+    id: 'fake-org', name: 'ทดสอบ', plan: fakePlan, plan_tier: fakeTier,
+    extra_seats: fakeExtra,
+    // หมดอายุอีก 30 วัน (ที่นั่งที่ซื้อเพิ่มต้องมีวันหมดอายุจึงนับ)
+    extra_seats_expires_at: fakeExtra > 0
+      ? new Date(Date.now() + 30 * 86400e3).toISOString().slice(0, 10) : null,
+  },
   loading: false,
   signIn: async () => null,
   signUp: async () => ({ error: null, needConfirm: false }),
@@ -55,13 +74,55 @@ function TallList() {
   )
 }
 
+/** ทรัพย์ปลอม 1 ชิ้นสำหรับดูการ์ดรายละเอียด — ธงปิดข้อมูลจำลองตามที่ properties_view จะส่งมา */
+function DetailDemo() {
+  const mine = params.has('mine')
+  const perm = rolePerm(fakeRole)
+  const masked = !mine && perm.maskContact
+  const maskedLoc = !mine && perm.maskLocation !== false
+  const p = {
+    id: 'demo', code: 'DEMO001', record_date: '2026-08-01',
+    property_type: 'โกดัง', listing_type: 'เช่า',
+    lessor_name: masked ? null : 'คุณสมชาย ใจดี',
+    lessor_company: masked ? null : 'บริษัท ตัวอย่าง จำกัด',
+    phone: masked ? null : '0812345678',
+    province: 'สมุทรปราการ', district: 'บางพลี', subdistrict: 'บางพลีใหญ่',
+    lat: maskedLoc ? null : 13.599, lng: maskedLoc ? null : 100.618,
+    map_url: maskedLoc ? null : 'https://maps.google.com/?q=13.599,100.618',
+    rent_per_month: 120000,
+    created_by: mine ? 'fake-user' : 'someone-else',
+    created_by_name: 'พี่หน่อย (ทีมขาย)',
+    created_by_phone: '0899999999',
+    contact_masked: masked, location_masked: maskedLoc,
+  } as unknown as Property
+  return (
+    <PropertyDetail
+      property={p}
+      onClose={() => {}}
+      onEdit={canEdit(p, fakeRole, 'fake-user') ? () => {} : null}
+      onDelete={canDelete(p, fakeRole, 'fake-user', new Set(['someone-else'])) ? () => {} : null}
+    />
+  )
+}
+
 function App() {
-  // ?page=profile = หน้าโปรไฟล์ (ใช้ดูการ์ด "สิทธิ์ของฉันตอนนี้" — คู่กับ ?pro=1)
-  if (params.get('page') === 'profile') {
+  // ?page=profile|team|upgrade — หน้าที่ต้องมี auth (คู่กับ ?pro=1)
+  const page = params.get('page')
+  if (page === 'detail') {
     return (
-      <MemoryRouter initialEntries={['/me']}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes><Route path="/" element={<DetailDemo />} /></Routes>
+      </MemoryRouter>
+    )
+  }
+  if (page === 'profile' || page === 'team' || page === 'upgrade') {
+    const path = page === 'profile' ? '/me' : `/${page}`
+    return (
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/me" element={<ProfilePage />} />
+          <Route path="/team" element={<TeamPage />} />
+          <Route path="/upgrade" element={<UpgradePage />} />
         </Routes>
       </MemoryRouter>
     )

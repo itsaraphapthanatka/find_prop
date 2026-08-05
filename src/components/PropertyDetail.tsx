@@ -54,8 +54,10 @@ function applianceChips(p: Property): string[] {
 interface Props {
   property: Property
   onClose: () => void
-  onEdit: () => void
-  onDelete: () => void
+  /** null = ไม่มีสิทธิ์แก้ (ไม่โชว์ปุ่ม) */
+  onEdit: (() => void) | null
+  /** null = ไม่มีสิทธิ์ลบ (ไม่โชว์ปุ่ม) */
+  onDelete: (() => void) | null
 }
 
 export default function PropertyDetail({ property: p, onClose, onEdit, onDelete }: Props) {
@@ -73,8 +75,8 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <DealTag status={p.deal_status} />
           <ContractTag end={p.contract_end} />
           {isSuper && p.org_name && <span className="tag org">{p.org_name}</span>}
-          <button className="btn sm danger" onClick={onDelete}>ลบ</button>
-          <button className="btn sm primary" onClick={onEdit}>แก้ไข</button>
+          {onDelete && <button className="btn sm danger" onClick={onDelete}>ลบ</button>}
+          {onEdit && <button className="btn sm primary" onClick={onEdit}>แก้ไข</button>}
           <button className="icon-btn" onClick={onClose} title="ปิด"><IconClose /></button>
         </div>
         <div className="detail-body">
@@ -85,9 +87,32 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           )}
 
           <Field label={LABELS.record_date} value={formatDate(p.record_date)} />
-          <Field label="ลงโดย" value={p.created_by_name} />
+          <Field
+            label="ลงโดย"
+            value={p.created_by_name && (
+              <>
+                {p.created_by_name}
+                {/* บทบาทที่ถูกปิดข้อมูลเจ้าของ ให้ติดต่อ "คนลงข้อมูล" ได้ตามสเปก */}
+                {p.contact_masked && p.created_by_phone && (
+                  <> · {p.created_by_phone}{' '}
+                    <a className="icon-btn" href={`tel:${p.created_by_phone}`} title="โทรหาผู้ลงข้อมูล">
+                      <IconPhone size={16} />
+                    </a>
+                  </>
+                )}
+              </>
+            )}
+          />
 
           <div className="section-title">ผู้ติดต่อ</div>
+          {p.contact_masked && (
+            <div className="field">
+              <div className="label">ข้อมูลติดต่อเจ้าของทรัพย์</div>
+              <div className="value" style={{ opacity: 0.75 }}>
+                🔒 ปิดตามสิทธิ์ของบทบาทคุณ — ติดต่อผู้ลงข้อมูลข้างบนได้เลย
+              </div>
+            </div>
+          )}
           <Field label={LABELS.lessor_status} value={p.lessor_status} />
           <Field label={LABELS.contact_form} value={p.contact_form} />
           <Field label={LABELS.lessor_company} value={p.lessor_company} />
@@ -222,6 +247,15 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <ChipList label={LABELS.usages} values={p.usages} />
 
           <div className="section-title">ตำแหน่ง</div>
+          {p.location_masked && (
+            <div className="field">
+              <div className="label">พิกัด / ลิงก์แผนที่</div>
+              <div className="value" style={{ opacity: 0.75 }}>
+                🔒 ปิดตามสิทธิ์ของบทบาทคุณ{' '}
+                <span style={{ fontSize: 12.5 }}>(เห็นได้เฉพาะเขตที่ถูกกำหนดให้ หรือทรัพย์ที่ตัวเองลง)</span>
+              </div>
+            </div>
+          )}
           {p.lat != null && p.lng != null && (
             <div style={{ margin: '4px 0 12px' }}>
               <LocationPicker lat={p.lat} lng={p.lng} />

@@ -53,7 +53,7 @@ export default function FollowUpPage() {
     setLoading(true)
     const [fuRes, pRes, mRes] = await Promise.all([
       supabase.from('follow_ups').select('*').order('due_date').order('created_at'),
-      supabase.from('properties').select('id, code, district, property_type'),
+      supabase.from('properties_view').select('id, code, district, property_type'),
       supabase.rpc('org_member_names'),
     ])
     if (fuRes.error) {

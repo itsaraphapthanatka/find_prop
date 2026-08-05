@@ -141,6 +141,12 @@ export interface Property {
   created_by?: string | null
   /** ชื่อผู้ลงทรัพย์ (จับคู่ตอนอ่านผ่าน org_member_names) — read-only สำหรับแสดงผล */
   created_by_name?: string | null
+  /** เบอร์โทรผู้ลงทรัพย์ (มาจาก properties_view) — ให้บทบาทที่ถูกปิดข้อมูลเจ้าของติดต่อกันเองได้ */
+  created_by_phone?: string | null
+  /** ข้อมูลติดต่อเจ้าของทรัพย์ถูกปิดตามสิทธิ์ (ไม่ใช่ "ไม่มีข้อมูล") — จาก properties_view */
+  contact_masked?: boolean | null
+  /** พิกัด/ลิงก์แผนที่ถูกปิดตามสิทธิ์ — จาก properties_view */
+  location_masked?: boolean | null
   /** สถานะงาน: open = เปิดงานอยู่ · rented = ปิดงาน (มีคนเช่าแล้ว) · sold = ปิดงาน (ขายแล้ว) */
   deal_status?: 'open' | 'rented' | 'sold' | null
 }
@@ -148,6 +154,7 @@ export interface Property {
 export type PropertyInput = Omit<
   Property,
   'id' | 'created_at' | 'org_id' | 'org_name' | 'created_by' | 'created_by_name' | 'deal_status'
+  | 'created_by_phone' | 'contact_masked' | 'location_masked'
 >
 
 /** จุดแวะในรูทเยี่ยมชม (อ้างถึงทรัพย์ด้วย id) */
