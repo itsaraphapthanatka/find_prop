@@ -142,6 +142,17 @@ check('เป็นคู่มือลูกค้าจริง', (await doc
 const sysRes = await page.request.get('http://localhost:5173/docs/system')
 check('เปิด /docs/system ได้ (HTTP 200)', sysRes.status() === 200, String(sysRes.status()))
 check('เป็นเอกสารระบบจริง', (await sysRes.text()).includes('การทำงานของระบบ'))
+const featRes = await page.request.get('http://localhost:5173/docs/features')
+check('เปิด /docs/features ได้ (HTTP 200)', featRes.status() === 200, String(featRes.status()))
+{
+  const t = await featRes.text()
+  check('เอกสารฟีเจอร์มีหัวข้อครบ 23 หัวข้อ', (t.match(/<h2 id=/g) ?? []).length === 23,
+    String((t.match(/<h2 id=/g) ?? []).length))
+  // เอกสารนี้ส่งให้ลูกค้าได้ — ต้องไม่พูดถึงคอนโซลทีมงาน (Super Admin)
+  check('เอกสารฟีเจอร์ไม่พูดถึง Super Admin', !t.includes('Super Admin'))
+  check('เอกสารฟีเจอร์มีตารางบทบาททั้ง 8', ['Owner', 'Manager', 'Associate', 'Analyst', 'Survey', 'Temporary', 'Social Media Admin', 'Trainee'].every((r) => t.includes(r)))
+  check('เอกสารฟีเจอร์มีตารางฟีเจอร์ × แพ็กเกจ', t.includes('ฟีเจอร์ × แพ็กเกจ'))
+}
 // ลิงก์เก่าแบบมี .html ยังเปิดได้ (dev) — บน prod redirect ไปตัวไม่มีนามสกุล
 const oldRes = await page.request.get('http://localhost:5173/docs/TRAINING.html')
 check('ลิงก์เก่า .html ยังไม่ตาย', oldRes.status() === 200, String(oldRes.status()))

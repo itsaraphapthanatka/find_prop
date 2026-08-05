@@ -8,7 +8,7 @@ import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, fet
 import {
   fetchPaymentTestEnabled, fetchSeatSetting, TIERS, type SeatSetting, type Tier,
 } from '../lib/payments'
-import { SYSTEM_DOC, TRAINING_DOC } from '../lib/docs'
+import { FEATURES_DOC, SYSTEM_DOC, TRAINING_DOC } from '../lib/docs'
 
 // จัดกลุ่มรีวิวของผู้รีวิวคนหนึ่งตาม "หัวข้อ" (flow) — คงลำดับที่พบครั้งแรก
 function groupByFlow(rows: ReviewRow[]): [string, ReviewRow[]][] {
@@ -726,6 +726,7 @@ export default function SuperAdminPage() {
           </p>
           <div className="org-row" style={{ flexWrap: 'wrap' }}>
             <a className="btn" href={TRAINING_DOC} target="_blank" rel="noreferrer">คู่มือใช้งาน (ลูกค้า)</a>
+            <a className="btn" href={FEATURES_DOC} target="_blank" rel="noreferrer">ฟีเจอร์ทั้งระบบ (ฉบับละเอียด)</a>
             <a className="btn" href={SYSTEM_DOC} target="_blank" rel="noreferrer">เอกสารการทำงานของระบบ (ทีมงาน)</a>
           </div>
         </section>

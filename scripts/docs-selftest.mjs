@@ -21,18 +21,27 @@ const LEAKS = [
   { re: /properties_view|app_settings|memberships\b|member_areas/, why: 'บอกชื่อตาราง/วิวในฐานข้อมูล' },
   { re: /service[_ ]role|SUPABASE_[A-Z_]+|VITE_[A-Z_]+/, why: 'บอกชื่อคีย์/ตัวแปรลับ' },
   { re: /localhost:\d+/, why: 'ลิงก์เครื่อง dev' },
+  // คอนโซลของทีมงาน (เห็นทุกองค์กร/สวมสิทธิ์/ตั้งราคา) ไม่ควรอยู่ในเอกสารที่ส่งลูกค้า
+  { re: /Super ?Admin/i, why: 'พูดถึงคอนโซลทีมงาน (Super Admin)' },
+  { re: /สวมสิทธิ์/, why: 'พูดถึงการสวมสิทธิ์องค์กรของทีมงาน' },
 ]
 
-const CUSTOMER_DOC = 'docs/TRAINING.html'
-check(`มีคู่มือลูกค้า (${CUSTOMER_DOC})`, existsSync(CUSTOMER_DOC))
-if (existsSync(CUSTOMER_DOC)) {
-  const t = textOf(CUSTOMER_DOC)
+// เอกสารที่ "ส่งให้ลูกค้าได้" — ห้ามบอกโครงสร้างภายในทั้งคู่
+const PUBLIC_DOCS = [
+  { file: 'docs/TRAINING.html', name: 'คู่มือลูกค้า' },
+  { file: 'docs/FEATURES.html', name: 'เอกสารฟีเจอร์' },
+]
+for (const { file, name } of PUBLIC_DOCS) {
+  check(`มี${name} (${file})`, existsSync(file))
+  if (!existsSync(file)) continue
+  const t = textOf(file)
   for (const { re, why } of LEAKS) {
     const hit = t.match(re)
-    check(`คู่มือลูกค้าไม่${why}`, !hit, hit?.[0])
+    check(`${name}ไม่${why}`, !hit, hit?.[0])
   }
-  check('คู่มือลูกค้ามี footer', /<footer>/.test(t))
-  check('footer ไม่มีที่อยู่ไฟล์', !/ไฟล์นี้อยู่ที่/.test(t))
+  check(`${name}มี footer`, /<footer>/.test(t))
+  check(`${name}: footer ไม่มีที่อยู่ไฟล์`, !/ไฟล์นี้อยู่ที่/.test(t))
+  check(`${name}มีสารบัญ`, /class="toc"/.test(t))
 }
 
 // ── เอกสารทีมงานก็ไม่ต้องบอกที่อยู่ไฟล์ (เปิดได้จากเว็บเหมือนกัน) ──

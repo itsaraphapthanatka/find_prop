@@ -14,11 +14,14 @@
     { "source": "/docs/TRAINING.html", "destination": "/docs/training", "permanent": false },
     { "source": "/docs/training.html", "destination": "/docs/training", "permanent": false },
     { "source": "/docs/SYSTEM.html", "destination": "/docs/system", "permanent": false },
-    { "source": "/docs/system.html", "destination": "/docs/system", "permanent": false }
+    { "source": "/docs/system.html", "destination": "/docs/system", "permanent": false },
+    { "source": "/docs/FEATURES.html", "destination": "/docs/features", "permanent": false },
+    { "source": "/docs/features.html", "destination": "/docs/features", "permanent": false }
   ],
   "rewrites": [
     { "source": "/docs/training", "destination": "/docs/training.html" },
-    { "source": "/docs/system", "destination": "/docs/system.html" }
+    { "source": "/docs/system", "destination": "/docs/system.html" },
+    { "source": "/docs/features", "destination": "/docs/features.html" }
   ],
   "functions": {
     "api/ai.js": {
