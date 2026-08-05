@@ -71,6 +71,10 @@ interface AuthState {
   orgs: { org_id: string; name: string; role: string }[]
   /** สลับองค์กรที่กำลังใช้งาน */
   switchOrg: (orgId: string) => Promise<void>
+  /** true = ผู้ใช้เพิ่งกดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → ต้องให้ตั้งรหัสก่อนใช้งานต่อ */
+  recovery: boolean
+  /** ตั้งรหัสใหม่เสร็จ/ยกเลิก → เข้าใช้งานตามปกติ */
+  clearRecovery: () => void
 }
 
 // export ไว้เพื่อให้หน้าทดสอบ dev/form-harness.tsx ใส่สถานะผู้ใช้ปลอมได้ (ทดสอบ UI ที่กั้นด้วยแพ็กเกจ)
@@ -83,6 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [org, setOrg] = useState<Organization | null>(null)
   const [orgs, setOrgs] = useState<{ org_id: string; name: string; role: string }[]>([])
   const [loading, setLoading] = useState(true)
+  // ลิงก์รีเซ็ตรหัสผ่านจากอีเมลจะสร้าง session ให้เลย (event = PASSWORD_RECOVERY)
+  // ถ้าไม่กันไว้ ผู้ใช้จะหลุดเข้าแอปโดยไม่ได้ตั้งรหัสใหม่ แล้วก็ล็อกอินรอบหน้าไม่ได้อีก
+  const [recovery, setRecovery] = useState(false)
 
   async function loadProfile(userId: string) {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
@@ -119,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       // กลับมาจากหน้า Google พร้อม session ใหม่ → จดเครื่องนี้เป็นเครื่องที่ใช้งาน (เด้งเครื่องอื่นออก)
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
       if (event === 'SIGNED_IN' && s && localStorage.getItem(OAUTH_CLAIM_FLAG)) {
         localStorage.removeItem(OAUTH_CLAIM_FLAG)
         void claimDeviceSession()
@@ -232,7 +240,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, org, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile, orgs, switchOrg }}
+      value={{
+        session, profile, org, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile,
+        orgs, switchOrg, recovery, clearRecovery: () => setRecovery(false),
+      }}
     >
       {children}
     </AuthContext.Provider>

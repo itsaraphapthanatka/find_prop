@@ -18,7 +18,9 @@
     "test:roles": "node scripts/roles-selftest.mjs",
     "test:roles-ui": "node scripts/roles-ui-test.mjs",
     "test:docs": "node scripts/docs-selftest.mjs",
-    "test:referral": "node scripts/referral-selftest.mjs"
+    "test:referral": "node scripts/referral-selftest.mjs",
+    "test:auth": "node scripts/auth-selftest.mjs",
+    "test:auth-ui": "node scripts/auth-ui-test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",

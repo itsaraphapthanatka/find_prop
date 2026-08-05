@@ -6,6 +6,7 @@
 //   (ไม่ใส่อะไร) = เพิ่มทรัพย์ใหม่
 //   ?edit=<id>   = โหมดแก้ไข /edit/:id (โหลดข้อมูลจริงไม่ได้เพราะไม่ได้ล็อกอิน — ดูแค่โครงฟอร์ม)
 //   ?nav=1       = จำลองกด "แก้ไข" จากรายการที่เลื่อนลงมา เพื่อตรวจว่าฟอร์มเลื่อนขึ้นบนสุดให้เอง
+//   ?page=login = หน้าเข้าสู่ระบบ (ทดสอบ "จำการเข้าสู่ระบบ" / "ลืมรหัสผ่าน")
 //   ?page=profile|team|upgrade|detail (+ &pro=1) = หน้าอื่นที่ต้องมี auth ปลอม
 //   ?page=detail&role=<บทบาท>&mine=1 = การ์ดรายละเอียดทรัพย์ (ดูการปิดข้อมูล/ปุ่มตามบทบาท)
 //   &plan=starter|pro|free|enterprise &tier=100|250|500 &extra=<ที่นั่งที่ซื้อเพิ่ม> = ปรับแพ็กเกจปลอม
@@ -18,6 +19,7 @@ import FormPage from '../src/pages/FormPage'
 import ProfilePage from '../src/pages/ProfilePage'
 import TeamPage from '../src/pages/TeamPage'
 import UpgradePage from '../src/pages/UpgradePage'
+import LoginPage from '../src/pages/LoginPage'
 import PropertyDetail from '../src/components/PropertyDetail'
 import { canDelete, canEdit, rolePerm, type Role } from '../src/lib/roles'
 import type { Property } from '../src/types'
@@ -117,6 +119,13 @@ function DetailDemo() {
 function App() {
   // ?page=profile|team|upgrade — หน้าที่ต้องมี auth (คู่กับ ?pro=1)
   const page = params.get('page')
+  if (page === 'login') {
+    return (
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes><Route path="/login" element={<LoginPage />} /></Routes>
+      </MemoryRouter>
+    )
+  }
   if (page === 'detail') {
     return (
       <MemoryRouter initialEntries={['/']}>

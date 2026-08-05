@@ -602,6 +602,16 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .auth-tabs button.on { background: #fff; color: var(--purple); box-shadow: var(--shadow); }
 
 /* เส้นคั่น "หรือ" */
+/* หัวข้อของขั้นตอนย่อยในหน้าเข้าสู่ระบบ (ลืมรหัสผ่าน / ตั้งรหัสผ่านใหม่) — แทนแถบแท็บ */
+.auth-title { font-size: 19px; margin: 10px 0 2px; text-align: center; }
+/* แถว "จำการเข้าสู่ระบบ" + "ลืมรหัสผ่าน?" ใต้ช่องรหัสผ่าน */
+.auth-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: -2px 0 12px; font-size: 13px; flex-wrap: wrap;
+}
+.auth-remember { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); cursor: pointer; }
+.auth-remember input { width: 16px; height: 16px; accent-color: var(--purple); cursor: pointer; }
+.auth-row .link-btn { font-size: 13px; margin: 0; }
 .auth-or { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: var(--muted); font-size: 12.5px; }
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 

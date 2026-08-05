@@ -16,7 +16,7 @@ import FollowUpPage from './pages/FollowUpPage'
 
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
-import LoginPage, { CreateOrgScreen, JoinOrgScreen, PendingScreen, SuspendedScreen } from './pages/LoginPage'
+import LoginPage, { CreateOrgScreen, JoinOrgScreen, PendingScreen, ResetPasswordScreen, SuspendedScreen } from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
 import Assistant from './components/Assistant'
 import ReviewPanel from './components/ReviewPanel'
@@ -46,7 +46,7 @@ function NavText({ full, short }: { full: string; short?: string }) {
 }
 
 export default function App() {
-  const { session, profile, org, loading, signOut, refreshProfile, orgs, switchOrg } = useAuth()
+  const { session, profile, org, loading, signOut, refreshProfile, orgs, switchOrg, recovery } = useAuth()
   const [search, setSearch] = useState('')
   const [ignoreInvite, setIgnoreInvite] = useState(false)
   // เมนูบัญชีบน topbar (โปรไฟล์/วิธีใช้/ออกจากระบบ)
@@ -123,6 +123,8 @@ export default function App() {
     )
   }
   if (loading) return <div className="loading" style={{ paddingTop: 80 }}>กำลังโหลด…</div>
+  // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → ลิงก์ล็อกอินให้แล้ว แต่ต้องตั้งรหัสก่อนเข้าแอป
+  if (recovery) return <ResetPasswordScreen />
   // ยังไม่ล็อกอิน: บนเว็บคนทั่วไปเห็น landing page (ทีมงานเข้าทาง /login)
   // ส่วนแอปมือถือ/PWA ที่ติดตั้งไว้ ผู้ใช้คือทีมงานอยู่แล้ว — ข้ามไปหน้า login เลย
   if (!session) return isInstalledApp || location.pathname === '/login' ? <LoginPage /> : <LandingPage />

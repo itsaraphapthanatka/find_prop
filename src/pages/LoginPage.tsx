@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
-import { isInstalledApp } from '../lib/native'
+import { rememberMe, setRememberMe } from '../lib/authStorage'
+import { API_BASE, isInstalledApp } from '../lib/native'
 
 function Brand() {
   return (
@@ -31,15 +32,18 @@ export default function LoginPage() {
   const { signIn, signUp, signInWithGoogle } = useAuth()
   const [params] = useSearchParams()
   // มาจากปุ่ม "สมัครฟรี" บนหน้า landing (/login?mode=signup) → เปิดแท็บสมัครเลย
-  const [mode, setMode] = useState<'login' | 'signup'>(params.get('mode') === 'signup' ? 'signup' : 'login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>(params.get('mode') === 'signup' ? 'signup' : 'login')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // "จำการเข้าสู่ระบบในเครื่องนี้" — ติ๊กไว้ (ค่าเริ่มต้น) = ปิดเบราว์เซอร์แล้วยังล็อกอินอยู่
+  // ไม่ติ๊ก = เก็บ session แค่ในแท็บนี้ (เครื่องสาธารณะ/เครื่องที่ใช้ร่วมกัน)
+  const [remember, setRemember] = useState(() => rememberMe())
 
-  function switchMode(m: 'login' | 'signup') {
+  function switchMode(m: 'login' | 'signup' | 'forgot') {
     setMode(m)
     setError(null)
     setNotice(null)
@@ -50,6 +54,21 @@ export default function LoginPage() {
     setBusy(true)
     setError(null)
     setNotice(null)
+    if (mode === 'forgot') {
+      // ลิงก์ในอีเมลต้องกลับมาที่เว็บ (ในแอปเปิดลิงก์นี้ไม่ได้) — ตั้งค่า Redirect URL ใน Supabase ให้ตรงด้วย
+      const base = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${base}/#/login?reset=1`,
+      })
+      setBusy(false)
+      // ไม่บอกว่าอีเมลนี้มีในระบบหรือไม่ — กันคนไล่เดาว่าใครเป็นลูกค้าเรา
+      if (err && !/rate|limit/i.test(err.message)) setError(`ส่งลิงก์ไม่สำเร็จ: ${err.message}`)
+      else if (err) setError('ขอลิงก์บ่อยเกินไป — รอสักครู่แล้วลองใหม่')
+      else setNotice(`ถ้ามีบัญชีของ ${email.trim()} ในระบบ เราส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้แล้ว (ตรวจกล่องจดหมายและอีเมลขยะ) · ลิงก์ใช้ได้ครั้งเดียวและหมดอายุใน 1 ชั่วโมง`)
+      return
+    }
+    // จำการเข้าสู่ระบบหรือไม่ — ต้องตั้งก่อนล็อกอิน เพราะ session ถูกเขียนตอนล็อกอินสำเร็จ
+    setRememberMe(remember)
     if (mode === 'login') {
       const err = await signIn(email.trim(), password)
       if (err) {
@@ -95,18 +114,29 @@ export default function LoginPage() {
         <Brand />
         <p className="sub">ฐานข้อมูลทรัพย์ให้เช่า/ขาย</p>
 
-        <div className="auth-tabs">
-          <button type="button" className={mode === 'login' ? 'on' : ''} onClick={() => switchMode('login')}>
-            เข้าสู่ระบบ
-          </button>
-          <button type="button" className={mode === 'signup' ? 'on' : ''} onClick={() => switchMode('signup')}>
-            สมัครสมาชิก
-          </button>
-        </div>
+        {/* โหมดลืมรหัสผ่านเป็นขั้นตอนย่อย ไม่ใช่แท็บที่สาม — โชว์แท็บไว้จะกลายเป็นคอนโทรลที่ไม่มีอันไหนถูกเลือก
+            (ทางออกของโหมดนี้คือปุ่ม "กลับไปหน้าเข้าสู่ระบบ" ด้านล่าง) */}
+        {mode === 'forgot' ? (
+          <h2 className="auth-title">ลืมรหัสผ่าน</h2>
+        ) : (
+          <div className="auth-tabs">
+            <button type="button" className={mode === 'login' ? 'on' : ''} onClick={() => switchMode('login')}>
+              เข้าสู่ระบบ
+            </button>
+            <button type="button" className={mode === 'signup' ? 'on' : ''} onClick={() => switchMode('signup')}>
+              สมัครสมาชิก
+            </button>
+          </div>
+        )}
 
         {notice && <div className="auth-notice">{notice}</div>}
         {error && <div className="auth-error">{error}</div>}
 
+        {mode === 'forgot' && (
+          <p className="auth-note" style={{ marginTop: 0 }}>
+            กรอกอีเมลที่ใช้เข้าระบบ เราจะส่ง<b>ลิงก์ตั้งรหัสผ่านใหม่</b>ไปให้ — ลิงก์ใช้ได้ครั้งเดียว หมดอายุใน 1 ชั่วโมง
+          </p>
+        )}
         {mode === 'signup' && (
           <div className="form-field">
             <label>ชื่อ-สกุล</label>
@@ -117,35 +147,135 @@ export default function LoginPage() {
           <label>อีเมล</label>
           <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
-        <div className="form-field">
-          <label>รหัสผ่าน</label>
-          <input
-            type="password"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            required
-            minLength={6}
-            placeholder={mode === 'signup' ? 'อย่างน้อย 6 ตัวอักษร' : undefined}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
+        {mode !== 'forgot' && (
+          <div className="form-field">
+            <label>รหัสผ่าน</label>
+            <input
+              type="password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              required
+              minLength={6}
+              placeholder={mode === 'signup' ? 'อย่างน้อย 6 ตัวอักษร' : undefined}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+        )}
+        {mode === 'login' && (
+          <div className="auth-row">
+            <label className="auth-remember">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              จำการเข้าสู่ระบบในเครื่องนี้
+            </label>
+            <button type="button" className="link-btn" onClick={() => switchMode('forgot')}>
+              ลืมรหัสผ่าน?
+            </button>
+          </div>
+        )}
         <button className="btn primary auth-submit" type="submit" disabled={busy}>
-          {busy ? 'กำลังดำเนินการ…' : mode === 'login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
+          {busy ? 'กำลังดำเนินการ…'
+            : mode === 'login' ? 'เข้าสู่ระบบ'
+              : mode === 'signup' ? 'สมัครสมาชิก' : 'ส่งลิงก์ตั้งรหัสผ่านใหม่'}
         </button>
 
-        <div className="auth-or"><span>หรือ</span></div>
-        <button type="button" className="btn auth-google" onClick={() => void handleGoogle()} disabled={busy}>
-          <GoogleIcon />
-          {mode === 'login' ? 'เข้าสู่ระบบด้วย Google' : 'สมัครด้วย Google'}
-        </button>
+        {mode !== 'forgot' && (
+          <>
+            <div className="auth-or"><span>หรือ</span></div>
+            <button type="button" className="btn auth-google" onClick={() => void handleGoogle()} disabled={busy}>
+              <GoogleIcon />
+              {mode === 'login' ? 'เข้าสู่ระบบด้วย Google' : 'สมัครด้วย Google'}
+            </button>
+          </>
+        )}
 
-        {mode === 'login' ? (
+        {mode === 'forgot' ? (
+          <p className="auth-note">
+            <button type="button" className="link-btn" onClick={() => switchMode('login')}>← กลับไปหน้าเข้าสู่ระบบ</button>
+            <br />เข้าระบบด้วย Google อยู่? ไม่ต้องตั้งรหัสผ่าน — กด "เข้าสู่ระบบด้วย Google" ที่หน้าเข้าสู่ระบบได้เลย
+          </p>
+        ) : mode === 'login' ? (
           <p className="auth-note">ยังไม่มีบัญชี? กด “สมัครสมาชิก” ด้านบน — สมัครเสร็จตั้งชื่อองค์กรของคุณได้เลย</p>
         ) : (
           <p className="auth-note">สมัครแล้วคุณจะได้ตั้งชื่อองค์กรของตัวเอง และเป็นแอดมินเพิ่มลูกทีมได้</p>
         )}
-        {/* ในแอป/PWA ไม่มีหน้า landing ให้กลับ */}
-        {!isInstalledApp && <p className="auth-note"><a href="#/">← กลับหน้าแรก</a></p>}
+        {/* ในแอป/PWA ไม่มีหน้า landing ให้กลับ · โหมดลืมรหัสผ่านมีลิงก์กลับของตัวเองแล้ว */}
+        {!isInstalledApp && mode !== 'forgot' && <p className="auth-note"><a href="#/">← กลับหน้าแรก</a></p>}
+      </form>
+    </div>
+  )
+}
+
+/**
+ * หน้าตั้งรหัสผ่านใหม่ — แสดงเมื่อผู้ใช้กดลิงก์จากอีเมล (event PASSWORD_RECOVERY)
+ * ลิงก์นั้นล็อกอินให้แล้ว แต่ต้องบังคับตั้งรหัสก่อน ไม่งั้นรอบหน้าก็เข้าไม่ได้อีก
+ */
+export function ResetPasswordScreen() {
+  const { clearRecovery, signOut, session } = useAuth()
+  const [pw1, setPw1] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (pw1.length < 6) { setError('รหัสผ่านอย่างน้อย 6 ตัวอักษร'); return }
+    if (pw1 !== pw2) { setError('รหัสผ่านทั้งสองช่องไม่ตรงกัน'); return }
+    setBusy(true)
+    const { error: err } = await supabase.auth.updateUser({ password: pw1 })
+    setBusy(false)
+    if (err) {
+      setError(/expired|invalid/i.test(err.message)
+        ? 'ลิงก์หมดอายุหรือถูกใช้ไปแล้ว — กด "ลืมรหัสผ่าน?" ขอลิงก์ใหม่'
+        : `ตั้งรหัสผ่านไม่สำเร็จ: ${err.message}`)
+      return
+    }
+    setDone(true)
+  }
+
+  if (done) {
+    return (
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <Brand />
+          <div className="auth-notice">ตั้งรหัสผ่านใหม่เรียบร้อย ✓ ใช้รหัสนี้เข้าระบบครั้งต่อไปได้เลย</div>
+          <button className="btn primary auth-submit" onClick={() => clearRecovery()}>เข้าใช้งานต่อ</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="auth-wrap">
+      <form className="auth-card" onSubmit={(e) => void handleSave(e)}>
+        <Brand />
+        <h2 className="auth-title">ตั้งรหัสผ่านใหม่</h2>
+        <p className="auth-note" style={{ marginTop: 0 }}>
+          สำหรับบัญชี <b>{session?.user.email}</b> — ตั้งเสร็จแล้วใช้เข้าระบบได้ทันที
+        </p>
+        {error && <div className="auth-error">{error}</div>}
+        <div className="form-field">
+          <label>รหัสผ่านใหม่</label>
+          <input
+            type="password" autoComplete="new-password" required minLength={6}
+            placeholder="อย่างน้อย 6 ตัวอักษร"
+            value={pw1} onChange={(e) => setPw1(e.target.value)}
+          />
+        </div>
+        <div className="form-field">
+          <label>ยืนยันรหัสผ่านใหม่</label>
+          <input
+            type="password" autoComplete="new-password" required minLength={6}
+            value={pw2} onChange={(e) => setPw2(e.target.value)}
+          />
+        </div>
+        <button className="btn primary auth-submit" type="submit" disabled={busy}>
+          {busy ? 'กำลังบันทึก…' : 'บันทึกรหัสผ่านใหม่'}
+        </button>
+        <p className="auth-note">
+          <button type="button" className="link-btn" onClick={() => void signOut()}>ออกจากระบบ</button>
+        </p>
       </form>
     </div>
   )
