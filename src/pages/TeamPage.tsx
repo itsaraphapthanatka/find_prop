@@ -8,8 +8,9 @@ import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
 import {
   fetchReferralSetting, DEFAULT_REFERRAL, onTrial,
-  activeExtraSeats, baseSeats, effectivePlan, seatLimit,
+  activeExtraSeats, baseSeats, effectivePlan, seatLimit, seatShortfall,
 } from '../lib/plan'
+import { DEFAULT_SEAT_SETTING, fetchSeatSetting, type SeatSetting } from '../lib/payments'
 
 // สมาชิก = membership (ใครอยู่ org นี้) + ข้อมูลโปรไฟล์ (ชื่อ/อีเมล) · id = user_id
 type MemberRow = {
@@ -121,7 +122,12 @@ export default function TeamPage() {
   // ฐานข้อมูลเป็นตัวบังคับจริง (org_seat_limit) — ที่นี่อ่านมาโชว์ ถ้า RPC ยังไม่มีก็คำนวณในเครื่อง
   const [seat, setSeat] = useState<{
     used: number; limit: number | null; base: number | null; extra: number; extraExpires: string | null
+    /** ยังอยู่ในช่วงทดลองใช้ = ไม่จำกัดที่นั่ง (หมดแล้วโควตากลับมาเป็นของแพ็กเกจที่จ่ายจริง) */
+    onTrial: boolean; trialExpires: string | null
   } | null>(null)
+  // ราคาที่นั่ง + โควตาต่อแพ็กเกจ (super admin ตั้งได้) — ใช้บอกยอดที่ต้องจ่ายเมื่อเกินโควตา
+  const [seatCfg, setSeatCfg] = useState<SeatSetting>(DEFAULT_SEAT_SETTING)
+  useEffect(() => { void fetchSeatSetting().then(setSeatCfg) }, [])
   const activeMembers = members.filter((m) => m.active).length
   useEffect(() => {
     let cancelled = false
@@ -129,6 +135,7 @@ export default function TeamPage() {
       const { data, error } = await supabase.rpc('my_seat_usage')
       const row = ((data ?? []) as {
         used: number; seat_limit: number | null; base: number | null; extra: number; extra_expires: string | null
+        on_trial?: boolean; trial_expires?: string | null
       }[])[0]
       if (cancelled) return
       if (!error && row) {
@@ -136,6 +143,8 @@ export default function TeamPage() {
           used: Number(row.used), limit: row.seat_limit === null ? null : Number(row.seat_limit),
           base: row.base === null ? null : Number(row.base),
           extra: Number(row.extra ?? 0), extraExpires: row.extra_expires ?? null,
+          // RPC เวอร์ชันก่อน seats-config.sql ไม่มีคอลัมน์นี้ → ถอยไปดูจากข้อมูล org
+          onTrial: row.on_trial ?? onTrial(org), trialExpires: row.trial_expires ?? org?.trial_expires_at ?? null,
         })
         return
       }
@@ -143,15 +152,16 @@ export default function TeamPage() {
       setSeat({
         // ต่ำสุด 1 เสมอ — คนที่เปิดหน้านี้ก็อยู่ในองค์กร (กันโชว์ 0 ตอนอ่านรายชื่อไม่สำเร็จ)
         used: Math.max(1, activeMembers + invites.length),
-        limit: seatLimit(org),
-        base: baseSeats(effectivePlan(org), org?.plan_tier),
+        limit: seatLimit(org, seatCfg.base),
+        base: baseSeats(effectivePlan(org), org?.plan_tier, seatCfg.base),
         extra: activeExtraSeats(org),
         extraExpires: org?.extra_seats_expires_at ?? null,
+        onTrial: onTrial(org), trialExpires: org?.trial_expires_at ?? null,
       })
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, activeMembers, invites.length, org?.plan, org?.plan_tier, org?.extra_seats])
+  }, [orgId, activeMembers, invites.length, org?.plan, org?.plan_tier, org?.extra_seats, seatCfg])
 
   // ── เขตที่กำหนดให้ (Survey/Temporary) — 1 แถว = 1 ขอบเขต · ไม่ระบุอำเภอ = ทั้งจังหวัด ──
   type AreaRow = { id: string; user_id: string; province: string; district: string | null }
@@ -204,6 +214,9 @@ export default function TeamPage() {
   const seatFull = seat !== null && seat.limit !== null && seat.used >= seat.limit
   const seatFree = seat !== null && seat.limit !== null && seat.limit <= 1 // Free = เจ้าของคนเดียว
   const seatLeft = seat && seat.limit !== null ? Math.max(0, seat.limit - seat.used) : null
+  // เกินโควตา = เชิญทีมไว้ตอนทดลองใช้แล้วหมดช่วงทดลอง (หรือลดระดับแพ็กเกจ) — ต้องซื้อที่นั่งเพิ่มให้ครบ
+  const seatOver = seat ? seatShortfall(seat.used, seat.limit) : 0
+  const overCost = seatOver * seatCfg.monthly
 
   async function copyRefLink() {
     try {
@@ -379,7 +392,9 @@ export default function TeamPage() {
               <h3 style={{ margin: 0 }}>ที่นั่งทีม</h3>
               <div style={{ fontSize: 15, fontWeight: 700 }}>
                 {seat.limit === null
-                  ? <>{seat.used} คน · <span style={{ color: 'var(--muted)', fontWeight: 600 }}>ไม่จำกัดที่นั่ง</span></>
+                  ? <>{seat.used} คน · <span style={{ color: 'var(--muted)', fontWeight: 600 }}>
+                      {seat.onTrial ? 'ไม่จำกัดที่นั่ง (ช่วงทดลองใช้)' : 'ไม่จำกัดที่นั่ง'}
+                    </span></>
                   : <span style={{ color: seatFull ? 'var(--danger, #d93025)' : undefined }}>
                       ใช้ {seat.used} จาก {seat.limit} ที่นั่ง
                     </span>}
@@ -399,11 +414,27 @@ export default function TeamPage() {
               {invites.length > 0 && <> · ค้างเชิญ {invites.length} คน (กด "ยกเลิก" ที่คำเชิญเพื่อคืนที่นั่ง)</>}
             </p>
             <p className="plan-line" style={{ marginTop: 2 }}>
-              {seat.base === null
-                ? 'แพ็กเกจ Enterprise — ไม่จำกัดจำนวนคน'
-                : <>แพ็กเกจให้ {seat.base} ที่นั่ง{seat.extra > 0 && <> + ซื้อเพิ่ม {seat.extra} ที่นั่ง{seat.extraExpires && <> (ถึง {new Date(seat.extraExpires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })})</>}</>}</>}
+              {seat.onTrial
+                ? <>⏳ ช่วงทดลองใช้ <b>เชิญทีมได้ไม่จำกัด</b>
+                    {seat.trialExpires && <> ถึง {new Date(seat.trialExpires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</>}
+                    {' '}· หลังจากนั้นเหลือ <b>{baseSeats(org?.trial_plan ?? 'pro', org?.plan_tier, seatCfg.base)} ที่นั่ง</b> ตามแพ็กเกจที่เลือกซื้อ ส่วนที่เกินต้องซื้อที่นั่งเพิ่ม</>
+                : seat.base === null
+                  ? 'แพ็กเกจ Enterprise — ไม่จำกัดจำนวนคน'
+                  : <>แพ็กเกจให้ {seat.base} ที่นั่ง{seat.extra > 0 && <> + ซื้อเพิ่ม {seat.extra} ที่นั่ง{seat.extraExpires && <> (ถึง {new Date(seat.extraExpires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })})</>}</>}</>}
             </p>
-            {seatFull && (
+            {seatOver > 0 ? (
+              /* เกินโควตา: มักเกิดหลังหมดช่วงทดลอง (ตอนทดลองเชิญได้ไม่จำกัด) — บอกยอดที่ต้องจ่ายตรงๆ */
+              <div style={{
+                background: 'var(--danger-subtle, #fdecea)', color: 'var(--danger, #d93025)', borderRadius: 10,
+                padding: '8px 12px', fontSize: 13, margin: '10px 0 0', lineHeight: 1.5,
+              }}>
+                ⚠️ ทีมเกินโควตา <b>{seatOver} ที่นั่ง</b> — ซื้อที่นั่งเพิ่ม {seatOver} ที่นั่ง
+                (฿{overCost.toLocaleString()}/เดือน) หรืออัปเกรดระดับแพ็กเกจ
+                <div style={{ marginTop: 4, opacity: 0.85 }}>
+                  ไม่มีใครถูกนำออกจากองค์กร แต่<b>เชิญคนใหม่ไม่ได้</b>จนกว่าที่นั่งจะพอ
+                </div>
+              </div>
+            ) : seatFull && (
               <div style={{
                 background: 'var(--purple-subtle)', color: 'var(--purple)', borderRadius: 10,
                 padding: '8px 12px', fontSize: 13, margin: '10px 0 0', lineHeight: 1.5,
@@ -415,7 +446,12 @@ export default function TeamPage() {
             )}
             {seat.limit !== null && (
               <div className="org-row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
-                <Link className={`btn ${seatFull ? 'primary' : ''}`} to="/upgrade#seats">ซื้อที่นั่งเพิ่ม</Link>
+                <Link
+                  className={`btn ${seatFull ? 'primary' : ''}`}
+                  to={seatOver > 0 ? `/upgrade?seats=${seatOver}#seats` : '/upgrade#seats'}
+                >
+                  ซื้อที่นั่งเพิ่ม{seatOver > 0 && ` ${seatOver} ที่นั่ง`}
+                </Link>
                 <Link className="btn" to="/upgrade">อัปเกรดแพ็กเกจ</Link>
               </div>
             )}

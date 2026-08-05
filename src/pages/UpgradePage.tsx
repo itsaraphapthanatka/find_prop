@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
-  createCharge, createSeatCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, fetchSeatPrice,
-  DEFAULT_PRICES, DEFAULT_SEAT_PRICE, MAX_SEAT_QTY, TIERS,
-  type PlanKey, type PlanPrice, type PlanPrices, type Tier,
+  createCharge, createSeatCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, fetchSeatSetting,
+  DEFAULT_PRICES, DEFAULT_SEAT_SETTING, MAX_SEAT_QTY, TIERS,
+  type PlanKey, type PlanPrices, type SeatSetting, type Tier,
 } from '../lib/payments'
 import { rolePerm } from '../lib/roles'
 import {
   onTrial, fetchContactSetting, DEFAULT_CONTACT,
-  seatLimit, baseSeats, effectivePlan, activeExtraSeats, SEATS_BY_PLAN,
+  seatLimit, baseSeats, effectivePlan, activeExtraSeats,
 } from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
@@ -50,9 +50,14 @@ export default function UpgradePage() {
   const [err, setErr] = useState<string | null>(null)
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
   const pollRef = useRef<number | null>(null)
-  // ที่นั่งเพิ่ม — ราคาต่อที่นั่ง/รอบ + จำนวนที่จะซื้อ
-  const [seatPrice, setSeatPrice] = useState<PlanPrice>(DEFAULT_SEAT_PRICE)
-  const [seatQty, setSeatQty] = useState(1)
+  // ที่นั่งเพิ่ม — ราคา/โควตาต่อแพ็กเกจ (super admin ตั้งได้) + จำนวนที่จะซื้อ
+  const [seatCfg, setSeatCfg] = useState<SeatSetting>(DEFAULT_SEAT_SETTING)
+  const seatPrice = { monthly: seatCfg.monthly, yearly: seatCfg.yearly }
+  // มาจากหน้าจัดการทีมตอนทีมเกินโควตา (/upgrade?seats=3) → กรอกจำนวนที่ขาดไว้ให้เลย
+  const [seatQty, setSeatQty] = useState(() => {
+    const q = Math.floor(Number(new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('seats')))
+    return q >= 1 && q <= MAX_SEAT_QTY ? q : 1
+  })
 
   // การ์ดทดสอบ ฿1 โชว์เฉพาะตอน super เปิดสวิตช์ payment_test (เซิร์ฟเวอร์บังคับซ้ำอีกชั้น)
   const [testOn, setTestOn] = useState(false)
@@ -62,7 +67,7 @@ export default function UpgradePage() {
     void fetchPlanPrices().then(setPrices)
     void fetchPaymentTestEnabled().then(setTestOn)
     void fetchContactSetting().then(setContact)
-    void fetchSeatPrice().then(setSeatPrice)
+    void fetchSeatSetting().then(setSeatCfg)
   }, [])
 
   // มาจากลิงก์ "ซื้อที่นั่งเพิ่ม" (/upgrade#seats) → เลื่อนไปการ์ดที่นั่งให้เลย
@@ -272,7 +277,7 @@ export default function UpgradePage() {
                   </p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: 7, fontSize: 14 }}>
                     {/* ที่นั่ง = จำนวนบัญชีในองค์กร (รวมแอดมิน) — ซื้อเพิ่มรายที่นั่งได้ในการ์ดด้านล่าง */}
-                    <li>✓ ทีม {SEATS_BY_PLAN[p.key][tier]} ที่นั่ง (เพิ่มได้)</li>
+                    <li>✓ ทีม {seatCfg.base[p.key][tier]} ที่นั่ง (เพิ่มได้)</li>
                     {p.points.map((pt) => <li key={pt}>✓ {pt}</li>)}
                   </ul>
                   <button className="btn primary" style={{ width: '100%' }} disabled={busy !== null} onClick={() => void pay(p.key)}>
@@ -284,8 +289,14 @@ export default function UpgradePage() {
             {/* ที่นั่งเพิ่ม — ซื้อแยกจากแพ็กเกจ ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุ subscription */}
             <section className="form-card" id="seats" style={{ marginTop: 14 }}>
               <h3 style={{ margin: '0 0 2px' }}>ที่นั่งเพิ่ม</h3>
+              {onTrial(org) && (
+                <p className="plan-line" style={{ color: 'var(--purple)' }}>
+                  ⏳ ช่วงทดลองใช้ตอนนี้ <b>ไม่จำกัดที่นั่ง</b> — พอหมดช่วงทดลองจะเหลือตามแพ็กเกจที่ซื้อ
+                  ส่วนที่เกินซื้อที่นั่งเพิ่มได้จากการ์ดนี้
+                </p>
+              )}
               <p className="plan-line">
-                แพ็กเกจปัจจุบันให้ <b>{baseSeats(effectivePlan(org), org?.plan_tier) ?? 'ไม่จำกัด'}</b> ที่นั่ง
+                แพ็กเกจปัจจุบันให้ <b>{baseSeats(effectivePlan(org), org?.plan_tier, seatCfg.base) ?? 'ไม่จำกัด'}</b> ที่นั่ง
                 {activeExtraSeats(org) > 0 && <> + ซื้อเพิ่มไว้แล้ว <b>{activeExtraSeats(org)}</b> ที่นั่ง</>}
                 {' '}· ต้องการมากกว่านี้ ซื้อเพิ่มรายที่นั่งได้เลย (1 ที่นั่ง = 1 บัญชี)
               </p>

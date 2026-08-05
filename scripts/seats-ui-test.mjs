@@ -58,6 +58,23 @@ check('Free: ปุ่มสร้างลิงก์เชิญถูกป�
 const shotFree = `${SHOTS}/11-seats-free.png`
 await page.screenshot({ path: shotFree, fullPage: true })
 
+// ── ช่วงทดลองใช้ = ไม่จำกัดที่นั่ง ──
+await team('plan=free&trial=7')
+await page.waitForTimeout(300)
+check('ทดลองใช้: ไม่จำกัดที่นั่ง', await has('ไม่จำกัดที่นั่ง (ช่วงทดลองใช้)'))
+check('ทดลองใช้: บอกว่าเชิญทีมได้ไม่จำกัด', await has('เชิญทีมได้ไม่จำกัด'))
+check('ทดลองใช้: ปุ่มเชิญกดได้', !(await page.getByRole('button', { name: 'สร้างลิงก์เชิญ' }).isDisabled()))
+check('ทดลองใช้: บอกว่าหมดแล้วเหลือกี่ที่นั่ง', await has('ตามแพ็กเกจที่เลือกซื้อ'))
+const shotTrial = `${SHOTS}/13-seats-trial.png`
+await page.screenshot({ path: shotTrial, fullPage: true })
+
+// หมดช่วงทดลองแล้วยังไม่จ่าย → กลับมาจำกัด (Free = 1 ที่นั่ง)
+await team('plan=free&trial=-1')
+await page.waitForTimeout(300)
+check('หมดทดลอง: กลับมาจำกัด 1 ที่นั่ง', await has('ใช้ 1 จาก 1 ที่นั่ง'))
+check('หมดทดลอง: ปุ่มเชิญถูกปิด',
+  await page.getByRole('button', { name: 'สร้างลิงก์เชิญ' }).isDisabled())
+
 // Enterprise = ไม่จำกัด (ไม่ต้องมีปุ่มซื้อที่นั่ง)
 await team('plan=enterprise')
 await page.waitForTimeout(300)

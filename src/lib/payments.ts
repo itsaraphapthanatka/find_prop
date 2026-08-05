@@ -61,27 +61,57 @@ export const DEFAULT_PRICES: PlanPrices = {
   },
 }
 
-// ── ราคาที่นั่งเพิ่ม (app_settings 'seats') — ต้องตรงกับ api/_lib/seats.js + supabase/seats.sql ──
+// ── ที่นั่งทีม (app_settings 'seats') — ราคา + จำนวนที่นั่งต่อแพ็กเกจ (super admin ตั้งได้) ──
+// ต้องตรงกับ plan_base_seats() ใน supabase/seats-config.sql และ api/_lib/seats.js
 export const DEFAULT_SEAT_PRICE: PlanPrice = { monthly: 290, yearly: 2958 } // รายปี = ×12 ลด 15%
+/** จำนวนที่นั่งที่แถมมากับแพ็กเกจ ต่อระดับโควตาทรัพย์ */
+export interface SeatBase {
+  free: number
+  starter: Record<number, number>
+  pro: Record<number, number>
+}
+export const DEFAULT_SEAT_BASE: SeatBase = {
+  free: 1,
+  starter: { 100: 3, 250: 5, 500: 10 },
+  pro: { 100: 5, 250: 10, 500: 20 },
+}
+export interface SeatSetting extends PlanPrice { base: SeatBase }
+export const DEFAULT_SEAT_SETTING: SeatSetting = { ...DEFAULT_SEAT_PRICE, base: DEFAULT_SEAT_BASE }
 /** จำนวนที่นั่งที่ซื้อได้ในครั้งเดียว (ฝั่งเซิร์ฟเวอร์บังคับซ้ำ) */
 export const MAX_SEAT_QTY = 50
 
-/** โหลดราคาที่นั่งเพิ่ม — ไม่ throw (อ่านพลาด = ใช้ราคามาตรฐาน) */
-export async function fetchSeatPrice(): Promise<PlanPrice> {
+/** โหลดตั้งค่าที่นั่ง (ราคา + โควตาต่อแพ็กเกจ) — ไม่ throw (อ่านพลาด = ใช้ค่ามาตรฐาน) */
+export async function fetchSeatSetting(): Promise<SeatSetting> {
   try {
     const { data } = await supabase.from('app_settings').select('value').eq('key', 'seats').maybeSingle()
     let v: unknown = data?.value ?? null
     if (typeof v === 'string') {
-      try { v = JSON.parse(v) } catch { return DEFAULT_SEAT_PRICE }
+      try { v = JSON.parse(v) } catch { return DEFAULT_SEAT_SETTING }
     }
-    const p = v as { monthly?: number; yearly?: number } | null
+    const p = v as { monthly?: number; yearly?: number; base?: Partial<SeatBase> } | null
     const monthly = Number(p?.monthly)
     const yearly = Number(p?.yearly)
-    if (monthly > 0 && yearly > 0) return { monthly, yearly }
-    return DEFAULT_SEAT_PRICE
+    const num = (x: unknown, fallback: number) => (Number(x) >= 1 ? Number(x) : fallback)
+    const tiers = (from: Record<string, unknown> | undefined, def: Record<number, number>) =>
+      Object.fromEntries(TIERS.map((t) => [t, num(from?.[t], def[t])])) as Record<number, number>
+    return {
+      monthly: monthly > 0 ? monthly : DEFAULT_SEAT_PRICE.monthly,
+      yearly: yearly > 0 ? yearly : DEFAULT_SEAT_PRICE.yearly,
+      base: {
+        free: num(p?.base?.free, DEFAULT_SEAT_BASE.free),
+        starter: tiers(p?.base?.starter as Record<string, unknown> | undefined, DEFAULT_SEAT_BASE.starter),
+        pro: tiers(p?.base?.pro as Record<string, unknown> | undefined, DEFAULT_SEAT_BASE.pro),
+      },
+    }
   } catch {
-    return DEFAULT_SEAT_PRICE
+    return DEFAULT_SEAT_SETTING
   }
+}
+
+/** ราคาที่นั่งเพิ่มอย่างเดียว (ใช้ที่เดิม — ดึงจากตั้งค่าชุดเดียวกัน) */
+export async function fetchSeatPrice(): Promise<PlanPrice> {
+  const s = await fetchSeatSetting()
+  return { monthly: s.monthly, yearly: s.yearly }
 }
 
 /** สวิตช์แพ็กเกจทดสอบ ฿1 (app_settings 'payment_test') — super เปิด-ปิดได้ · อ่านพลาด = ปิด */

@@ -1,4 +1,5 @@
 import { useAuth, type Organization } from './auth'
+import type { SeatBase } from './payments'
 import { supabase } from './supabase'
 
 // ลิมิตแพ็กเกจ Free (ต้องตรงกับฝั่งเซิร์ฟเวอร์ใน supabase/plan-tiers.sql + api/create-member.js)
@@ -9,29 +10,46 @@ export const DEFAULT_TIER = 500
 
 /**
  * ที่นั่งที่แถมมากับแพ็กเกจ — 1 ที่นั่ง = 1 บัญชีในองค์กร (นับแอดมิน/เจ้าของด้วย)
- * ⚠️ ต้องตรงกับ plan_base_seats() ใน supabase/seats.sql และ api/_lib/seats.js
+ * ค่ามาตรฐาน — ของจริง super admin ตั้งได้ที่ app_settings 'seats' (fetchSeatSetting())
+ * ⚠️ ต้องตรงกับ plan_base_seats() ใน supabase/seats-config.sql และ api/_lib/seats.js
  */
 export const SEATS_BY_PLAN: Record<'starter' | 'pro', Record<number, number>> = {
   starter: { 100: 3, 250: 5, 500: 10 },
   pro: { 100: 5, 250: 10, 500: 20 },
 }
 
-/** ที่นั่งพื้นฐานของแพ็กเกจ (ยังไม่รวมที่นั่งที่ซื้อเพิ่ม) — null = ไม่จำกัด (enterprise) */
-export function baseSeats(plan?: string | null, tier?: number | null): number | null {
+/**
+ * ที่นั่งพื้นฐานของแพ็กเกจ (ยังไม่รวมที่นั่งที่ซื้อเพิ่ม) — null = ไม่จำกัด (enterprise)
+ * base = ตั้งค่าจาก super admin (ไม่ส่ง = ใช้ค่ามาตรฐาน)
+ */
+export function baseSeats(plan?: string | null, tier?: number | null, base?: SeatBase): number | null {
   if (plan === 'enterprise') return null
-  const table = plan === 'pro' ? SEATS_BY_PLAN.pro : plan === 'starter' ? SEATS_BY_PLAN.starter : null
-  if (!table) return FREE_SEATS
+  const cfg = base ?? { free: FREE_SEATS, starter: SEATS_BY_PLAN.starter, pro: SEATS_BY_PLAN.pro }
+  const table = plan === 'pro' ? cfg.pro : plan === 'starter' ? cfg.starter : null
+  if (!table) return cfg.free
   return table[tier ?? DEFAULT_TIER] ?? table[DEFAULT_TIER]
 }
 
 /**
  * ที่นั่งทั้งหมดที่องค์กรใช้ได้ = ของแพ็กเกจ + ที่ซื้อเพิ่ม (ที่ยังไม่หมดอายุ) — null = ไม่จำกัด
+ * ⏳ ช่วงทดลองใช้ = ไม่จำกัด (เชิญทีมได้เต็มที่ · หมดทดลองแล้วโควตากลับมาเป็นของแพ็กเกจที่จ่ายจริง)
  * ตรงกับ org_seat_limit() ในฐานข้อมูล (ฐานข้อมูลเป็นตัวบังคับจริง อันนี้ไว้โชว์/กันกดเปล่า)
  */
-export function seatLimit(org?: Organization | null): number | null {
-  const base = baseSeats(effectivePlan(org), org?.plan_tier)
-  if (base === null) return null
-  return base + activeExtraSeats(org)
+export function seatLimit(org?: Organization | null, base?: SeatBase): number | null {
+  if (onTrial(org)) return null
+  const b = baseSeats(effectivePlan(org), org?.plan_tier, base)
+  if (b === null) return null
+  return b + activeExtraSeats(org)
+}
+
+/**
+ * ที่นั่งที่ "ขาด" อยู่ = ใช้เกินโควตาไปกี่ที่นั่ง (0 = ไม่เกิน · limit null = ไม่จำกัด)
+ * เกิดได้ 2 กรณี: หมดช่วงทดลองใช้ (ตอนทดลองเชิญได้ไม่จำกัด) หรือลดระดับแพ็กเกจ
+ * ⚠️ ไม่เตะใครออก — แค่เชิญคนใหม่ไม่ได้จนกว่าจะซื้อที่นั่งเพิ่มให้ครบ
+ */
+export function seatShortfall(used: number, limit: number | null): number {
+  if (limit === null) return 0
+  return Math.max(0, used - limit)
 }
 
 /** ที่นั่งที่ซื้อเพิ่มและยังไม่หมดอายุ */

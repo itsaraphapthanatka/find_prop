@@ -23,8 +23,11 @@ await build({
     },
   }],
 })
-const { baseSeats, seatLimit, activeExtraSeats, planAccess, SEATS_BY_PLAN, FREE_SEATS } =
+const { baseSeats, seatLimit, activeExtraSeats, seatShortfall, planAccess, SEATS_BY_PLAN, FREE_SEATS } =
   await import(pathToFileURL(out).href)
+
+// ตั้งค่าที่ super admin แก้ได้ (app_settings 'seats') — โครงเดียวกับ SeatBase ใน payments.ts
+const CFG = { free: 2, starter: { 100: 4, 250: 6, 500: 12 }, pro: { 100: 6, 250: 12, 500: 24 } }
 
 const fails = []
 let pass = 0
@@ -54,16 +57,43 @@ eq('ซื้อเพิ่มยังไม่หมดอายุ = นั�
 eq('หมดอายุวันนี้ = ยังใช้ได้ (ถึงสิ้นวัน)', activeExtraSeats({ extra_seats: 2, extra_seats_expires_at: today }), 2)
 eq('หมดอายุเมื่อวาน = ไม่นับ', activeExtraSeats({ extra_seats: 2, extra_seats_expires_at: dayShift(-1) }), 0)
 
+// ── ที่นั่งตามตั้งค่าของ super admin (ทับค่ามาตรฐาน) ──
+eq('ตั้งค่าใหม่: Basic 100 = 4', baseSeats('starter', 100, CFG), 4)
+eq('ตั้งค่าใหม่: Pro 500 = 24', baseSeats('pro', 500, CFG), 24)
+eq('ตั้งค่าใหม่: Free = 2', baseSeats('free', null, CFG), 2)
+eq('ตั้งค่าใหม่: ระดับแปลก → ถอยไประดับ 500', baseSeats('pro', 999, CFG), 24)
+eq('ตั้งค่าใหม่: Enterprise ยังไม่จำกัด', baseSeats('enterprise', 100, CFG), null)
+eq('ไม่ส่งตั้งค่า → ใช้ค่ามาตรฐานเดิม', baseSeats('starter', 100), 3)
+eq('seatLimit ใช้ตั้งค่าที่ส่งเข้าไป',
+  seatLimit({ plan: 'starter', plan_tier: 250, extra_seats: 1, extra_seats_expires_at: dayShift(9) }, CFG), 7)
+
+// ── ช่วงทดลองใช้ = ไม่จำกัดที่นั่ง (เชิญทีมได้เต็มที่ก่อนตัดสินใจซื้อ) ──
+eq('ทดลอง Pro → ไม่จำกัดที่นั่ง',
+  seatLimit({ plan: 'free', trial_plan: 'pro', trial_expires_at: dayShift(5) }), null)
+eq('ทดลอง Basic → ไม่จำกัดที่นั่งเหมือนกัน',
+  seatLimit({ plan: 'free', trial_plan: 'starter', trial_expires_at: dayShift(1) }), null)
+eq('ทดลองวันสุดท้าย (หมดวันนี้) ยังไม่จำกัด',
+  seatLimit({ plan: 'free', trial_plan: 'pro', trial_expires_at: today }), null)
+eq('หมดทดลองแล้วยังไม่จ่าย → เหลือ 1 ที่นั่ง (ต้องเลือกแพ็กเกจ)',
+  seatLimit({ plan: 'free', trial_plan: 'pro', trial_expires_at: dayShift(-1) }), 1)
+eq('หมดทดลองแล้วจ่าย Basic 100 → กลับมาเป็นโควตาแพ็กเกจ',
+  seatLimit({ plan: 'starter', plan_tier: 100, trial_plan: 'pro', trial_expires_at: dayShift(-1) }), 3)
+eq('จ่ายแล้วแต่ trial ยังไม่หมด → ใช้โควตาแพ็กเกจที่จ่าย (ไม่ใช่ไม่จำกัด)',
+  seatLimit({ plan: 'starter', plan_tier: 100, trial_plan: 'pro', trial_expires_at: dayShift(5) }), 3)
+
 // ── ยอดรวมที่ใช้บังคับจริง ──
 eq('Basic 100 + ซื้อเพิ่ม 2 = 5', seatLimit({ plan: 'starter', plan_tier: 100, extra_seats: 2, extra_seats_expires_at: dayShift(30) }), 5)
 eq('Basic 100 + ที่ซื้อหมดอายุ = 3', seatLimit({ plan: 'starter', plan_tier: 100, extra_seats: 2, extra_seats_expires_at: dayShift(-1) }), 3)
 eq('Enterprise + ซื้อเพิ่ม = ยังไม่จำกัด', seatLimit({ plan: 'enterprise', extra_seats: 5, extra_seats_expires_at: dayShift(9) }), null)
 eq('ไม่มี org = 1 ที่นั่ง', seatLimit(null), 1)
-// ช่วงทดลอง (plan=free แต่ trial ยังไม่หมด) = ได้ที่นั่งของแพ็กเกจที่ทดลอง
-eq('ทดลอง Pro (ไม่มีระดับ) = 20 ที่นั่ง',
-  seatLimit({ plan: 'free', trial_plan: 'pro', trial_expires_at: dayShift(5) }), 20)
-eq('ทดลองหมดอายุแล้ว = 1 ที่นั่ง',
-  seatLimit({ plan: 'free', trial_plan: 'pro', trial_expires_at: dayShift(-1) }), 1)
+// (กติกาช่วงทดลองใช้ย้ายไปอยู่หัวข้อ "ช่วงทดลองใช้ = ไม่จำกัดที่นั่ง" ด้านบน)
+
+// ── ที่นั่งที่ขาด (ต้องจ่ายเพิ่ม) หลังหมดช่วงทดลองใช้ ──
+eq('ไม่เกินโควตา = ไม่ต้องจ่าย', seatShortfall(3, 5), 0)
+eq('เต็มพอดี = ยังไม่ต้องจ่าย', seatShortfall(5, 5), 0)
+eq('ทดลองไว้ 8 คน หมดทดลอง เหลือ 3 ที่นั่ง → ขาด 5', seatShortfall(8, 3), 5)
+eq('ยังทดลองใช้ (ไม่จำกัด) = ไม่ขาด', seatShortfall(30, null), 0)
+eq('หมดทดลองแล้วยังไม่จ่าย (1 ที่นั่ง) 6 คน → ขาด 5', seatShortfall(6, 1), 5)
 
 // ── planAccess ต้องรายงานที่นั่งพื้นฐานให้หน้าโปรไฟล์ ──
 eq('planAccess Basic 250 → maxSeats 5', planAccess('starter', 250).maxSeats, 5)
@@ -84,6 +114,17 @@ for (const plan of ['starter', 'pro']) {
 }
 eq('ราคาที่นั่งใน api ตรงกับ sql (290/2958)',
   /monthly: 290, yearly: 2958/.test(apiSrc) && /"monthly": 290, "yearly": 2958/.test(sqlSrc), true)
+
+// ── supabase/seats-config.sql: super ตั้งค่าได้ + ช่วงทดลองไม่จำกัด ──
+const cfgSql = readFileSync('supabase/seats-config.sql', 'utf8')
+eq('SQL อ่านที่นั่งจาก app_settings', /from public\.app_settings where key = 'seats'/.test(cfgSql), true)
+eq('SQL: ช่วงทดลองใช้ = ไม่จำกัดที่นั่ง',
+  /org_on_trial\(p_org\) then null/.test(cfgSql), true)
+eq('SQL: ค่าตั้งเพี้ยนถอยไปใช้ค่ามาตรฐาน', />= 1 then \(select n from raw\)/.test(cfgSql), true)
+eq('SQL: my_seat_usage คืนธงช่วงทดลอง', /on_trial boolean/.test(cfgSql), true)
+eq('ค่ามาตรฐานใน SQL ตรงกับฝั่งแอป (Basic 3/5/10 · Pro 5/10/20)',
+  /'starter', jsonb_build_object\('100', 3, '250', 5, '500', 10\)/.test(cfgSql)
+  && /'pro',     jsonb_build_object\('100', 5, '250', 10, '500', 20\)/.test(cfgSql), true)
 
 rmSync(dir, { recursive: true, force: true })
 

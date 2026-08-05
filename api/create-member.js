@@ -4,7 +4,7 @@
 // ความปลอดภัย: ตรวจว่าผู้เรียกเป็นแอดมิน/super จริง แล้วดึงเข้า "องค์กรของผู้เรียก" เท่านั้น
 
 import { effectivePlan } from './_lib/plan.js'
-import { baseSeats } from './_lib/seats.js'
+import { baseSeats, fetchSeatSetting } from './_lib/seats.js'
 
 export default async function handler(req, res) {
   const ALLOWED_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost:5173']
@@ -130,8 +130,14 @@ async function seatUsage(url, svc, orgId, orgRow) {
     ])
     return { limit: limit === null ? null : Number(limit), used: Number(used) }
   } catch {
-    // fallback: โควตาตามแพ็กเกจ + ที่นั่งที่ซื้อเพิ่ม · ใช้ไป = สมาชิกที่ยัง active
-    const base = baseSeats(effectivePlan(orgRow), orgRow?.plan_tier)
+    // fallback: โควตาตามแพ็กเกจ (ตามที่ super ตั้งไว้) + ที่นั่งที่ซื้อเพิ่ม · ใช้ไป = สมาชิกที่ยัง active
+    // ช่วงทดลองใช้ = ไม่จำกัด (ตรงกับ org_seat_limit ในฐานข้อมูล)
+    const today0 = new Date().toISOString().slice(0, 10)
+    const onTrial = (orgRow?.plan ?? 'free') === 'free'
+      && orgRow?.trial_expires_at && orgRow.trial_expires_at >= today0
+    if (onTrial) return { limit: null, used: 0 }
+    const cfg = await fetchSeatSetting(url, svc.apikey)
+    const base = baseSeats(effectivePlan(orgRow), orgRow?.plan_tier, cfg.base)
     const today = new Date().toISOString().slice(0, 10)
     const extra = orgRow?.extra_seats_expires_at && orgRow.extra_seats_expires_at >= today
       ? Number(orgRow.extra_seats || 0) : 0

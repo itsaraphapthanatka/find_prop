@@ -9,6 +9,7 @@
 //   ?page=profile|team|upgrade|detail (+ &pro=1) = หน้าอื่นที่ต้องมี auth ปลอม
 //   ?page=detail&role=<บทบาท>&mine=1 = การ์ดรายละเอียดทรัพย์ (ดูการปิดข้อมูล/ปุ่มตามบทบาท)
 //   &plan=starter|pro|free|enterprise &tier=100|250|500 &extra=<ที่นั่งที่ซื้อเพิ่ม> = ปรับแพ็กเกจปลอม
+//   &trial=<จำนวนวันที่เหลือ> = จำลองช่วงทดลองใช้ (ไม่จำกัดที่นั่ง) · ติดลบ = หมดทดลองแล้ว
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -36,6 +37,8 @@ const noop = async () => {}
 const fakePlan = params.get('plan') || 'pro'
 const fakeTier = Number(params.get('tier')) || null
 const fakeExtra = Number(params.get('extra')) || 0
+// ช่วงทดลองใช้: ?trial=7 = เหลืออีก 7 วัน · ?trial=-1 = หมดไปแล้วเมื่อวาน
+const trialDays = params.has('trial') ? Number(params.get('trial')) : null
 const fakeRole = (params.get('role') || 'owner') as Role
 const fakeAuth = {
   session: { user: { id: 'fake-user' } },
@@ -46,6 +49,10 @@ const fakeAuth = {
     // หมดอายุอีก 30 วัน (ที่นั่งที่ซื้อเพิ่มต้องมีวันหมดอายุจึงนับ)
     extra_seats_expires_at: fakeExtra > 0
       ? new Date(Date.now() + 30 * 86400e3).toISOString().slice(0, 10) : null,
+    ...(trialDays === null ? {} : {
+      trial_plan: 'pro',
+      trial_expires_at: new Date(Date.now() + trialDays * 86400e3).toISOString().slice(0, 10),
+    }),
   },
   loading: false,
   signIn: async () => null,

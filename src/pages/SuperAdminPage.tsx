@@ -5,7 +5,9 @@ import { useAuth } from '../lib/auth'
 import { formatDate } from '../labels'
 import { listReviews, setReviewMode, useReviewMode, type ReviewRow } from '../lib/review'
 import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, fetchContactSetting, type ContactSetting, type TrialSetting } from '../lib/plan'
-import { fetchPaymentTestEnabled } from '../lib/payments'
+import {
+  fetchPaymentTestEnabled, fetchSeatSetting, TIERS, type SeatSetting, type Tier,
+} from '../lib/payments'
 
 // จัดกลุ่มรีวิวของผู้รีวิวคนหนึ่งตาม "หัวข้อ" (flow) — คงลำดับที่พบครั้งแรก
 function groupByFlow(rows: ReviewRow[]): [string, ReviewRow[]][] {
@@ -165,6 +167,50 @@ export default function SuperAdminPage() {
       return
     }
     setPayTest(next)
+  }
+
+  // ── ที่นั่งทีม (app_settings key 'seats') — ราคาที่นั่งเพิ่ม + ที่นั่งขั้นต่ำที่แถมมากับแพ็กเกจ ──
+  // ช่วงทดลองใช้ไม่จำกัดที่นั่งอยู่แล้ว (บังคับใน supabase/seats-config.sql) — ที่นี่ตั้งของแพ็กเกจที่จ่ายจริง
+  const [seatCfg, setSeatCfg] = useState<SeatSetting | null>(null)
+  const [seatSaving, setSeatSaving] = useState(false)
+  useEffect(() => { void fetchSeatSetting().then(setSeatCfg) }, [])
+
+  function setSeatBase(plan: 'starter' | 'pro', tier: Tier, value: string) {
+    if (!seatCfg) return
+    setSeatCfg({
+      ...seatCfg,
+      base: { ...seatCfg.base, [plan]: { ...seatCfg.base[plan], [tier]: Number(value) } },
+    })
+  }
+
+  async function saveSeatCfg() {
+    if (!seatCfg) return
+    const nums = [
+      seatCfg.monthly, seatCfg.yearly, seatCfg.base.free,
+      ...TIERS.flatMap((t) => [seatCfg.base.starter[t], seatCfg.base.pro[t]]),
+    ]
+    if (nums.some((n) => !Number.isInteger(n) || n < 1)) {
+      alert('ทุกช่องต้องเป็นเลขจำนวนเต็มตั้งแต่ 1 ขึ้นไป (ที่นั่งขั้นต่ำ 1 = เจ้าขององค์กรคนเดียว)')
+      return
+    }
+    if (TIERS.some((t) => seatCfg.base.starter[t] > 500 || seatCfg.base.pro[t] > 500)) {
+      alert('ที่นั่งต่อแพ็กเกจไม่ควรเกิน 500 — ถ้าลูกค้าใหญ่กว่านั้นใช้ Enterprise (ไม่จำกัด)')
+      return
+    }
+    setSeatSaving(true)
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'seats',
+      value: seatCfg,
+      updated_at: new Date().toISOString(),
+    })
+    setSeatSaving(false)
+    if (error) {
+      alert(
+        error.message.includes('app_settings')
+          ? 'ยังไม่ได้ติดตั้งตารางตั้งค่า — รัน supabase/seats-config.sql ใน SQL Editor ก่อน'
+          : `บันทึกไม่สำเร็จ: ${error.message}`,
+      )
+    }
   }
 
   // เกณฑ์ชวนเพื่อน (app_settings key 'referral') — ครบ N คน ได้ Pro D วัน
@@ -663,6 +709,89 @@ export default function SuperAdminPage() {
               {payTest === null ? 'กำลังโหลด…' : payTest ? 'เปิดอยู่' : 'ปิดอยู่'}
             </span>
           </div>
+        </section>
+
+        <section className="form-card">
+          <h3>ที่นั่งทีม (จำนวนคนต่อแพ็กเกจ)</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            1 ที่นั่ง = 1 บัญชีในองค์กร (นับเจ้าขององค์กรและคำเชิญที่ยังไม่ตอบด้วย) ·
+            <b> ช่วงทดลองใช้ไม่จำกัดที่นั่ง</b> พอหมดช่วงทดลองโควตากลับมาเป็นตามตารางนี้ ส่วนที่เกินลูกค้าต้องซื้อที่นั่งเพิ่ม ·
+            มีผลทันทีทุกองค์กร ไม่ต้อง deploy (ค่าที่กรอกพลาดระบบจะถอยไปใช้ค่ามาตรฐานให้เอง)
+          </p>
+          {!seatCfg && <div className="loading">กำลังโหลด…</div>}
+          {seatCfg && (
+            <>
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>ระดับ (โควตาทรัพย์)</th>
+                      <th>Basic</th>
+                      <th>Pro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {TIERS.map((t) => (
+                      <tr key={t}>
+                        <td data-label="ระดับ" className="td-main">ไม่เกิน {t} ทรัพย์</td>
+                        <td data-label="Basic">
+                          <input
+                            type="number" min={1} max={500} className="date-input" style={{ width: 80 }}
+                            value={seatCfg.base.starter[t]}
+                            onChange={(e) => setSeatBase('starter', t, e.target.value)}
+                          /> ที่นั่ง
+                        </td>
+                        <td data-label="Pro">
+                          <input
+                            type="number" min={1} max={500} className="date-input" style={{ width: 80 }}
+                            value={seatCfg.base.pro[t]}
+                            onChange={(e) => setSeatBase('pro', t, e.target.value)}
+                          /> ที่นั่ง
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="org-row" style={{ alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+                <label style={{ fontSize: 14 }}>
+                  Free ได้{' '}
+                  <input
+                    type="number" min={1} max={10} className="date-input" style={{ width: 70 }}
+                    value={seatCfg.base.free}
+                    onChange={(e) => setSeatCfg({ ...seatCfg, base: { ...seatCfg.base, free: Number(e.target.value) } })}
+                  />{' '}
+                  ที่นั่ง
+                </label>
+                <label style={{ fontSize: 14 }}>
+                  ที่นั่งเพิ่ม ฿{' '}
+                  <input
+                    type="number" min={1} className="date-input" style={{ width: 90 }}
+                    value={seatCfg.monthly}
+                    onChange={(e) => setSeatCfg({ ...seatCfg, monthly: Number(e.target.value) })}
+                  />{' '}
+                  /ที่นั่ง/เดือน
+                </label>
+                <label style={{ fontSize: 14 }}>
+                  รายปี ฿{' '}
+                  <input
+                    type="number" min={1} className="date-input" style={{ width: 100 }}
+                    value={seatCfg.yearly}
+                    onChange={(e) => setSeatCfg({ ...seatCfg, yearly: Number(e.target.value) })}
+                  />{' '}
+                  /ที่นั่ง/ปี
+                </label>
+                <button className="btn sm primary" disabled={seatSaving} onClick={() => void saveSeatCfg()}>
+                  {seatSaving ? 'กำลังบันทึก…' : 'บันทึก'}
+                </button>
+              </div>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 8 }}>
+                Enterprise = ไม่จำกัดที่นั่งอยู่แล้ว (ไม่ต้องตั้ง) ·
+                รายปีที่ ฿{seatCfg.yearly.toLocaleString()} = ฿{Math.round(seatCfg.yearly / 12).toLocaleString()}/เดือน
+                (ประหยัด {Math.max(0, Math.round((1 - seatCfg.yearly / (seatCfg.monthly * 12)) * 100))}%)
+              </p>
+            </>
+          )}
         </section>
 
         <section className="form-card">

@@ -10,12 +10,34 @@ const SEATS_BY_PLAN = {
   pro: { 100: 5, 250: 10, 500: 20 },
 }
 
-/** ที่นั่งพื้นฐานของแพ็กเกจ — null = ไม่จำกัด (enterprise) · free/ไม่รู้จัก = 1 */
-export function baseSeats(plan, tier) {
+/**
+ * ที่นั่งพื้นฐานของแพ็กเกจ — null = ไม่จำกัด (enterprise) · free/ไม่รู้จัก = ตามตั้งค่า (มาตรฐาน 1)
+ * base = ตั้งค่าจาก super admin (app_settings 'seats') · ไม่ส่ง = ใช้ค่ามาตรฐาน
+ */
+export function baseSeats(plan, tier, base) {
   if (plan === 'enterprise') return null
-  const table = SEATS_BY_PLAN[plan]
-  if (!table) return 1
-  return table[Number(tier ?? 500)] ?? table[500]
+  const cfg = base ?? { free: 1, starter: SEATS_BY_PLAN.starter, pro: SEATS_BY_PLAN.pro }
+  // เฉพาะ starter/pro ที่มีตารางตามระดับ — free/ไม่รู้จัก ใช้ตัวเลขเดียว
+  const table = plan === 'pro' ? cfg.pro : plan === 'starter' ? cfg.starter : null
+  if (!table) return Number(cfg.free) >= 1 ? Number(cfg.free) : 1
+  const n = Number(table[Number(tier ?? 500)] ?? table[500])
+  return n >= 1 ? n : (SEATS_BY_PLAN[plan]?.[Number(tier ?? 500)] ?? SEATS_BY_PLAN[plan]?.[500] ?? 1)
+}
+
+/** ตั้งค่าที่นั่งทั้งก้อน (ราคา + โควตาต่อแพ็กเกจ) — ไม่ throw เด็ดขาด */
+export async function fetchSeatSetting(supaUrl, apiKey) {
+  const price = await fetchSeatPrice(supaUrl, apiKey)
+  try {
+    const res = await fetch(`${supaUrl}/rest/v1/app_settings?key=eq.seats&select=value`, {
+      headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}` },
+    })
+    const rows = await res.json().catch(() => null)
+    let v = Array.isArray(rows) ? rows[0]?.value : null
+    if (typeof v === 'string') { try { v = JSON.parse(v) } catch { v = null } }
+    return { ...price, base: v?.base ?? null }
+  } catch {
+    return { ...price, base: null }
+  }
 }
 
 /** ราคาที่นั่งเพิ่มจาก app_settings 'seats' — ไม่ throw เด็ดขาด (ระบบจ่ายเงินห้ามล่มเพราะราคา) */
