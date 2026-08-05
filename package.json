@@ -16,7 +16,8 @@
     "test:seats": "node scripts/seats-selftest.mjs",
     "test:seats-ui": "node scripts/seats-ui-test.mjs",
     "test:roles": "node scripts/roles-selftest.mjs",
-    "test:roles-ui": "node scripts/roles-ui-test.mjs"
+    "test:roles-ui": "node scripts/roles-ui-test.mjs",
+    "test:docs": "node scripts/docs-selftest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",
