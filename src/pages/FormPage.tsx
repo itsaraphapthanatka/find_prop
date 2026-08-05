@@ -246,7 +246,8 @@ export default function FormPage() {
           // ที่ไม่มีในตาราง (created_by_phone/contact_masked/location_masked มาจาก view เท่านั้น)
           const {
             id: _id, created_at: _c, org_id, org_name: _o, created_by: _cb, created_by_name: _cbn,
-            created_by_phone: _cbp, contact_masked: _cm, location_masked: _lm, ...rest
+            created_by_phone: _cbp, contact_masked: _cm, location_masked: _lm, house_no_masked: _hm,
+            ...rest
           } = data as Property
           setForm({ ...emptyForm, ...rest })
           setDealStatus((data as Property).deal_status ?? 'open')

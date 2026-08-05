@@ -20,19 +20,19 @@ const eq = (name, got, want) =>
   (JSON.stringify(got) === JSON.stringify(want) ? pass++ : fails.push(`${name} — ได้ ${JSON.stringify(got)} ควรเป็น ${JSON.stringify(want)}`))
 
 // ── ตารางสิทธิ์ตามสเปก ──
-// [บทบาท, เห็นของคนอื่น, เฉพาะเขต, แก้ของคนอื่น, ลบของคนอื่น, ลบของ Owner, ดูล้วน, ปิดข้อมูลเจ้าของ, ปิดพิกัด, นำออก]
+// [บทบาท, เห็นของคนอื่น, เฉพาะเขต, แก้ของคนอื่น, ลบของคนอื่น, ลบของ Owner, ดูล้วน, ปิดข้อมูลเจ้าของ, ปิดบ้านเลขที่, ปิดพิกัด, นำออก]
 const SPEC = [
-  ['owner',     true,  false, true,  true,  true,  false, false, false,  true],
-  ['manager',   true,  false, true,  true,  false, false, false, false,  false],
-  ['associate', true,  false, false, false, false, false, true,  false,  false],
-  ['analyst',   true,  false, false, false, false, false, true,  true,   false],
-  ['survey',    true,  false, false, false, false, false, true,  'area', false],
-  ['temporary', true,  true,  false, false, false, false, true,  'area', false],
-  ['social',    true,  false, false, false, false, true,  true,  true,   false],
-  ['trainee',   false, false, false, false, false, false, false, false,  false],
+  ['owner',     true,  false, true,  true,  true,  false, false, false, false,  true],
+  ['manager',   true,  false, true,  true,  false, false, false, false, false,  false],
+  ['associate', true,  false, false, false, false, false, true,  true,  false,  false],
+  ['analyst',   true,  false, false, false, false, false, true,  true,  true,   false],
+  ['survey',    true,  false, false, false, false, false, true,  true,  'area', false],
+  ['temporary', true,  true,  false, false, false, false, true,  true,  'area', false],
+  ['social',    true,  false, false, false, false, true,  true,  true,  true,   false],
+  ['trainee',   false, false, false, false, false, false, false, true,  false,  false],
 ]
 eq('มีครบ 8 บทบาท', ROLES.length, 8)
-for (const [role, seeOthers, areaScoped, editOthers, deleteOthers, deleteOwnerData, readOnly, maskContact, maskLocation, canExport] of SPEC) {
+for (const [role, seeOthers, areaScoped, editOthers, deleteOthers, deleteOwnerData, readOnly, maskContact, maskHouseNo, maskLocation, canExport] of SPEC) {
   const p = ROLE_PERM[role]
   eq(`${role}: เห็นทรัพย์ของคนอื่น`, p.seeOthers, seeOthers)
   eq(`${role}: จำกัดเฉพาะเขตที่กำหนด`, p.areaScoped, areaScoped)
@@ -41,6 +41,7 @@ for (const [role, seeOthers, areaScoped, editOthers, deleteOthers, deleteOwnerDa
   eq(`${role}: ลบทรัพย์ที่ Owner ลง`, p.deleteOwnerData, deleteOwnerData)
   eq(`${role}: ดูได้อย่างเดียว`, p.readOnly, readOnly)
   eq(`${role}: ปิดข้อมูลติดต่อเจ้าของ`, p.maskContact, maskContact)
+  eq(`${role}: ปิดบ้านเลขที่/เลขที่ห้อง`, p.maskHouseNo, maskHouseNo)
   eq(`${role}: ปิดพิกัด/แผนที่`, p.maskLocation, maskLocation)
   eq(`${role}: นำข้อมูลออก Excel/CSV`, p.canExport, canExport)
 }
@@ -88,7 +89,12 @@ for (const r of ROLES) {
   eq(`supabase/roles.sql รู้จักบทบาท ${r}`, sql.includes(`'${r}'`), true)
 }
 eq('SQL ปิดข้อมูลเจ้าของให้ 5 บทบาท',
-  /hide_owner_contact[\s\S]*?'associate','analyst','survey','temporary','social'/.test(sql), true)
+  /hide_owner_contact[\s\S]*?'associate','analyst','survey','temporary','social'\);/.test(sql), true)
+// บ้านเลขที่ปิดให้ 6 บทบาท (เพิ่ม trainee — ถึงจะไม่มีผลเพราะเห็นแต่ของตัวเองอยู่แล้ว)
+eq('SQL ปิดบ้านเลขที่ให้ 6 บทบาท',
+  /hide_house_no[\s\S]*?'associate','analyst','survey','temporary','social','trainee'/.test(sql), true)
+eq('SQL ปิดบ้านเลขที่ใน view', /hide_house_no\(p\.created_by\) then null else p\.house_no end/.test(sql), true)
+eq('SQL มีธง house_no_masked ให้ UI', /hide_house_no\(p\.created_by\) as house_no_masked/.test(sql), true)
 eq('SQL ปิดพิกัดของ analyst/social', /'analyst','social'/.test(sql), true)
 eq('SQL ให้ survey/temporary เห็นพิกัดเฉพาะในเขต',
   /'survey','temporary'[\s\S]*?in_my_area/.test(sql), true)

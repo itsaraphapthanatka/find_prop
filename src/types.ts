@@ -147,6 +147,8 @@ export interface Property {
   contact_masked?: boolean | null
   /** พิกัด/ลิงก์แผนที่ถูกปิดตามสิทธิ์ — จาก properties_view */
   location_masked?: boolean | null
+  /** บ้านเลขที่/เลขที่ห้องถูกปิดตามสิทธิ์ (เห็นเฉพาะของตัวเอง) — จาก properties_view */
+  house_no_masked?: boolean | null
   /** สถานะงาน: open = เปิดงานอยู่ · rented = ปิดงาน (มีคนเช่าแล้ว) · sold = ปิดงาน (ขายแล้ว) */
   deal_status?: 'open' | 'rented' | 'sold' | null
 }
@@ -154,7 +156,7 @@ export interface Property {
 export type PropertyInput = Omit<
   Property,
   'id' | 'created_at' | 'org_id' | 'org_name' | 'created_by' | 'created_by_name' | 'deal_status'
-  | 'created_by_phone' | 'contact_masked' | 'location_masked'
+  | 'created_by_phone' | 'contact_masked' | 'location_masked' | 'house_no_masked'
 >
 
 /** จุดแวะในรูทเยี่ยมชม (อ้างถึงทรัพย์ด้วย id) */

@@ -3,15 +3,16 @@
 -- เดิมมี 2 บทบาท (admin/member) + สวิตช์ "เห็นทรัพย์ทั้งทีม" → เปลี่ยนเป็น 8 บทบาท
 -- แปลงของเดิม: admin → owner · member → manager (ไม่มีใครเสียสิทธิ์ที่เคยมี)
 --
---   บทบาท   │ เห็นทรัพย์      │ ข้อมูลติดต่อเจ้าของ │ พิกัด/GGMap   │ แก้ของคนอื่น │ ลบของคนอื่น      │ นำออก
---   owner    │ ทั้งองค์กร      │ เห็น               │ เห็น          │ ได้         │ ได้ทั้งหมด        │ ได้
---   manager  │ ทั้งองค์กร      │ เห็น               │ เห็น          │ ได้         │ ได้ (เว้นของ owner)│ ไม่ได้
---   associate│ ทั้งองค์กร      │ ปิด                │ เห็น          │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
---   analyst  │ ทั้งองค์กร      │ ปิด                │ ปิด           │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
---   survey   │ ทั้งองค์กร      │ ปิด                │ เห็นเฉพาะเขต   │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
---   temporary│ เฉพาะเขตที่ให้   │ ปิด                │ เห็นเฉพาะเขต   │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
---   social   │ ทั้งองค์กร      │ ปิด                │ ปิด           │ ไม่ได้       │ ไม่ได้ (ดูล้วน)    │ ไม่ได้
---   trainee  │ เฉพาะของตัวเอง  │ (ของตัวเอง=เห็น)    │ เห็น          │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
+--   บทบาท   │ เห็นทรัพย์      │ ติดต่อเจ้าของ │ บ้านเลขที่ │ พิกัด/GGMap  │ แก้ของคนอื่น │ ลบของคนอื่น      │ นำออก
+--   owner    │ ทั้งองค์กร      │ เห็น         │ เห็น      │ เห็น         │ ได้         │ ได้ทั้งหมด        │ ได้
+--   manager  │ ทั้งองค์กร      │ เห็น         │ เห็น      │ เห็น         │ ได้         │ ได้ (เว้นของ owner)│ ไม่ได้
+--   associate│ ทั้งองค์กร      │ ปิด          │ ปิด       │ เห็น         │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
+--   analyst  │ ทั้งองค์กร      │ ปิด          │ ปิด       │ ปิด          │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
+--   survey   │ ทั้งองค์กร      │ ปิด          │ ปิด       │ เห็นเฉพาะเขต  │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
+--   temporary│ เฉพาะเขตที่ให้   │ ปิด          │ ปิด       │ เห็นเฉพาะเขต  │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
+--   social   │ ทั้งองค์กร      │ ปิด          │ ปิด       │ ปิด          │ ไม่ได้       │ ไม่ได้ (ดูล้วน)    │ ไม่ได้
+--   trainee  │ เฉพาะของตัวเอง  │ (ของตัวเอง)   │ (ของตัวเอง)│ เห็น         │ ไม่ได้       │ ไม่ได้            │ ไม่ได้
+--   (ปิด = เห็นเฉพาะของทรัพย์ที่ตัวเองลง)
 --
 -- ทุกบทบาทเห็น/แก้/ลบ "ทรัพย์ที่ตัวเองลง" ได้เสมอ ยกเว้น social (ดูได้อย่างเดียวทั้งระบบ)
 --
@@ -155,6 +156,14 @@ language sql stable security definer set search_path = public as $$
      and public.my_role() in ('associate','analyst','survey','temporary','social');
 $$;
 
+-- ปิดบ้านเลขที่/เลขที่ห้องของ "คนอื่น" — เห็นเฉพาะของตัวเอง (owner/manager เห็นทั้งหมด)
+-- เลขที่บ้าน+โครงการ = ระบุตัวทรัพย์ได้แม่นเท่าที่อยู่เต็ม จึงคุมชุดเดียวกับข้อมูลติดต่อเจ้าของ
+create or replace function public.hide_house_no(row_created_by uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select row_created_by is distinct from auth.uid()
+     and public.my_role() in ('associate','analyst','survey','temporary','social','trainee');
+$$;
+
 -- ปิดพิกัด/ลิงก์แผนที่ของ "คนอื่น" — analyst/social ปิดหมด · survey/temporary เห็นเฉพาะในเขตที่กำหนด
 create or replace function public.hide_location(row_created_by uuid, row_province text, row_district text)
 returns boolean
@@ -180,6 +189,7 @@ grant execute on function public.can_see_property(uuid, uuid, text, text) to aut
 grant execute on function public.can_edit_property(uuid, uuid) to authenticated;
 grant execute on function public.can_delete_property(uuid, uuid) to authenticated;
 grant execute on function public.hide_owner_contact(uuid) to authenticated;
+grant execute on function public.hide_house_no(uuid) to authenticated;
 grant execute on function public.hide_location(uuid, text, text) to authenticated;
 grant execute on function public.can_export() to authenticated;
 
@@ -222,8 +232,10 @@ select
   case when public.hide_location(p.created_by, p.province, p.district) then null else p.lat end     as lat,
   case when public.hide_location(p.created_by, p.province, p.district) then null else p.lng end     as lng,
   case when public.hide_location(p.created_by, p.province, p.district) then null else p.map_url end as map_url,
+  -- ── บ้านเลขที่/เลขที่ห้อง (ปิดตามบทบาท — เห็นเฉพาะของตัวเอง) ──
+  case when public.hide_house_no(p.created_by) then null else p.house_no end as house_no,
   -- ── ที่ตั้งระดับพื้นที่ (ไม่ปิด — ไม่งั้นรายการใช้งานไม่ได้เลย) ──
-  p.house_no, p.project_name, p.province, p.district, p.subdistrict, p.color_zone, p.zones,
+  p.project_name, p.province, p.district, p.subdistrict, p.color_zone, p.zones,
   p.nearby, p.nearby_places, p.house_direction,
   -- ── ที่เหลือเปิดทั้งหมด (รวมคอลัมน์ยุค AppSheet ที่ยังมีข้อมูลค้าง) ──
   p.pic, p.land_wxd, p.building_wxd, p.office_floors, p.land_building_tax,
@@ -247,6 +259,7 @@ select
   (select pr.phone     from public.profiles pr where pr.id = p.created_by) as created_by_phone,
   -- ── ธงบอก UI ว่าค่าที่หายไปเพราะ "ถูกปิด" ไม่ใช่ "ไม่มีข้อมูล" ──
   public.hide_owner_contact(p.created_by) as contact_masked,
+  public.hide_house_no(p.created_by) as house_no_masked,
   public.hide_location(p.created_by, p.province, p.district) as location_masked
 from public.properties p
 where public.can_see_property(p.created_by, p.org_id, p.province, p.district);
@@ -372,6 +385,7 @@ begin
      or to_regprocedure('public.can_edit_property(uuid,uuid)') is null
      or to_regprocedure('public.can_delete_property(uuid,uuid)') is null
      or to_regprocedure('public.hide_owner_contact(uuid)') is null
+     or to_regprocedure('public.hide_house_no(uuid)') is null
      or to_regprocedure('public.hide_location(uuid,text,text)') is null
      or to_regprocedure('public.can_export()') is null then
     raise exception 'ฟังก์ชันสิทธิ์ไม่ครบ';
@@ -381,8 +395,8 @@ begin
   if to_regclass('public.properties_view') is null then raise exception 'ไม่มี view properties_view'; end if;
   select count(*) into n from information_schema.columns
    where table_schema = 'public' and table_name = 'properties_view'
-     and column_name in ('contact_masked','location_masked','created_by_phone');
-  if n <> 3 then raise exception 'view ขาดคอลัมน์ธง/เบอร์ผู้ลงข้อมูล (ได้ % จาก 3)', n; end if;
+     and column_name in ('contact_masked','location_masked','house_no_masked','created_by_phone');
+  if n <> 4 then raise exception 'view ขาดคอลัมน์ธง/เบอร์ผู้ลงข้อมูล (ได้ % จาก 4)', n; end if;
 
   -- ⭐ หัวใจของงานนี้: ผู้ใช้ต้องอ่านตาราง properties ตรงๆ ไม่ได้ (ไม่งั้นปิดฟิลด์ไม่จริง)
   if has_table_privilege('authenticated', 'public.properties', 'select') then

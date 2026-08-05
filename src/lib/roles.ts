@@ -21,23 +21,23 @@ export const ROLE_INFO: Record<Role, { name: string; short: string; desc: string
   },
   associate: {
     name: 'นายหน้าร่วม (Associate)', short: 'Associate',
-    desc: 'เห็นทรัพย์ทั้งองค์กร แต่ไม่เห็นข้อมูลติดต่อเจ้าของทรัพย์ของคนอื่น · แก้/ลบของคนอื่นไม่ได้',
+    desc: 'เห็นทรัพย์ทั้งองค์กร แต่ไม่เห็นข้อมูลติดต่อเจ้าของและบ้านเลขที่/เลขที่ห้องของคนอื่น · แก้/ลบของคนอื่นไม่ได้',
   },
   analyst: {
     name: 'นักวิเคราะห์ (Analyst)', short: 'Analyst',
-    desc: 'เห็นทรัพย์ทั้งองค์กร แต่ไม่เห็นข้อมูลติดต่อเจ้าของและพิกัด/ลิงก์แผนที่ของคนอื่น (เห็นชื่อ-เบอร์คนลงข้อมูล)',
+    desc: 'เห็นทรัพย์ทั้งองค์กร แต่ไม่เห็นข้อมูลติดต่อเจ้าของ · บ้านเลขที่ · พิกัด/ลิงก์แผนที่ ของคนอื่น (เห็นชื่อ-เบอร์คนลงข้อมูล)',
   },
   survey: {
     name: 'ทีมสำรวจ (Survey)', short: 'Survey',
-    desc: 'เห็นทรัพย์ทั้งองค์กร · เห็นพิกัด/แผนที่เฉพาะเขตที่ถูกกำหนดให้ · ไม่เห็นข้อมูลติดต่อเจ้าของ',
+    desc: 'เห็นทรัพย์ทั้งองค์กร · เห็นพิกัด/แผนที่เฉพาะเขตที่ถูกกำหนดให้ · ไม่เห็นข้อมูลติดต่อเจ้าของและบ้านเลขที่ของคนอื่น',
   },
   temporary: {
     name: 'ชั่วคราว (Temporary)', short: 'Temporary',
-    desc: 'เห็นทรัพย์เฉพาะเขตที่ถูกกำหนดให้ (พร้อมพิกัด) · ไม่เห็นข้อมูลติดต่อเจ้าของ',
+    desc: 'เห็นทรัพย์เฉพาะเขตที่ถูกกำหนดให้ (พร้อมพิกัด) · ไม่เห็นข้อมูลติดต่อเจ้าของและบ้านเลขที่ของคนอื่น',
   },
   social: {
     name: 'ดูแลโซเชียล (Social Media Admin)', short: 'Social',
-    desc: 'ดูได้อย่างเดียว — เพิ่ม/แก้/ลบไม่ได้ · ไม่เห็นข้อมูลติดต่อเจ้าของและพิกัดของคนอื่น',
+    desc: 'ดูได้อย่างเดียว — เพิ่ม/แก้/ลบไม่ได้ · ไม่เห็นข้อมูลติดต่อเจ้าของ บ้านเลขที่ และพิกัดของคนอื่น',
   },
   trainee: {
     name: 'ฝึกงาน (Trainee)', short: 'Trainee',
@@ -60,6 +60,8 @@ export interface RolePerm {
   readOnly: boolean
   /** ปิดข้อมูลติดต่อเจ้าของทรัพย์ของคนอื่น */
   maskContact: boolean
+  /** ปิดบ้านเลขที่/เลขที่ห้องของคนอื่น (เห็นเฉพาะของตัวเอง) */
+  maskHouseNo: boolean
   /** ปิดพิกัด/ลิงก์แผนที่ของคนอื่น ('area' = เห็นเฉพาะในเขตที่กำหนด) */
   maskLocation: boolean | 'area'
   /** นำข้อมูลออก Excel/CSV */
@@ -72,7 +74,7 @@ export interface RolePerm {
 
 const P = (o: Partial<RolePerm>): RolePerm => ({
   seeOthers: true, areaScoped: false, editOthers: false, deleteOthers: false, deleteOwnerData: false,
-  readOnly: false, maskContact: false, maskLocation: false, canExport: false,
+  readOnly: false, maskContact: false, maskHouseNo: false, maskLocation: false, canExport: false,
   canManageOrg: false, canSeeLogs: false, ...o,
 })
 
@@ -83,12 +85,13 @@ export const ROLE_PERM: Record<Role, RolePerm> = {
   }),
   // ลบของคนอื่นได้ แต่ห้ามลบทรัพย์ที่ Owner ลงไว้ (ตามสเปก) — แก้ได้ทุกแถว
   manager: P({ editOthers: true, deleteOthers: true, canSeeLogs: true }),
-  associate: P({ maskContact: true }),
-  analyst: P({ maskContact: true, maskLocation: true }),
-  survey: P({ maskContact: true, maskLocation: 'area' }),
-  temporary: P({ areaScoped: true, maskContact: true, maskLocation: 'area' }),
-  social: P({ readOnly: true, maskContact: true, maskLocation: true }),
-  trainee: P({ seeOthers: false }),
+  associate: P({ maskContact: true, maskHouseNo: true }),
+  analyst: P({ maskContact: true, maskHouseNo: true, maskLocation: true }),
+  survey: P({ maskContact: true, maskHouseNo: true, maskLocation: 'area' }),
+  temporary: P({ areaScoped: true, maskContact: true, maskHouseNo: true, maskLocation: 'area' }),
+  social: P({ readOnly: true, maskContact: true, maskHouseNo: true, maskLocation: true }),
+  // trainee เห็นแต่ทรัพย์ของตัวเองอยู่แล้ว — ตั้ง maskHouseNo ไว้เพื่อความชัดเจน (ไม่มีผลในทางปฏิบัติ)
+  trainee: P({ seeOthers: false, maskHouseNo: true }),
 }
 
 /** สิทธิ์ของบทบาท (บทบาทแปลก/ยังไม่โหลด = ให้น้อยสุดไว้ก่อน) */

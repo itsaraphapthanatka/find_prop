@@ -160,7 +160,10 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           <Field label={LABELS.agreement_type} value={p.agreement_type} />
           {/* ที่ดินเปล่าไม่มีเลขที่ (ฟอร์มก็ไม่มีช่องนี้) — หมวดอื่นว่างให้เห็นว่า "ไม่ได้ระบุ" */}
           {kindOf(p.property_type) !== 'land' && (
-            <Field label={houseNoLabel(kindOf(p.property_type))} value={p.house_no || NotSpecified} />
+            <Field
+              label={houseNoLabel(kindOf(p.property_type))}
+              value={orNotSpecified(p.house_no, p.house_no_masked)}
+            />
           )}
           <Field label={LABELS.project_name} value={p.project_name} />
           <Field label={LABELS.house_direction} value={p.house_direction} />

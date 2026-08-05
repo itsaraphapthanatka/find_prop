@@ -79,10 +79,12 @@ function DetailDemo() {
   const mine = params.has('mine')
   const perm = rolePerm(fakeRole)
   const masked = !mine && perm.maskContact
+  const maskedHouseNo = !mine && perm.maskHouseNo
   const maskedLoc = !mine && perm.maskLocation !== false
   const p = {
     id: 'demo', code: 'DEMO001', record_date: '2026-08-01',
     property_type: 'โกดัง', listing_type: 'เช่า',
+    house_no: maskedHouseNo ? null : '88/123',
     lessor_name: masked ? null : 'คุณสมชาย ใจดี',
     lessor_company: masked ? null : 'บริษัท ตัวอย่าง จำกัด',
     phone: masked ? null : '0812345678',
@@ -93,7 +95,7 @@ function DetailDemo() {
     created_by: mine ? 'fake-user' : 'someone-else',
     created_by_name: 'พี่หน่อย (ทีมขาย)',
     created_by_phone: '0899999999',
-    contact_masked: masked, location_masked: maskedLoc,
+    contact_masked: masked, location_masked: maskedLoc, house_no_masked: maskedHouseNo,
   } as unknown as Property
   return (
     <PropertyDetail

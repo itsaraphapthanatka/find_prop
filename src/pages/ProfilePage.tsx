@@ -236,6 +236,7 @@ export default function ProfilePage() {
               ['ลบทรัพย์ของคนอื่น', perm.deleteOthers],
               ['ลบทรัพย์ที่ Owner ลงไว้', perm.deleteOwnerData],
               ['เห็นข้อมูลติดต่อเจ้าของทรัพย์ของคนอื่น', !perm.maskContact],
+              ['เห็นบ้านเลขที่/เลขที่ห้องของคนอื่น', !perm.maskHouseNo],
               ['เห็นพิกัด/ลิงก์แผนที่ของคนอื่น', perm.maskLocation === false],
               ['นำข้อมูลออก Excel/CSV', perm.canExport],
               ['จัดการทีม/บทบาท/แพ็กเกจ', isOrgAdmin || superOverview],

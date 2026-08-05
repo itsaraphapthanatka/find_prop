@@ -22,37 +22,45 @@ page.on('pageerror', (e) => pageErrors.push(String(e)))
 const openDetail = (q) => page.goto(`${BASE}?page=detail&pro=1&${q}`, { waitUntil: 'networkidle' })
 const text = () => page.locator('body').innerText()
 const btn = (name) => page.getByRole('button', { name, exact: true })
+/** จำนวนแถวข้อมูลที่มีป้ายนี้ + ข้อความในแถว (ถ้ามี) — ไม่เรียก innerText ตอนไม่มีแถว ไม่งั้นรอ timeout 30 วิ */
+async function rowInfo(label) {
+  const rows = page.locator('.field').filter({ hasText: label })
+  const count = await rows.count()
+  return { count, text: count > 0 ? await rows.first().innerText() : '' }
+}
 
-// [บทบาท, เห็นเบอร์เจ้าของ, เห็นพิกัด, ปุ่มแก้ไข, ปุ่มลบ]  ← ทรัพย์ของ "คนอื่น"
+// [บทบาท, เห็นเบอร์เจ้าของ, เห็นบ้านเลขที่, เห็นพิกัด, ปุ่มแก้ไข, ปุ่มลบ]  ← ทรัพย์ของ "คนอื่น"
 const CASES = [
-  ['owner', true, true, true, true],
-  ['manager', true, true, true, false],   // ทรัพย์ปลอมลงโดย someone-else ที่เป็น Owner → ลบไม่ได้
-  ['associate', false, true, false, false],
-  ['analyst', false, false, false, false],
-  ['survey', false, false, false, false], // ไม่ได้กำหนดเขต = ไม่เห็นพิกัด
-  ['temporary', false, false, false, false],
-  ['social', false, false, false, false],
-  ['trainee', true, true, false, false],  // ของคนอื่น trainee ไม่เห็นอยู่แล้ว (ที่นี่จำลองว่าเห็น = ไม่ปิดฟิลด์)
+  ['owner', true, true, true, true, true],
+  ['manager', true, true, true, true, false],   // ทรัพย์ปลอมลงโดย someone-else ที่เป็น Owner → ลบไม่ได้
+  ['associate', false, false, true, false, false],
+  ['analyst', false, false, false, false, false],
+  ['survey', false, false, false, false, false], // ไม่ได้กำหนดเขต = ไม่เห็นพิกัด
+  ['temporary', false, false, false, false, false],
+  ['social', false, false, false, false, false],
+  ['trainee', true, false, true, false, false],  // ของคนอื่น trainee ไม่เห็นแถวอยู่แล้ว
 ]
-for (const [role, seeContact, seeLoc, canEdit, canDel] of CASES) {
+for (const [role, seeContact, seeHouseNo, seeLoc, canEdit, canDel] of CASES) {
   await openDetail(`role=${role}`)
   await page.waitForTimeout(250)
   const t = await text()
   check(`${role}: ${seeContact ? 'เห็น' : 'ไม่เห็น'}เบอร์เจ้าของทรัพย์`, t.includes('0812345678') === seeContact,
     t.includes('0812345678') ? 'เห็นเบอร์' : 'ไม่เห็นเบอร์')
   check(`${role}: ${seeLoc ? 'เห็น' : 'ไม่เห็น'}พิกัด`, t.includes('13.599, 100.618') === seeLoc)
+  check(`${role}: ${seeHouseNo ? 'เห็น' : 'ไม่เห็น'}บ้านเลขที่`, t.includes('88/123') === seeHouseNo)
+  if (!seeHouseNo) {
+    // แถวบ้านเลขที่ต้องหายไป ไม่ใช่ขึ้น "ไม่ได้ระบุ" (จะอ่านผิดว่าไม่ได้กรอก)
+    const houseRow = await rowInfo('บ้านเลขที่')
+    check(`${role}: แถวบ้านเลขที่ถูกซ่อน ไม่ขึ้น "ไม่ได้ระบุ"`, houseRow.count === 0, houseRow.text)
+  }
   if (!seeContact) {
     check(`${role}: บอกว่าปิดตามสิทธิ์ (ไม่ใช่ไม่มีข้อมูล)`, t.includes('ปิดตามสิทธิ์'))
     check(`${role}: ให้ติดต่อคนลงข้อมูลแทน`, t.includes('0899999999'))
     // ห้ามขึ้น "ไม่ได้ระบุ" ในแถวที่ถูกปิด — ไม่งั้นอ่านผิดเป็น "เจ้าของไม่ได้กรอกข้อมูล"
-    const contactRows = page.locator('.field').filter({ hasText: 'ชื่อผู้ติดต่อ' })
-    check(`${role}: แถวชื่อผู้ติดต่อถูกซ่อน ไม่ขึ้น "ไม่ได้ระบุ"`, (await contactRows.count()) === 0,
-      await contactRows.first().innerText().catch(() => ''))
-    const phoneRows = page.locator('.field').filter({ hasText: 'เบอร์โทรติดต่อ' })
-    check(`${role}: แถวเบอร์โทรติดต่อถูกซ่อน ไม่ขึ้น "ไม่ได้ระบุ"`, (await phoneRows.count()) === 0)
-  } else {
-    // บทบาทที่เห็นข้อมูล: ถ้าค่าว่างต้องขึ้น "ไม่ได้ระบุ" ตามที่ตกลงไว้ (บ้านเลขที่ในทรัพย์ตัวอย่างว่าง)
-    check(`${role}: ค่าว่างจริงขึ้น "ไม่ได้ระบุ"`, t.includes('ไม่ได้ระบุ'))
+    const nameRow = await rowInfo('ชื่อผู้ติดต่อ')
+    check(`${role}: แถวชื่อผู้ติดต่อถูกซ่อน ไม่ขึ้น "ไม่ได้ระบุ"`, nameRow.count === 0, nameRow.text)
+    const phoneRow = await rowInfo('เบอร์โทรติดต่อ')
+    check(`${role}: แถวเบอร์โทรติดต่อถูกซ่อน ไม่ขึ้น "ไม่ได้ระบุ"`, phoneRow.count === 0, phoneRow.text)
   }
   check(`${role}: ปุ่มแก้ไข ${canEdit ? 'โชว์' : 'ไม่โชว์'}`, (await btn('แก้ไข').count()) === (canEdit ? 1 : 0))
   check(`${role}: ปุ่มลบ ${canDel ? 'โชว์' : 'ไม่โชว์'}`, (await btn('ลบ').count()) === (canDel ? 1 : 0))
@@ -65,6 +73,7 @@ for (const role of ['associate', 'analyst', 'temporary', 'trainee']) {
   const t = await text()
   check(`${role}: ทรัพย์ของตัวเองเห็นเบอร์เจ้าของ`, t.includes('0812345678'))
   check(`${role}: ทรัพย์ของตัวเองเห็นพิกัด`, t.includes('13.599, 100.618'))
+  check(`${role}: ทรัพย์ของตัวเองเห็นบ้านเลขที่`, t.includes('88/123'))
   check(`${role}: ทรัพย์ของตัวเองแก้ได้`, (await btn('แก้ไข').count()) === 1)
   check(`${role}: ทรัพย์ของตัวเองลบได้`, (await btn('ลบ').count()) === 1)
 }
@@ -99,7 +108,11 @@ check('เลือกบทบาทได้ 8 ตัว', (await inviteSelect
 check('ค่าเริ่มต้นคำเชิญ = Manager', (await inviteSelect.inputValue()) === 'manager')
 await inviteSelect.selectOption('analyst')
 await page.waitForTimeout(200)
-check('เลือก Analyst → โชว์คำอธิบายบทบาท', (await text()).includes('ไม่เห็นข้อมูลติดต่อเจ้าของและพิกัด'))
+{
+  const t3 = await text()
+  check('เลือก Analyst → โชว์คำอธิบายบทบาท',
+    t3.includes('Analyst') && t3.includes('ไม่เห็นข้อมูลติดต่อเจ้าของ') && t3.includes('บ้านเลขที่'))
+}
 const shotTeam = `${SHOTS}/21-team-roles.png`
 await page.screenshot({ path: shotTeam, fullPage: true })
 
