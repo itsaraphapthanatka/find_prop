@@ -163,6 +163,24 @@ for (const f of ['roles.sql', 'seats.sql']) {
     !/create view /.test(t) || /drop view if exists/.test(t), true)
 }
 
+// ── ตัวจับ "แอปในเครื่องเก่ากว่าฐานข้อมูล" (src/lib/staleClient.ts) ──
+{
+  const out2 = join(dir, 'stale.mjs')
+  await build({
+    entryPoints: ['src/lib/staleClient.ts'],
+    outfile: out2, bundle: true, format: 'esm', platform: 'node', logLevel: 'error',
+  })
+  const { isStaleClientError } = await import(pathToFileURL(out2).href)
+  eq('จับ error จากบันเดิลเก่าที่ยังยิงตาราง properties',
+    isStaleClientError('permission denied for table properties'), true)
+  eq('ตัวพิมพ์ใหญ่ก็จับได้',
+    isStaleClientError('Permission denied for table properties'), true)
+  eq('ไม่เหมาโทษ error ของ view (แปลว่ายิงถูกที่แล้ว)',
+    isStaleClientError('permission denied for table properties_view'), false)
+  eq('error อื่นไม่เกี่ยว', isStaleClientError('network error'), false)
+  eq('ไม่มีข้อความ', isStaleClientError(null), false)
+}
+
 // ── ฝั่งแอปต้องอ่านทรัพย์จาก view เท่านั้น ──
 for (const f of ['src/hooks/useProperties.ts', 'src/pages/FormPage.tsx', 'src/pages/FollowUpPage.tsx']) {
   const src = readFileSync(f, 'utf8')

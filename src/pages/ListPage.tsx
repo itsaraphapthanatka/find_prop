@@ -11,6 +11,7 @@ import { IconCompare, IconDownload, IconEdit, IconHouse, IconLink, IconPhone, Ic
 import { ContractTag, DealTag, ListingTag, TypeTag } from '../lib/propertyStyle'
 import { usePlanAccess } from '../lib/plan'
 import { buildPropertiesCsv } from '../lib/importProps'
+import { isStaleClientError, reloadLatestVersion } from '../lib/staleClient'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -259,7 +260,21 @@ export default function ListPage({ search }: { search: string }) {
       </div>
 
       {loading && <div className="loading">กำลังโหลด…</div>}
-      {error && <div className="banner-warn">โหลดข้อมูลไม่สำเร็จ: {error}</div>}
+      {error && (
+        <div className="banner-warn">
+          {isStaleClientError(error) ? (
+            <>
+              {/* กติกาสิทธิ์ในฐานข้อมูลใหม่กว่าโค้ดที่แคชไว้ในเครื่อง — บอกตรงๆ + ปุ่มกดจบ */}
+              แอปในเครื่องเป็นเวอร์ชันเก่ากว่าระบบ จึงโหลดข้อมูลไม่ได้{' '}
+              <button className="btn sm primary" onClick={() => void reloadLatestVersion()}>
+                โหลดเวอร์ชันใหม่
+              </button>
+            </>
+          ) : (
+            <>โหลดข้อมูลไม่สำเร็จ: {error}</>
+          )}
+        </div>
+      )}
 
       {!loading && filtered.length === 0 && (
         <div className="empty-state">
