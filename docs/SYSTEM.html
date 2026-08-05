@@ -66,6 +66,9 @@
   .arch .tier b { display: block; margin-bottom: 6px; color: var(--purple); }
   .arch .items { display: flex; flex-wrap: wrap; gap: 8px; }
   .arch .items span { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 13px; }
+  figure.shot { margin: 16px 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  figure.shot svg { display: block; width: 100%; height: auto; }
+  figure.shot figcaption { padding: 8px 14px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); }
   footer { margin-top: 60px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
 </style>
 </head>
@@ -218,6 +221,37 @@
 <h3>5.3 การมองเห็นทรัพย์และการปิดข้อมูลระดับฟิลด์</h3>
 <p>ทรัพย์ทุกแถวจดว่าใครลง (<code>created_by</code>) — การมองเห็นตัดสินจาก<b>บทบาท 8 ระดับ</b> (หัวข้อ 3.3): เห็นทั้งองค์กร / เฉพาะเขตที่กำหนด (temporary) / เฉพาะที่ตัวเองลง (trainee) · กติกาบังคับที่ RLS: เห็นไม่ได้ = อ่าน/แก้/ลบไม่ได้เลย</p>
 <p><b>การปิดข้อมูลระดับฟิลด์ (masking):</b> บทบาทที่ถูกปิดข้อมูลติดต่อเจ้าของหรือพิกัด ไม่ได้แค่ซ่อนใน UI — ฝั่งแอปอ่านทรัพย์จาก view <code>properties_view</code> ซึ่ง<b>ปิดค่าคอลัมน์นั้นเป็น null ตั้งแต่ฐานข้อมูล</b> และตาราง <code>properties</code> ถูกถอนสิทธิ์ select ออกจากผู้ใช้ทั่วไป (กันเรียก REST ตรงแล้วเห็นข้อมูลที่ปิดไว้) · การเขียนยังเขียนที่ตารางตามเดิม · view ส่งธง <code>contact_masked</code>/<code>location_masked</code> มาให้ UI แสดงแถบ 🔒</p>
+<figure class="shot">
+<svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <!-- client -->
+  <rect x="20" y="80" width="150" height="70" rx="12" fill="var(--bg)" stroke="var(--purple)" stroke-width="1.5"/>
+  <text x="95" y="110" font-size="14" font-weight="700" fill="var(--ink)" text-anchor="middle">แอป (client)</text>
+  <text x="95" y="132" font-size="11.5" fill="var(--muted)" text-anchor="middle">anon key + JWT</text>
+  <!-- view -->
+  <rect x="290" y="30" width="200" height="80" rx="12" fill="var(--bg)" stroke="var(--purple)" stroke-width="1.5"/>
+  <text x="390" y="58" font-size="13.5" font-weight="700" fill="var(--ink)" text-anchor="middle">properties_view</text>
+  <text x="390" y="78" font-size="11.5" fill="var(--muted)" text-anchor="middle">ปิดติดต่อ/พิกัดตามบทบาท+เขต</text>
+  <text x="390" y="96" font-size="11.5" fill="var(--muted)" text-anchor="middle">ส่งธง contact/location_masked</text>
+  <!-- table -->
+  <rect x="580" y="80" width="160" height="70" rx="12" fill="var(--bg)" stroke="var(--line)" stroke-width="1.5"/>
+  <text x="660" y="108" font-size="13.5" font-weight="700" fill="var(--ink)" text-anchor="middle">properties</text>
+  <text x="660" y="130" font-size="11.5" fill="var(--muted)" text-anchor="middle">RLS ระดับแถว (บทบาท/เขต)</text>
+  <!-- arrows -->
+  <path d="M170,100 C220,90 240,75 288,70" fill="none" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="222" y="62" font-size="11.5" fill="var(--muted)">อ่าน (select)</text>
+  <path d="M490,70 C530,75 550,90 578,98" fill="none" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)"/>
+  <path d="M170,130 C330,175 490,175 578,135" fill="none" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="330" y="196" font-size="11.5" fill="var(--muted)">เขียน (insert/update/delete) ตรงที่ตาราง — RLS + can_edit/can_delete คุม</text>
+  <!-- blocked path -->
+  <text x="330" y="226" font-size="11.5" fill="var(--warn, #b45309)">⛔ select ตรงที่ตาราง properties ถูกถอนสิทธิ์ — เรียก REST ตรงก็ไม่เห็นคอลัมน์ที่ปิด</text>
+</svg>
+<figcaption>เส้นทางข้อมูลทรัพย์: อ่านผ่าน view ที่ปิดข้อมูลตามบทบาท · เขียนตรงที่ตารางภายใต้ RLS</figcaption>
+</figure>
 
 <!-- ═══════════════ 6 ═══════════════ -->
 <h2 id="plans">6. แพ็กเกจและโควตา</h2>
@@ -318,6 +352,7 @@
 
 <!-- ═══════════════ 13 ═══════════════ -->
 <h2 id="mobile">13. แอปมือถือ (Capacitor)</h2>
+<div class="note">⚠️ สถานะปัจจุบัน: <b>ยังไม่เปิดให้ลูกค้าใช้</b> (สิงหาคม 2026) — คู่มือลูกค้า (TRAINING.html) จึงแนะนำเฉพาะเว็บบนมือถือ/เพิ่มไปยังหน้าจอหลัก · เนื้อหาด้านล่างเป็นข้อมูลระบบสำหรับทีมงาน</div>
 <ul>
 <li>แอป Android ห่อเว็บด้วย Capacitor — appId <code>com.hobproperty.app</code> (ห้ามเปลี่ยนหลังขึ้น store)</li>
 <li>APK build ผ่าน GitHub Actions (ไม่ฝัง secret ใด ๆ ในแอป)</li>
