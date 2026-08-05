@@ -121,20 +121,25 @@ export const DEFAULT_TRIAL: TrialSetting = { days: 14, plan: 'pro' }
 export interface ReferralSetting {
   need: number // ชวนครบกี่คนต่อ 1 รอบรางวัล
   days: number // ได้ Pro ฟรีกี่วันต่อรอบ
+  /** เพดานรวมของรางวัลต่อองค์กร (วัน) — กันชวนต่อเนื่องแล้วใช้ Pro ฟรีตลอดชีพ · 0 = ปิดรางวัล */
+  maxDays: number
 }
-export const DEFAULT_REFERRAL: ReferralSetting = { need: 2, days: 30 }
+export const DEFAULT_REFERRAL: ReferralSetting = { need: 2, days: 30, maxDays: 90 }
 
 /** โหลดเกณฑ์ชวนเพื่อน — ไม่ throw (ตาราง/แถวยังไม่มี → ใช้ค่ามาตรฐาน) */
 export async function fetchReferralSetting(): Promise<ReferralSetting> {
   try {
     const { data } = await supabase.from('app_settings').select('value').eq('key', 'referral').maybeSingle()
-    const v = (data?.value ?? null) as { need?: number; days?: number } | null
+    const v = (data?.value ?? null) as { need?: number; days?: number; maxDays?: number } | null
     if (!v) return DEFAULT_REFERRAL
     const need = Number(v.need)
     const days = Number(v.days)
+    const maxDays = Number(v.maxDays)
     return {
       need: Number.isInteger(need) && need >= 1 ? need : DEFAULT_REFERRAL.need,
       days: Number.isInteger(days) && days >= 1 ? days : DEFAULT_REFERRAL.days,
+      // 0 = ปิดรางวัล (ตั้งใจได้) จึงยอมรับ 0 แต่ไม่ยอมรับค่าติดลบ/ไม่ใช่จำนวนเต็ม
+      maxDays: Number.isInteger(maxDays) && maxDays >= 0 ? maxDays : DEFAULT_REFERRAL.maxDays,
     }
   } catch {
     return DEFAULT_REFERRAL

@@ -167,7 +167,8 @@ export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOu
       setBusy(false)
       return
     }
-    // ถ้ามาจากลิงก์ชวนเพื่อน → ผูกกับองค์กรผู้ชวน (ผู้ชวนได้รางวัลเมื่อครบตามเกณฑ์ใน app_settings 'referral')
+    // ถ้ามาจากลิงก์ชวนเพื่อน → ผูกกับองค์กรผู้ชวน (ยังไม่ให้รางวัลตอนนี้)
+    // ผู้ชวนได้รางวัลตอนองค์กรนี้ "ชำระเงินครั้งแรก" — ดู grant_referral_reward ใน supabase/referral-cap.sql
     let ref: string | null = null
     try { ref = localStorage.getItem('hop_ref') } catch { /* ข้าม */ }
     if (ref) {

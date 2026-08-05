@@ -441,7 +441,11 @@ export default function LandingPage() {
           <span className="ld-referral-emoji">🎁</span>
           <div>
             <b>ชวนเพื่อน {refSet.need} คน รับ Pro ฟรี {refSet.days} วัน</b>
-            <span>เพื่อนสมัครแล้วเปิดองค์กรของตัวเอง ครบทุก {refSet.need} คน องค์กรคุณได้ Pro เพิ่ม {refSet.days} วัน — สะสมได้ไม่จำกัด</span>
+            {/* เงื่อนไขจริง: นับเมื่อเพื่อนชำระเงินครั้งแรก + มีเพดานรวม — เขียนให้ตรง ไม่ให้เข้าใจผิด */}
+            <span>
+              เพื่อนสมัครแล้วเลือกแพ็กเกจ (ชำระเงินครั้งแรก) ครบทุก {refSet.need} คน องค์กรคุณได้ Pro เพิ่ม {refSet.days} วัน
+              {refSet.maxDays > 0 ? ` — สะสมได้สูงสุด ${refSet.maxDays} วัน` : ''}
+            </span>
           </div>
         </div>
       </section>

@@ -215,24 +215,31 @@ export default function SuperAdminPage() {
   }
 
   // เกณฑ์ชวนเพื่อน (app_settings key 'referral') — ครบ N คน ได้ Pro D วัน
-  const [referral, setReferral] = useState<{ need: string; days: string } | null>(null)
+  const [referral, setReferral] = useState<{ need: string; days: string; maxDays: string } | null>(null)
   const [referralSaving, setReferralSaving] = useState(false)
   useEffect(() => {
-    void fetchReferralSetting().then((r) => setReferral({ need: String(r.need), days: String(r.days) }))
+    void fetchReferralSetting().then((r) =>
+      setReferral({ need: String(r.need), days: String(r.days), maxDays: String(r.maxDays) }))
   }, [])
 
   async function saveReferral() {
     if (!referral) return
     const need = Number(referral.need)
     const days = Number(referral.days)
+    const maxDays = Number(referral.maxDays)
     if (!Number.isInteger(need) || need < 1 || need > 100 || !Number.isInteger(days) || days < 1 || days > 365) {
       alert('กรุณากรอกจำนวนคน 1–100 และจำนวนวัน 1–365 เป็นเลขจำนวนเต็ม')
+      return
+    }
+    // เพดาน 0 = ปิดรางวัล (ตั้งใจได้) · ไม่ควรเกิน 2 ปี
+    if (!Number.isInteger(maxDays) || maxDays < 0 || maxDays > 730) {
+      alert('เพดานรวมของรางวัลต้องเป็นเลขจำนวนเต็ม 0–730 วัน (0 = ปิดรางวัลชวนเพื่อน)')
       return
     }
     setReferralSaving(true)
     const { error } = await supabase.from('app_settings').upsert({
       key: 'referral',
-      value: { need, days },
+      value: { need, days, maxDays },
       updated_at: new Date().toISOString(),
     })
     setReferralSaving(false)
@@ -810,7 +817,8 @@ export default function SuperAdminPage() {
           <h3>ชวนเพื่อน รับ Pro ฟรี (Referral)</h3>
           <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
             เกณฑ์รางวัล: ชวนเพื่อนที่สมัครแล้ว "สร้างองค์กรใหม่" ครบทุก N คน → องค์กรผู้ชวนได้ Pro ฟรี D วัน (สะสมได้) ·
-            มีผลทันทีกับการชวนครั้งถัดไป — ถ้า "ลด" จำนวนคน องค์กรที่ชวนสะสมไว้อาจได้รางวัลย้อนหลังรอบถัดไป (ไม่มีการยึดคืน)
+            มีผลทันทีกับการชวนครั้งถัดไป — ถ้า "ลด" จำนวนคน องค์กรที่ชวนสะสมไว้อาจได้รางวัลย้อนหลังรอบถัดไป (ไม่มีการยึดคืน) ·
+            <b> เพดานรวม</b> กันชวนต่อเนื่องแล้วใช้ Pro ฟรีตลอดชีพ · องค์กรที่ยังทดลองใช้อยู่ รางวัลจะต่อจาก "วันหมดทดลอง" ไม่กินวันที่เหลือ
           </p>
           {!referral && <div className="loading">กำลังโหลด…</div>}
           {referral && (
@@ -833,11 +841,21 @@ export default function SuperAdminPage() {
                 />{' '}
                 วัน
               </label>
+              <label style={{ fontSize: 14 }}>
+                รวมไม่เกิน{' '}
+                <input
+                  type="number" min={0} max={730} className="date-input" style={{ width: 80 }}
+                  value={referral.maxDays}
+                  onChange={(e) => setReferral({ ...referral, maxDays: e.target.value })}
+                />{' '}
+                วัน/องค์กร
+              </label>
               <button className="btn sm primary" disabled={referralSaving} onClick={() => void saveReferral()}>
                 {referralSaving ? 'กำลังบันทึก…' : 'บันทึก'}
               </button>
               <span style={{ color: 'var(--muted)', fontSize: 13 }}>
-                ชวนครบทุก {referral.need} คน = Pro +{referral.days} วัน (สะสมได้)
+                ชวนครบทุก {referral.need} คน = Pro +{referral.days} วัน · สะสมได้สูงสุด{' '}
+                {Number(referral.maxDays) === 0 ? 'ปิดรางวัล' : `${referral.maxDays} วัน`}
               </span>
             </div>
           )}

@@ -39,7 +39,13 @@ export default function TeamPage() {
   const [copiedTok, setCopiedTok] = useState<string | null>(null)
   // สถานะชวนเพื่อน (referral) — โหลดจาก RPC referral_status
   const [refStat, setRefStat] = useState<
-    { code: string; referred_count: number; rewards_granted: number; expires_at: string | null } | null
+    {
+      code: string; referred_count: number; rewards_granted: number; expires_at: string | null
+      /** เพื่อนที่ "จ่ายเงินแล้ว" — เกณฑ์รางวัลนับจากยอดนี้ (RPC เก่าไม่มี → undefined) */
+      paid_count?: number
+      /** วันรางวัลที่ได้ไปแล้วรวม + เพดาน (RPC เวอร์ชันก่อน referral-cap.sql ไม่มี → undefined) */
+      reward_days?: number; max_reward_days?: number
+    } | null
   >(null)
   const [copied, setCopied] = useState(false)
 
@@ -98,6 +104,7 @@ export default function TeamPage() {
     void supabase.rpc('referral_status').then(({ data }) => {
       const rows = (data ?? []) as {
         code: string; referred_count: number; rewards_granted: number; expires_at: string | null
+        paid_count?: number; reward_days?: number; max_reward_days?: number
       }[]
       if (rows[0]) setRefStat(rows[0])
     })
@@ -116,7 +123,13 @@ export default function TeamPage() {
   useEffect(() => {
     void fetchReferralSetting().then(setRefSet)
   }, [])
-  const toNext = refStat ? refSet.need - (refStat.referred_count % refSet.need) : refSet.need
+  // เกณฑ์รางวัลนับจากเพื่อนที่ "จ่ายเงินแล้ว" (RPC เก่าไม่ส่ง paid_count → ถอยไปใช้ยอดสมัคร)
+  const paidCount = refStat?.paid_count ?? refStat?.referred_count ?? 0
+  const toNext = refSet.need - (paidCount % refSet.need)
+  // เพดานรางวัล: ได้ไปแล้วกี่วันจากเพดานเท่าไร (RPC เก่าไม่ส่งมา → ไม่โชว์)
+  const rewardMax = refStat?.max_reward_days ?? refSet.maxDays
+  const rewardUsed = refStat?.reward_days
+  const rewardLeft = rewardUsed === undefined ? null : Math.max(0, rewardMax - rewardUsed)
 
   // ── ที่นั่งทีม: 1 ที่นั่ง = 1 บัญชี (นับแอดมินด้วย) + คำเชิญที่ยังไม่ตอบ ──
   // ฐานข้อมูลเป็นตัวบังคับจริง (org_seat_limit) — ที่นี่อ่านมาโชว์ ถ้า RPC ยังไม่มีก็คำนวณในเครื่อง
@@ -362,7 +375,8 @@ export default function TeamPage() {
           <section className="form-card">
             <h3>ชวนเพื่อน รับ Pro ฟรี 🎁</h3>
             <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75 }}>
-              ชวนเพื่อนสมัคร HOP แล้วสร้างองค์กรของตัวเอง ครบทุก <b>{refSet.need} คน</b> องค์กรคุณได้ <b>Pro เพิ่ม {refSet.days} วัน</b> (สะสมได้)
+              ชวนเพื่อนมาใช้ HOP — <b>เมื่อเพื่อนเลือกแพ็กเกจและชำระเงินครั้งแรก</b> นับเป็น 1 คน ·
+              ครบทุก <b>{refSet.need} คน</b> องค์กรคุณได้ <b>Pro เพิ่ม {refSet.days} วัน</b> (สะสมได้ สูงสุด {rewardMax} วัน)
             </p>
             <div className="org-row">
               <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
@@ -377,9 +391,26 @@ export default function TeamPage() {
               )}
             </div>
             <p className="plan-line" style={{ marginTop: 12 }}>
-              ชวนสำเร็จแล้ว <b>{refStat.referred_count}</b> คน · อีก <b>{toNext}</b> คนได้ Pro +{refSet.days} วัน
+              สมัครจากลิงก์คุณ <b>{refStat.referred_count}</b> คน ·{' '}
+              จ่ายเงินแล้ว <b>{paidCount}</b> คน · อีก <b>{toNext}</b> คน<b>ที่จ่ายเงิน</b>ได้ Pro +{refSet.days} วัน
               {refStat.rewards_granted > 0 && (
-                <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง</>
+                <> · ได้รางวัลไปแล้ว {refStat.rewards_granted} ครั้ง
+                  {rewardUsed !== undefined && <> ({rewardUsed} วัน)</>}
+                </>
+              )}
+              {/* เพดานรวม — บอกตรงๆ ว่าเหลืออีกกี่วัน กันเข้าใจว่าชวนได้ฟรีตลอดชีพ */}
+              {rewardLeft !== null && (
+                rewardLeft === 0
+                  ? <> · <b>ครบเพดานรางวัล {rewardMax} วันแล้ว</b> — ชวนต่อได้แต่ไม่ได้วันเพิ่ม</>
+                  : <> · รับรางวัลได้อีกไม่เกิน <b>{rewardLeft} วัน</b> (เพดาน {rewardMax} วัน/องค์กร)</>
+              )}
+              {onTrial(org) && (
+                <> · ยังทดลองใช้อยู่ — รางวัลจะต่อจากวันหมดทดลอง ไม่กินวันที่เหลือ</>
+              )}
+              {refStat.referred_count > paidCount && (
+                <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 4 }}>
+                  อีก {refStat.referred_count - paidCount} คนที่สมัครแล้วยังไม่ได้เลือกแพ็กเกจ — ชวนให้เขาเริ่มใช้จริงจะได้รางวัลเร็วขึ้น
+                </div>
               )}
             </p>
           </section>
