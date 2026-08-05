@@ -653,13 +653,18 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .user-menu-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 .umh-name { font-weight: 700; font-size: 14px; color: var(--ink); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .umh-email { font-size: 12px; color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.user-menu-pop button[role="menuitem"] {
+/* ลิงก์คู่มือใช้เป็น <a> (เปิดแท็บใหม่) จึงต้องหน้าตาเหมือนปุ่มเมนูอื่น */
+.user-menu-pop button[role="menuitem"],
+.user-menu-pop a[role="menuitem"] {
   text-align: left; background: none; border: none; cursor: pointer; width: 100%;
   padding: 9px 10px; border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink);
   display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  text-decoration: none; box-sizing: border-box;
 }
-.user-menu-pop button[role="menuitem"] svg { flex: none; color: var(--muted); }
-.user-menu-pop button[role="menuitem"]:hover { background: var(--purple-tint); }
+.user-menu-pop button[role="menuitem"] svg,
+.user-menu-pop a[role="menuitem"] svg { flex: none; color: var(--muted); }
+.user-menu-pop button[role="menuitem"]:hover,
+.user-menu-pop a[role="menuitem"]:hover { background: var(--purple-tint); }
 .user-menu-pop button[role="menuitem"].danger { color: var(--danger); }
 .user-menu-pop button[role="menuitem"].danger:hover { background: var(--danger-subtle); }
 /* รายการองค์กรที่สังกัด ในหน้าโปรไฟล์ */

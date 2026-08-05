@@ -28,6 +28,7 @@ import { initReviewMode } from './lib/review'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { orgOk, useAuth } from './lib/auth'
 import { rolePerm, roleName } from './lib/roles'
+import { TRAINING_DOC } from './lib/docs'
 import { isInstalledApp } from './lib/native'
 import {
   IMPERSONATED_OPTION, needsExitImpersonation, orgSwitchOptions, orgSwitchValue, urlAfterOrgSwitch,
@@ -299,6 +300,16 @@ export default function App() {
                 <button role="menuitem" onClick={() => { setMenuOpen(false); startTour() }}>
                   วิธีใช้ (ทัวร์แนะนำ)
                 </button>
+                {/* คู่มือฉบับเต็ม (docs/TRAINING.html — ไปกับตัวระบบ เปิดในแท็บใหม่) */}
+                <a
+                  role="menuitem"
+                  href={TRAINING_DOC}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  คู่มือใช้งาน (ฉบับเต็ม)
+                </a>
                 <button role="menuitem" className="danger" onClick={() => { setMenuOpen(false); void signOut() }}>
                   ออกจากระบบ
                 </button>

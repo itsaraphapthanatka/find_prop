@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process'
-import { defineConfig } from 'vite'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -16,10 +18,47 @@ function buildId(): string {
   }
 }
 
+/**
+ * คู่มือ HTML ใน docs/ ให้เปิดได้จากในแอปโดย "ไม่โชว์ .html" ใน URL
+ *   /docs/training → docs/TRAINING.html   ·   /docs/system → docs/SYSTEM.html
+ * - dev: เสิร์ฟผ่าน middleware (รับทั้งแบบไม่มีนามสกุลและแบบเต็มชื่อไฟล์ เผื่อลิงก์เก่า)
+ * - build: ก๊อปไป dist/docs/ เป็นชื่อพิมพ์เล็ก (training.html) แล้วให้ vercel.json rewrite
+ *          จาก /docs/training → /docs/training.html (rewrite ไม่เปลี่ยน URL บนแถบที่อยู่)
+ * เก็บไฟล์ต้นทางไว้ที่ docs/ ที่เดียว ไม่ต้องมีสำเนาใน public/ (กันแก้แล้วลืมอีกที่)
+ */
+function docsPlugin(): Plugin {
+  const files = () => (existsSync('docs') ? readdirSync('docs').filter((f) => f.endsWith('.html')) : [])
+  /** ชื่อที่ผู้ใช้ขอ (training / TRAINING.html) → ชื่อไฟล์จริงใน docs/ */
+  const resolve = (want: string) => {
+    const slug = want.replace(/\.html$/i, '').toLowerCase()
+    return files().find((f) => f.replace(/\.html$/i, '').toLowerCase() === slug)
+  }
+  return {
+    name: 'hop-docs',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/docs/')) return next()
+        const file = resolve(decodeURIComponent(req.url.split('?')[0].slice('/docs/'.length)))
+        if (!file) return next()
+        res.setHeader('Content-Type', 'text/html; charset=utf-8')
+        res.end(readFileSync(join('docs', file)))
+      })
+    },
+    closeBundle() {
+      const list = files()
+      if (list.length === 0) return
+      mkdirSync('dist/docs', { recursive: true })
+      // ชื่อไฟล์พิมพ์เล็กเสมอ — URL สวยและตรงกับ rewrite ใน vercel.json
+      for (const f of list) copyFileSync(join('docs', f), join('dist/docs', f.toLowerCase()))
+    },
+  }
+}
+
 export default defineConfig({
   define: { __BUILD_ID__: JSON.stringify(buildId()), __BUILT_AT__: JSON.stringify(Date.now()) },
   plugins: [
     react(),
+    docsPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       // ลงทะเบียน SW เองใน main.tsx (ข้ามเมื่อรันในแอป Capacitor — ดูคอมเมนต์ที่นั่น)

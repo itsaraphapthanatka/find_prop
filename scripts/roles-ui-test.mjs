@@ -5,7 +5,7 @@
 // ผ่าน dev/form-harness.html จึงไม่ต้องล็อกอิน — บทบาทปลอมผ่าน ?role=
 // การ์ดรายละเอียดจำลองธง contact_masked/location_masked แบบเดียวกับที่ properties_view ส่งมา
 import { chromium } from 'playwright'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 
 const BASE = 'http://localhost:5173/dev/form-harness.html'
 const SHOTS = 'scratch-shots'
@@ -125,6 +125,38 @@ for (const role of ['manager', 'associate', 'trainee', 'social']) {
   await page.waitForTimeout(300)
   check(`${role}: เข้าหน้าอัปเกรดไม่ได้`, (await text()).includes('เฉพาะเจ้าขององค์กร'))
 }
+
+// ── ลิงก์คู่มือใช้งานที่ไปกับตัวระบบ (docs/TRAINING.html) ──
+await page.goto(`${BASE}?page=profile&pro=1&role=owner&plan=pro&tier=500`, { waitUntil: 'networkidle' })
+await page.waitForTimeout(400)
+const docLink = page.getByRole('link', { name: 'เปิดคู่มือใช้งาน' })
+check('หน้าโปรไฟล์: มีปุ่มเปิดคู่มือใช้งาน', (await docLink.count()) === 1)
+// URL ต้องไม่โชว์ .html
+const href = await docLink.first().getAttribute('href')
+check('ลิงก์เป็น /docs/training (ไม่มี .html)', href === '/docs/training', String(href))
+check('ลิงก์ไม่มีนามสกุลไฟล์เลย', !href?.includes('.html'))
+// เปิดได้จริง + เป็นเอกสารที่ถูกฉบับ (dev เสิร์ฟผ่าน docsPlugin · prod ใช้ rewrite ใน vercel.json)
+const docRes = await page.request.get('http://localhost:5173/docs/training')
+check('เปิด /docs/training ได้ (HTTP 200)', docRes.status() === 200, String(docRes.status()))
+check('เป็นคู่มือลูกค้าจริง', (await docRes.text()).includes('คู่มือการใช้งาน HOP'))
+const sysRes = await page.request.get('http://localhost:5173/docs/system')
+check('เปิด /docs/system ได้ (HTTP 200)', sysRes.status() === 200, String(sysRes.status()))
+check('เป็นเอกสารระบบจริง', (await sysRes.text()).includes('การทำงานของระบบ'))
+// ลิงก์เก่าแบบมี .html ยังเปิดได้ (dev) — บน prod redirect ไปตัวไม่มีนามสกุล
+const oldRes = await page.request.get('http://localhost:5173/docs/TRAINING.html')
+check('ลิงก์เก่า .html ยังไม่ตาย', oldRes.status() === 200, String(oldRes.status()))
+// vercel.json ต้องมี rewrite + redirect ให้ URL สวยใช้งานได้บน production ด้วย
+const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'))
+const rewrites = vercel.rewrites ?? []
+check('vercel.json: rewrite /docs/training → ไฟล์จริง',
+  rewrites.some((r) => r.source === '/docs/training' && r.destination === '/docs/training.html'))
+check('vercel.json: rewrite /docs/system → ไฟล์จริง',
+  rewrites.some((r) => r.source === '/docs/system' && r.destination === '/docs/system.html'))
+check('vercel.json: ไฟล์ปลายทางของ rewrite มีอยู่จริงใน dist',
+  rewrites.every((r) => existsSync(`dist${r.destination}`)),
+  rewrites.map((r) => r.destination).join(', '))
+check('vercel.json: ลิงก์ .html เด้งไปตัวไม่มีนามสกุล',
+  (vercel.redirects ?? []).some((r) => r.source === '/docs/TRAINING.html' && r.destination === '/docs/training'))
 
 await browser.close()
 

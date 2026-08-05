@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ROLE_INFO, roleName, rolePerm, type Role } from '../lib/roles'
+import { TRAINING_DOC } from '../lib/docs'
+import { startTour } from '../lib/tour'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
@@ -165,6 +167,20 @@ export default function ProfilePage() {
       </div>
 
       <div className="team-wrap">
+        {/* ── คู่มือใช้งาน (docs/TRAINING.html ที่ไปกับตัวระบบ) ── */}
+        <section className="form-card">
+          <h3>คู่มือใช้งาน</h3>
+          <p className="plan-line" style={{ marginTop: 0 }}>
+            อ่านวิธีใช้ทั้งระบบตั้งแต่ลงทรัพย์ ค้นหา แผนที่ ทีม ไปจนถึงแพ็กเกจและคำถามที่พบบ่อย
+          </p>
+          <div className="org-row" style={{ flexWrap: 'wrap' }}>
+            <a className="btn primary" href={TRAINING_DOC} target="_blank" rel="noreferrer">
+              เปิดคู่มือใช้งาน
+            </a>
+            <button className="btn" onClick={() => startTour()}>ทัวร์แนะนำในหน้าจอ</button>
+          </div>
+        </section>
+
         {/* ── บัญชี ── */}
         <section className="form-card">
           <h3>บัญชี</h3>

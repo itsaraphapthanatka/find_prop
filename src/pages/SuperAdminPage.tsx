@@ -8,6 +8,7 @@ import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, fet
 import {
   fetchPaymentTestEnabled, fetchSeatSetting, TIERS, type SeatSetting, type Tier,
 } from '../lib/payments'
+import { SYSTEM_DOC, TRAINING_DOC } from '../lib/docs'
 
 // จัดกลุ่มรีวิวของผู้รีวิวคนหนึ่งตาม "หัวข้อ" (flow) — คงลำดับที่พบครั้งแรก
 function groupByFlow(rows: ReviewRow[]): [string, ReviewRow[]][] {
@@ -708,6 +709,17 @@ export default function SuperAdminPage() {
             <span className={`status-pill ${payTest ? 'on' : ''}`}>
               {payTest === null ? 'กำลังโหลด…' : payTest ? 'เปิดอยู่' : 'ปิดอยู่'}
             </span>
+          </div>
+        </section>
+
+        <section className="form-card">
+          <h3>เอกสารระบบ</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            คู่มือที่ไปกับตัวระบบ (อัปเดตพร้อม deploy) — ส่งลิงก์ให้ลูกค้า/ทีมงานได้เลย
+          </p>
+          <div className="org-row" style={{ flexWrap: 'wrap' }}>
+            <a className="btn" href={TRAINING_DOC} target="_blank" rel="noreferrer">คู่มือใช้งาน (ลูกค้า)</a>
+            <a className="btn" href={SYSTEM_DOC} target="_blank" rel="noreferrer">เอกสารการทำงานของระบบ (ทีมงาน)</a>
           </div>
         </section>
 
