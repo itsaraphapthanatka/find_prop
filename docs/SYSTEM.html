@@ -160,13 +160,26 @@
 <li>โค้ด: <code>src/lib/deviceSession.ts</code> · ฐานข้อมูล: <code>supabase/single-device.sql</code></li>
 </ul>
 
-<h3>3.3 บทบาท (role)</h3>
+<h3>3.3 บทบาท (role) — 8 ระดับต่อองค์กร + super</h3>
+<p><b>super</b> คือทีมงาน HOP (ไม่มีสังกัดองค์กร) — เห็นทุกองค์กร จัดการแพ็กเกจ/ราคา/ตั้งค่าระบบ และสวมสิทธิ์ (impersonate) เข้าองค์กรใดก็ได้ · ส่วนบทบาท<b>ภายในองค์กร</b>มี 8 ระดับ (ของเดิม admin → owner, member → manager โดยไม่มีใครเสียสิทธิ์):</p>
 <table>
-<tr><th>บทบาท</th><th>สิทธิ์</th></tr>
-<tr><td><b>super</b></td><td>ทีมงาน HOP — เห็นทุกองค์กร จัดการแพ็กเกจ/ราคา/ตั้งค่าระบบ สวมสิทธิ์เข้าองค์กรใดก็ได้ (impersonate) · ไม่มีสังกัดองค์กร</td></tr>
-<tr><td><b>admin</b></td><td>เจ้าของ/หัวหน้าทีมองค์กร — จัดการลูกทีม เชิญสมาชิก ตั้งค่าองค์กร เห็นทรัพย์ทั้งองค์กรเสมอ ดูประวัติการใช้งาน</td></tr>
-<tr><td><b>member</b></td><td>ลูกทีม — ลงและจัดการทรัพย์ · แอดมินเลือกได้ต่อคนว่าให้เห็นทรัพย์ทั้งทีมหรือเห็นเฉพาะที่ตัวเองลง (<code>see_all_properties</code>)</td></tr>
+<tr><th>บทบาท</th><th>เห็นทรัพย์</th><th>ติดต่อเจ้าของ</th><th>พิกัด/แผนที่</th><th>แก้/ลบของคนอื่น</th><th>นำออก Excel</th></tr>
+<tr><td><b>owner</b> เจ้าขององค์กร</td><td>ทั้งองค์กร</td><td>เห็น</td><td>เห็น</td><td>ได้ทั้งหมด + จัดการทีม/แพ็กเกจ</td><td class="ok">ได้</td></tr>
+<tr><td><b>manager</b> ผู้จัดการ</td><td>ทั้งองค์กร</td><td>เห็น</td><td>เห็น</td><td>แก้ได้ · ลบได้ยกเว้นทรัพย์ที่ owner ลง</td><td>—</td></tr>
+<tr><td><b>associate</b> นายหน้าร่วม</td><td>ทั้งองค์กร</td><td>ปิด</td><td>เห็น</td><td>—</td><td>—</td></tr>
+<tr><td><b>analyst</b> นักวิเคราะห์</td><td>ทั้งองค์กร</td><td>ปิด</td><td>ปิด</td><td>—</td><td>—</td></tr>
+<tr><td><b>survey</b> ทีมสำรวจ</td><td>ทั้งองค์กร</td><td>ปิด</td><td>เฉพาะเขตที่กำหนด</td><td>—</td><td>—</td></tr>
+<tr><td><b>temporary</b> ชั่วคราว</td><td>เฉพาะเขตที่กำหนด</td><td>ปิด</td><td>เฉพาะเขตที่กำหนด</td><td>—</td><td>—</td></tr>
+<tr><td><b>social</b> ดูแลโซเชียล</td><td>ทั้งองค์กร</td><td>ปิด</td><td>ปิด</td><td>ดูอย่างเดียว (read-only)</td><td>—</td></tr>
+<tr><td><b>trainee</b> ฝึกงาน</td><td>เฉพาะที่ตัวเองลง</td><td>เห็น (ของตัวเอง)</td><td>เห็น</td><td>—</td><td>—</td></tr>
 </table>
+<ul>
+<li>ทุกบทบาทเห็น/แก้/ลบ "ทรัพย์ที่ตัวเองลง" ได้เสมอ ยกเว้น social (ดูอย่างเดียวทั้งระบบ)</li>
+<li>ดูประวัติการใช้งาน (Logs) ได้เฉพาะ owner และ manager</li>
+<li><b>เขตที่กำหนด</b> (survey/temporary): กำหนดเป็นรายจังหวัด หรือจังหวัด+เขต/อำเภอ ต่อสมาชิก (ตาราง <code>member_areas</code> — ไม่กำหนดเลย = ไม่เห็นเขตใด ปิดไว้ก่อนปลอดภัยกว่า)</li>
+<li>ตรรกะสิทธิ์เขียนคู่กัน 2 ที่: <code>src/lib/roles.ts</code> (ซ่อน/ปิดปุ่มใน UI) และ <code>supabase/roles.sql</code> (ด่านบังคับจริงในฐานข้อมูล)</li>
+<li>สมาชิกมีเบอร์โทรในโปรไฟล์ (<code>profiles.phone</code>) — ให้บทบาทที่ถูกปิดข้อมูลเจ้าของติดต่อ "คนลงข้อมูล" แทนได้</li>
+</ul>
 
 <!-- ═══════════════ 4 ═══════════════ -->
 <h2 id="org">4. องค์กรและ Multi-tenant</h2>
@@ -195,24 +208,35 @@
 <h3>5.2 หน้ารายการและรายละเอียด</h3>
 <ul>
 <li>หน้ารายการ (List) — ค้นหา + กรองตามประเภท/ลงประกาศ/สถานะดีล/จังหวัด/ช่วงราคา · การ์ดบนมือถือมีแถบปุ่มลัด โทร/SMS/แผนที่/แก้ไข</li>
-<li>หน้ารายละเอียด (PropertyDetail) — แสดงทุกฟิลด์ที่มีข้อมูล · ฟิลด์สำคัญ (ชื่อเจ้าของ เบอร์โทร คนลงข้อมูล บ้านเลขที่) แสดงเสมอ ถ้าว่างขึ้น "ไม่ได้ระบุ" เพื่อให้รู้ว่ายังไม่กรอก ไม่ใช่ระบบซ่อน</li>
+<li>หน้ารายละเอียด (PropertyDetail) — แสดงทุกฟิลด์ที่มีข้อมูล · ฟิลด์สำคัญ (ชื่อเจ้าของ เบอร์โทร คนลงข้อมูล บ้านเลขที่) แสดงเสมอ ถ้าว่างขึ้น "ไม่ได้ระบุ" · บทบาทที่ถูกปิดข้อมูลติดต่อจะเห็นแถบ 🔒 "ปิดตามสิทธิ์ของบทบาทคุณ" พร้อมชื่อ-เบอร์คนลงข้อมูลให้ติดต่อแทน · ปุ่มแก้ไข/ลบขึ้นเฉพาะเมื่อบทบาทมีสิทธิ์กับทรัพย์แถวนั้น</li>
+<li>นำข้อมูลออกเป็น Excel — เฉพาะบทบาท owner (มี <code>can_export()</code> คุมฝั่ง DB คู่กัน)</li>
 <li>หน้าแผนที่ (Map) — ปักหมุดทรัพย์ทั้งหมดบน Leaflet</li>
 <li>เปรียบเทียบ (Compare) — เลือกทรัพย์หลายรายการวางเทียบเป็นตาราง</li>
 <li>นำเข้า Excel/CSV — จับคู่คอลัมน์อัตโนมัติ + insert เป็นก้อน (แพ็กเกจ Pro)</li>
 </ul>
 
-<h3>5.3 การมองเห็นทรัพย์ต่อรายคน</h3>
-<p>ทรัพย์ทุกแถวจดว่าใครลง (<code>created_by</code>) — แอดมินตั้งค่าลูกทีมแต่ละคนได้ว่า "เห็นทรัพย์ทั้งทีม" (ค่าเริ่มต้น) หรือ "เห็นเฉพาะที่ตัวเองลง" กติกาบังคับที่ RLS (<code>can_see_prop()</code>): เห็นไม่ได้ = อ่าน/แก้/ลบไม่ได้เลย · ทรัพย์เก่าที่ไม่มีข้อมูลคนลงถือเป็นของกลาง เห็นได้ทุกคน</p>
+<h3>5.3 การมองเห็นทรัพย์และการปิดข้อมูลระดับฟิลด์</h3>
+<p>ทรัพย์ทุกแถวจดว่าใครลง (<code>created_by</code>) — การมองเห็นตัดสินจาก<b>บทบาท 8 ระดับ</b> (หัวข้อ 3.3): เห็นทั้งองค์กร / เฉพาะเขตที่กำหนด (temporary) / เฉพาะที่ตัวเองลง (trainee) · กติกาบังคับที่ RLS: เห็นไม่ได้ = อ่าน/แก้/ลบไม่ได้เลย</p>
+<p><b>การปิดข้อมูลระดับฟิลด์ (masking):</b> บทบาทที่ถูกปิดข้อมูลติดต่อเจ้าของหรือพิกัด ไม่ได้แค่ซ่อนใน UI — ฝั่งแอปอ่านทรัพย์จาก view <code>properties_view</code> ซึ่ง<b>ปิดค่าคอลัมน์นั้นเป็น null ตั้งแต่ฐานข้อมูล</b> และตาราง <code>properties</code> ถูกถอนสิทธิ์ select ออกจากผู้ใช้ทั่วไป (กันเรียก REST ตรงแล้วเห็นข้อมูลที่ปิดไว้) · การเขียนยังเขียนที่ตารางตามเดิม · view ส่งธง <code>contact_masked</code>/<code>location_masked</code> มาให้ UI แสดงแถบ 🔒</p>
 
 <!-- ═══════════════ 6 ═══════════════ -->
 <h2 id="plans">6. แพ็กเกจและโควตา</h2>
 <table>
-<tr><th>แพ็กเกจ</th><th>ทรัพย์</th><th>ลูกทีม</th><th>ราคา/เดือน</th><th>ฟีเจอร์</th></tr>
-<tr><td><b>Free</b></td><td>5</td><td>ไม่มี</td><td>0</td><td>พื้นฐาน (ลง/ค้นหา/รายละเอียดทรัพย์)</td></tr>
-<tr><td><b>Basic</b> <span class="tag free">คีย์ใน DB = 'starter'</span></td><td>100 / 250 / 500 ตามระดับ</td><td>ตามแพ็กเกจ</td><td>590 / 790 / 990</td><td>พื้นฐาน + ทีม + นำเข้า Excel</td></tr>
-<tr><td><b>Pro</b></td><td>100 / 250 / 500 ตามระดับ</td><td>ตามแพ็กเกจ</td><td>1,190 / 1,390 / 1,590</td><td>ทุกอย่าง + Dashboard + แผนเยี่ยมชม + นัดติดตาม</td></tr>
+<tr><th>แพ็กเกจ</th><th>ทรัพย์</th><th>ที่นั่งทีม (บัญชี)</th><th>ราคา/เดือน</th><th>ฟีเจอร์</th></tr>
+<tr><td><b>Free</b></td><td>5</td><td>1 (เจ้าของคนเดียว)</td><td>0</td><td>พื้นฐาน (ลง/ค้นหา/รายละเอียดทรัพย์)</td></tr>
+<tr><td><b>Basic</b> <span class="tag free">คีย์ใน DB = 'starter'</span></td><td>100 / 250 / 500 ตามระดับ</td><td>3 / 5 / 10</td><td>590 / 790 / 990</td><td>พื้นฐาน + ทีม + นำเข้า Excel</td></tr>
+<tr><td><b>Pro</b></td><td>100 / 250 / 500 ตามระดับ</td><td>5 / 10 / 20</td><td>1,190 / 1,390 / 1,590</td><td>ทุกอย่าง + Dashboard + แผนเยี่ยมชม + นัดติดตาม</td></tr>
 <tr><td><b>Enterprise</b></td><td>&gt;500</td><td>ไม่จำกัด</td><td>คุยกับเซลล์</td><td>ทุกอย่าง</td></tr>
 </table>
+
+<h3>ที่นั่งทีม (seats) และการซื้อที่นั่งเพิ่ม</h3>
+<ul>
+<li><b>1 ที่นั่ง = 1 บัญชีในองค์กร</b> (นับเจ้าของ/ผู้จัดการด้วย) — โควตาแถมตามแพ็กเกจ×ระดับ ตามตารางข้างบน · ช่วงทดลองได้ตามแพ็กเกจที่ทดลอง</li>
+<li><b>ซื้อที่นั่งเพิ่มได้รายที่นั่ง</b> (ค่าเริ่มต้น 290 บาท/ที่นั่ง/เดือน · รายปี ×12 ลด 15%) ที่หน้า <code>/upgrade#seats</code> — บวกทับโควตาแถม เก็บใน <code>organizations.extra_seats</code> + วันหมดอายุของตัวเอง</li>
+<li>ราคาที่นั่ง super แก้ได้ (app_settings คีย์ <code>seats</code>) — ค่า default ต้องตรงกัน 3 ที่: <code>api/_lib/seats.js</code>, <code>src/lib/payments.ts</code>, <code>supabase/seats.sql</code></li>
+<li>ฐานข้อมูลบังคับจริงผ่าน <code>plan_base_seats()</code>/<code>org_seat_limit()</code> ใน RPC เชิญ/รับสมาชิก · หน้า Team อ่านผ่าน RPC <code>my_seat_usage</code></li>
+<li>⚠️ แพ็กเกจลดชั้นหรือที่นั่งเสริมหมดอายุ = <b>เชิญเพิ่มไม่ได้เท่านั้น</b> — ไม่เตะใครออกจากองค์กร</li>
+</ul>
 <ul>
 <li><b>รายปีลด 15%</b> (ราคาเดือน × 12 × 0.85)</li>
 <li><b>ระดับโควตา (tier)</b> เก็บที่ <code>organizations.plan_tier</code> (100/250/500 · null = ลูกค้าเก่า ตีความเป็น 500)</li>
@@ -244,10 +268,10 @@
 <h2 id="team">8. ทีมและการเชิญลูกทีม</h2>
 <ul>
 <li>แอดมินเชิญได้ 2 ทาง: <b>สร้างลิงก์เชิญ</b> ส่งเองทางไหนก็ได้ หรือ<b>ส่งอีเมลอัตโนมัติ</b> (ผ่าน <code>api/send-invite.js</code>)</li>
-<li>คำเชิญสร้างผ่าน RPC <code>create_team_invite</code> — ตรวจสิทธิ์แอดมิน + โควตาลูกทีมตามแพ็กเกจในตัว → ได้ token ในตาราง <code>team_invites</code></li>
+<li>คำเชิญสร้างผ่าน RPC <code>create_team_invite</code> — ตรวจสิทธิ์ + <b>โควตาที่นั่ง</b> ในตัว → ได้ token ในตาราง <code>team_invites</code> (คำเชิญระบุบทบาทได้ ค่าเริ่มต้น manager)</li>
 <li>ผู้ถูกเชิญเปิดลิงก์ <code>/#/login?invite=…</code> — สมัครหรือล็อกอินด้วยอีเมลที่ถูกเชิญ แล้วกดยอมรับเข้าทีม</li>
 <li>แอดมินสร้างบัญชีให้ลูกทีมตรงๆ ก็ได้ (<code>api/create-member.js</code> ใช้ service role สร้าง user ยืนยันแล้วทันที ไม่ติดลิมิตอีเมล)</li>
-<li>หน้า Team: เปิด/ปิดการใช้งานสมาชิก เปลี่ยน role ตั้งค่าการมองเห็นทรัพย์ต่อคน</li>
+<li>หน้า Team: เปิด/ปิดการใช้งานสมาชิก · ตั้งบทบาท 8 ระดับต่อคน · กำหนดเขต (จังหวัด/อำเภอ) ให้ survey/temporary · เห็นจำนวนที่นั่งที่ใช้/เหลือ พร้อมลิงก์ซื้อที่นั่งเพิ่ม</li>
 </ul>
 
 <!-- ═══════════════ 9 ═══════════════ -->
@@ -260,7 +284,8 @@
 <tr><td>นำเข้า Excel/CSV</td><td><span class="tag pro">Basic/Pro</span></td><td>อ่านไฟล์ จับคู่คอลัมน์ → insert ทีละก้อน แถวที่พังไม่ล้มทั้งไฟล์</td></tr>
 <tr><td>เปรียบเทียบทรัพย์</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>เลือกหลายรายการวางเทียบข้างกัน</td></tr>
 <tr><td>ผู้ช่วย AI</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>ช่วยเขียนคำอธิบายประกาศ ฯลฯ — เรียกผ่าน <code>api/ai.js</code> เท่านั้น (คีย์ LLM อยู่ฝั่งเซิร์ฟเวอร์)</td></tr>
-<tr><td>ประวัติการใช้งาน (Logs)</td><td><span class="tag free">admin</span></td><td>ใครเพิ่ม/แก้/ลบทรัพย์ เข้าระบบ ฯลฯ — บันทึกโดย trigger ฝั่ง DB ลงตาราง <code>activity_logs</code> กรองตามองค์กร</td></tr>
+<tr><td>นำข้อมูลออก Excel</td><td><span class="tag free">owner</span></td><td>ดาวน์โหลดทรัพย์ทั้งหมดจากหน้ารายการ — เฉพาะเจ้าขององค์กร (<code>can_export()</code> คุมฝั่ง DB)</td></tr>
+<tr><td>ประวัติการใช้งาน (Logs)</td><td><span class="tag free">owner / manager</span></td><td>ใครเพิ่ม/แก้/ลบทรัพย์ เข้าระบบ ฯลฯ — บันทึกโดย trigger ฝั่ง DB ลงตาราง <code>activity_logs</code> กรองตามองค์กร</td></tr>
 <tr><td>ปุ่มรีวิว (FAB)</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>ปุ่มลอยเก็บความเห็นผู้ใช้ ลากย้ายตำแหน่งได้ ปิดชั่วคราวได้ (เด้งกลับทุก 1 ชม.) — super เปิด/ปิดทั้งระบบได้</td></tr>
 </table>
 
@@ -306,7 +331,7 @@
 <table>
 <tr><th>ไฟล์</th><th>หน้าที่</th><th>ความลับที่ใช้</th></tr>
 <tr><td><code>ai.js</code></td><td>proxy เรียก LLM — client ห้ามถือคีย์</td><td><code>AI_API_KEY</code></td></tr>
-<tr><td><code>create-charge.js</code></td><td>สร้าง QR PromptPay — คำนวณราคาฝั่งเซิร์ฟเวอร์</td><td><code>PUNPAY_SECRET_KEY</code></td></tr>
+<tr><td><code>create-charge.js</code></td><td>สร้าง QR PromptPay — คำนวณราคาฝั่งเซิร์ฟเวอร์ (แพ็กเกจ และซื้อที่นั่งเพิ่ม <code>plan: 'seats'</code>)</td><td><code>PUNPAY_SECRET_KEY</code></td></tr>
 <tr><td><code>verify-charge.js</code></td><td>เช็คสถานะจ่ายเงิน (หน้าเว็บ poll)</td><td><code>PUNPAY_SECRET_KEY</code>, service role</td></tr>
 <tr><td><code>punpay-webhook.js</code></td><td>รับผลจ่ายเงินจาก PunPay (ตรวจลายเซ็น) → apply_payment</td><td><code>PUNPAY_SECRET_KEY</code>, service role</td></tr>
 <tr><td><code>send-invite.js</code></td><td>สร้างคำเชิญ + ส่งอีเมลเชิญลูกทีม</td><td><code>SMTP_*</code> / <code>RESEND_API_KEY</code></td></tr>
@@ -318,16 +343,17 @@
 <h2 id="db">15. ตารางฐานข้อมูล</h2>
 <table>
 <tr><th>ตาราง</th><th>เก็บอะไร</th></tr>
-<tr><td><code>organizations</code></td><td>องค์กร — ชื่อ แพ็กเกจ ระดับโควตา สถานะ วันหมดอายุ trial เกณฑ์เตือนสัญญา</td></tr>
-<tr><td><code>profiles</code></td><td>ผู้ใช้ — ชื่อ อีเมล role สังกัด สถานะใช้งาน การมองเห็นทรัพย์ รหัสเครื่องที่ล็อกอิน (single device) ธง super/impersonate</td></tr>
-<tr><td><code>memberships</code></td><td>ความเป็นสมาชิกหลายองค์กรของผู้ใช้หนึ่งคน</td></tr>
-<tr><td><code>properties</code></td><td>ทรัพย์ — ฟิลด์ทั้งหมดของทุกประเภท (ที่ตั้ง ราคา สเปก รูป เอกสาร พิกัด ผู้ติดต่อ สถานะดีล คนลงข้อมูล)</td></tr>
+<tr><td><code>organizations</code></td><td>องค์กร — ชื่อ แพ็กเกจ ระดับโควตา สถานะ วันหมดอายุ trial เกณฑ์เตือนสัญญา ที่นั่งเสริม (extra_seats + วันหมดอายุ)</td></tr>
+<tr><td><code>profiles</code></td><td>ผู้ใช้ — ชื่อ อีเมล เบอร์โทร บทบาท 8 ระดับ สังกัด สถานะใช้งาน รหัสเครื่องที่ล็อกอิน (single device) ธง super/impersonate</td></tr>
+<tr><td><code>memberships</code></td><td>ความเป็นสมาชิกหลายองค์กรของผู้ใช้หนึ่งคน (บทบาทแยกต่อองค์กร)</td></tr>
+<tr><td><code>member_areas</code></td><td>เขตที่กำหนดให้สมาชิกบทบาท survey/temporary — 1 แถว = จังหวัด หรือจังหวัด+เขต/อำเภอ</td></tr>
+<tr><td><code>properties</code></td><td>ทรัพย์ — ฟิลด์ทั้งหมดของทุกประเภท (ที่ตั้ง ราคา สเปก รูป เอกสาร พิกัด ผู้ติดต่อ สถานะดีล คนลงข้อมูล) · แอปอ่านผ่าน view <code>properties_view</code> ที่ปิดข้อมูลตามบทบาท — เขียนที่ตารางตรง</td></tr>
 <tr><td><code>visit_plans</code></td><td>แผนเยี่ยมชม — ชุดจุดแวะเรียงลำดับ</td></tr>
 <tr><td><code>follow_ups</code></td><td>นัดติดตามต่อทรัพย์ + ผลการติดตาม</td></tr>
 <tr><td><code>team_invites</code></td><td>คำเชิญเข้าทีม (token + อีเมล + สถานะ)</td></tr>
 <tr><td><code>payments</code></td><td>ประวัติการชำระเงิน</td></tr>
 <tr><td><code>plan_prices</code></td><td>ราคาแพ็กเกจ×ระดับ (super แก้ได้)</td></tr>
-<tr><td><code>app_settings</code></td><td>ตั้งค่าระบบเป็น jsonb ต่อคีย์ — trial, referral, payment_test, contract_alert, contact (LINE OA/โทร/อีเมล), review_mode (อ่านได้แบบ anon เพื่อโชว์บน landing)</td></tr>
+<tr><td><code>app_settings</code></td><td>ตั้งค่าระบบเป็น jsonb ต่อคีย์ — trial, referral, payment_test, contract_alert, contact (LINE OA/โทร/อีเมล), review_mode, seats (ราคาที่นั่งเพิ่ม) — อ่านได้แบบ anon เพื่อโชว์บน landing</td></tr>
 <tr><td><code>activity_logs</code></td><td>ประวัติการใช้งาน (บันทึกโดย trigger)</td></tr>
 <tr><td><code>device_tokens</code></td><td>เครื่องที่รับ push notification</td></tr>
 <tr><td><code>flow_reviews</code></td><td>คะแนน/ความเห็นจากปุ่มรีวิว</td></tr>
@@ -338,7 +364,8 @@
 <h2 id="security">16. ความปลอดภัย</h2>
 <ul>
 <li><b>RLS เป็นด่านจริง:</b> สิทธิ์ทุกอย่างบังคับที่ฐานข้อมูล — ต่อให้เรียก API ตรงด้วย anon key ก็เห็น/แก้ได้เท่าที่ policy อนุญาต</li>
-<li><b>งานที่ต้องข้าม RLS ใช้ RPC แบบ SECURITY DEFINER</b> ที่ตรวจสิทธิ์เองในฟังก์ชัน (เช่น switch_org, create_team_invite, apply_payment, claim_device_session, org_member_names)</li>
+<li><b>งานที่ต้องข้าม RLS ใช้ RPC แบบ SECURITY DEFINER</b> ที่ตรวจสิทธิ์เองในฟังก์ชัน (เช่น switch_org, create_team_invite, apply_payment, claim_device_session, org_member_names, my_seat_usage)</li>
+<li><b>การปิดข้อมูลระดับฟิลด์ปิดจริงตั้งแต่ DB:</b> ตาราง properties ถูกถอนสิทธิ์ select — ผู้ใช้อ่านได้เฉพาะผ่าน view <code>properties_view</code> ที่ปิดข้อมูลติดต่อ/พิกัดตามบทบาท ต่อให้เรียก REST API ตรงก็เห็นเป็น null</li>
 <li><b>ความลับอยู่ฝั่งเซิร์ฟเวอร์เท่านั้น:</b> <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>PUNPAY_SECRET_KEY</code>, <code>AI_API_KEY</code>, SMTP — เก็บใน Vercel env ไม่เคยลง repo/client</li>
 <li><b>.env / .env.local ถูก gitignore</b> — client มีแค่ URL + anon key ของ Supabase</li>
 <li><b>ราคา/โควตาตัดสินที่เซิร์ฟเวอร์:</b> create-charge คำนวณราคาเอง, trigger กันเพิ่มทรัพย์เกินลิมิต, RPC ตรวจ admin ก่อนเชิญสมาชิก</li>
