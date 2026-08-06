@@ -35,11 +35,18 @@ create index if not exists idx_shortlists_org_updated
 
 alter table public.shortlists enable row level security;
 
--- ต้องมี "or is_super()" ทุก policy — super admin มักไม่มี org_id (แบบเดียวกับ visit_plans)
+-- ต้องมี "or is_super()" ในทุก policy ที่ "เขียน" — super admin มักไม่มี org_id
+-- (current_org() = null) ถ้าไม่เผื่อไว้ super จะสร้าง/แก้ชอร์ตลิสต์ไม่ได้ (42501)
+--
+-- ⚠️ การ "อ่าน" ใช้ super_overview() ไม่ใช่ is_super() — กติกาเดียวกับ properties:
+--    · super ที่ไม่ได้สวมสิทธิ์ (โหมดภาพรวม) = เห็นชอร์ตลิสต์ทุกองค์กร
+--    · super ที่สวมสิทธิ์องค์กรหนึ่งอยู่ = เห็นแค่ขององค์กรนั้น (เหมือนสมาชิกจริง)
+--    ถ้าใช้ is_super() ตรงนี้ เวลาสวมสิทธิ์ไปเดโมให้ลูกค้าดู จะมีชอร์ตลิสต์
+--    ขององค์กรอื่นโผล่ในรายการ = ข้อมูลลูกค้าหลุดข้ามองค์กร
 drop policy if exists "shortlist read" on public.shortlists;
 create policy "shortlist read" on public.shortlists
   for select using (
-    public.is_super()
+    public.super_overview()
     or ( org_id = public.current_org() and public.org_ok(org_id)
          and (created_by = auth.uid() or public.is_admin()) )
   );
@@ -118,6 +125,10 @@ begin
   where tablename = 'shortlists' and policyname = 'shortlist read';
   if v_read not like '%current_org%' or v_read not like '%created_by%' then
     raise exception 'policy อ่าน shortlists ไม่ได้คุม created_by/current_org — บทบาทที่ควรเห็นแค่ของตัวเองจะเห็นของคนอื่น';
+  end if;
+  -- อ่านต้องใช้ super_overview() ไม่ใช่ is_super() — ตอน super สวมสิทธิ์ต้องแคบลงเหลือองค์กรเดียว
+  if v_read not like '%super_overview%' then
+    raise exception 'policy อ่าน shortlists ไม่ได้ใช้ super_overview() — super ที่สวมสิทธิ์องค์กรหนึ่งจะเห็นชอร์ตลิสต์ขององค์กรอื่นด้วย';
   end if;
 
   -- ลบ: manager ต้องลบชุดของ owner ไม่ได้ → policy ต้องอ้าง memberships.role = 'owner'

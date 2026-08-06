@@ -47,8 +47,16 @@ for (const c of cmds) {
   const b = policyBody(`shortlist ${c}`)
   ok(`policy ${c} ผูกกับองค์กรตัวเอง`, b.includes('public.current_org()'))
   ok(`policy ${c} เช็คสถานะองค์กร (org_ok)`, b.includes('public.org_ok('))
-  ok(`policy ${c} เผื่อ super admin ที่ไม่มี org`, b.includes('public.is_super()'))
 }
+// การ "เขียน" ต้องเผื่อ super ที่ไม่มี org (current_org() = null) ไม่งั้นโดน 42501
+for (const c of ['insert', 'update', 'delete']) {
+  ok(`policy ${c} เผื่อ super admin ที่ไม่มี org`, policyBody(`shortlist ${c}`).includes('public.is_super()'))
+}
+// การ "อ่าน" ต้องแคบลงเหลือองค์กรเดียวตอน super สวมสิทธิ์ (ไม่งั้นเดโมให้ลูกค้าดูแล้วข้อมูลองค์กรอื่นโผล่)
+ok('อ่านใช้ super_overview() ไม่ใช่ is_super()',
+  policyBody('shortlist read').includes('public.super_overview()')
+  && !policyBody('shortlist read').includes('public.is_super()'))
+ok('SQL ตรวจเองว่า policy อ่านใช้ super_overview', /v_read not like '%super_overview%'/.test(sql))
 
 // ── 3) สิทธิ์ตามบทบาท 8 ระดับ (ต้องตรงกับกติกาของทรัพย์) ──────────
 const read = policyBody('shortlist read')
