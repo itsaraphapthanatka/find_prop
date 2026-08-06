@@ -20,7 +20,8 @@
     "test:docs": "node scripts/docs-selftest.mjs",
     "test:referral": "node scripts/referral-selftest.mjs",
     "test:auth": "node scripts/auth-selftest.mjs",
-    "test:auth-ui": "node scripts/auth-ui-test.mjs"
+    "test:auth-ui": "node scripts/auth-ui-test.mjs",
+    "test:stats": "node scripts/stats-selftest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",

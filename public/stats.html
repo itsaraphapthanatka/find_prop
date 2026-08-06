@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOP — ยอดสมัครใช้งาน</title>
+<meta name="description" content="ยอดองค์กรและผู้ใช้ที่สมัครใช้งาน HOP — อัปเดตอัตโนมัติจากระบบจริง">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg">
+<style>
+  :root {
+    --ink: #101114; --ink2: #3f4450; --muted: #6b7280;
+    --line: #e5e7eb; --bg: #ffffff; --surface: #f8f9fb;
+    --purple: #7132f5; --purple-soft: #f1eafe; --good: #0a8f4d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e7e9ee; --ink2: #c3c8d2; --muted: #9aa1ad;
+      --line: #2a2d34; --bg: #131417; --surface: #1a1c21;
+      /* ขั้นสีของโหมดมืดเลือกใหม่ ไม่ใช่พลิกสีเดิม — ม่วงเข้มบนพื้นมืดอ่านไม่ออก */
+      --purple: #a78bfa; --purple-soft: #2a2140; --good: #34d399;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', 'Sukhumvit Set', sans-serif;
+    line-height: 1.7; font-size: 15.5px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 70px; }
+  header { display: flex; align-items: center; gap: 10px; }
+  header svg { display: block; }
+  header b { font-size: 20px; letter-spacing: -0.01em; }
+  header b span { color: var(--purple); }
+  h1 { font-size: 26px; margin: 22px 0 2px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 0 0 26px; font-size: 14.5px; }
+
+  /* ── ตัวเลขพาดหัว (ไม่ใช่กราฟ — ค่าเดียวอ่านเป็นตัวเลขชัดกว่า) ── */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .tile b { display: block; font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.25; }
+  .tile span { color: var(--muted); font-size: 13.5px; }
+  .tile em { display: block; font-style: normal; color: var(--good); font-size: 13px; font-weight: 600; }
+
+  /* ── กราฟ ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 18px 10px; margin-top: 22px;
+  }
+  .card h2 { font-size: 16.5px; margin: 0 0 2px; }
+  .card p.note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .axis { fill: var(--muted); font-size: 10.5px; }
+  .baseline { stroke: var(--line); stroke-width: 1; }
+  .bar { fill: var(--purple); }
+  .bar:hover { opacity: 0.82; }
+  .barlabel { fill: var(--ink2); font-size: 11px; font-weight: 700; }
+  .tip {
+    position: fixed; pointer-events: none; opacity: 0; transition: opacity .12s;
+    background: var(--ink); color: var(--bg); font-size: 12.5px; font-weight: 600;
+    padding: 5px 9px; border-radius: 7px; white-space: nowrap; z-index: 9;
+  }
+  details { margin: 8px 0 0; font-size: 14px; }
+  details summary { cursor: pointer; color: var(--purple); }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 4px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 5px 10px; text-align: left; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  .state { color: var(--muted); padding: 26px 0; text-align: center; }
+  .err { border-left: 4px solid #d93025; background: var(--surface); padding: 10px 14px; border-radius: 8px; }
+  footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  footer a { color: var(--purple); }
+  .skeleton { background: var(--line); border-radius: 6px; height: 30px; width: 70%; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: .55 } 50% { opacity: .25 } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="#7132f5"></rect>
+      <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff"></path>
+    </svg>
+    <b>H<span>OP</span></b>
+  </header>
+
+  <h1>ยอดสมัครใช้งาน</h1>
+  <p class="sub">
+    ตัวเลขรวมจากระบบจริง อัปเดตอัตโนมัติ (แคช 5 นาที) — ไม่แสดงชื่อองค์กรหรือข้อมูลลูกค้ารายราย
+  </p>
+
+  <div id="app">
+    <div class="tiles">
+      <div class="tile"><div class="skeleton"></div><span>กำลังโหลด…</span></div>
+      <div class="tile"><div class="skeleton"></div><span>กำลังโหลด…</span></div>
+      <div class="tile"><div class="skeleton"></div><span>กำลังโหลด…</span></div>
+    </div>
+  </div>
+
+  <footer>
+    <span id="updated"></span>
+    <a href="/">← กลับหน้าแรก HOP</a>
+  </footer>
+</div>
+<div class="tip" id="tip" role="status"></div>
+
+<script>
+const TH_MONTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+const num = (n) => Number(n ?? 0).toLocaleString('th-TH')
+/** 'YYYY-MM' → 'ส.ค. 69' (พ.ศ. 2 หลัก — แกนกราฟต้องสั้น) */
+function monthShort(ym) {
+  const [y, m] = String(ym).split('-').map(Number)
+  return `${TH_MONTH[(m || 1) - 1]} ${String((y || 2000) + 543).slice(-2)}`
+}
+function monthFull(ym) {
+  const [y, m] = String(ym).split('-').map(Number)
+  return `${TH_MONTH[(m || 1) - 1]} ${(y || 2000) + 543}`
+}
+
+const tip = document.getElementById('tip')
+function showTip(e, text) {
+  tip.textContent = text
+  tip.style.opacity = '1'
+  const pad = 12
+  tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + pad) + 'px'
+  tip.style.top = Math.max(8, e.clientY - tip.offsetHeight - pad) + 'px'
+}
+const hideTip = () => { tip.style.opacity = '0' }
+
+/**
+ * แท่งกราฟปลายมนเฉพาะด้านบน (ก้นแท่งติดเส้นฐาน) — ตามสเปกกราฟของระบบ
+ * เว้นช่องว่าง 2px ระหว่างแท่งไว้ที่ผู้เรียก
+ */
+function barPath(x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h)
+  return `M${x},${y + h} V${y + rr} Q${x},${y} ${x + rr},${y} H${x + w - rr} Q${x + w},${y} ${x + w},${y + rr} V${y + h} Z`
+}
+
+/** กราฟแท่ง: ยอดสมัครรายเดือน (ชุดข้อมูลเดียว → ไม่ต้องมีคำอธิบายสี) */
+function chart(monthly) {
+  const W = 840, H = 220, padL = 8, padR = 8, padT = 26, padB = 26
+  const n = monthly.length || 1
+  const slot = (W - padL - padR) / n
+  const bw = Math.max(6, slot - 8)              // เว้น 8px ต่อช่อง → ช่องว่างระหว่างแท่ง > 2px
+  const max = Math.max(1, ...monthly.map((m) => m.orgs))
+  const plotH = H - padT - padB
+  const lastIdx = n - 1
+  const maxIdx = monthly.reduce((best, m, i) => (m.orgs > monthly[best].orgs ? i : best), 0)
+
+  const bars = monthly.map((m, i) => {
+    const h = Math.round((m.orgs / max) * plotH)
+    const x = padL + i * slot + (slot - bw) / 2
+    const y = padT + (plotH - h)
+    const label = `${monthFull(m.month)} · ${num(m.orgs)} องค์กร · ${num(m.users)} ผู้ใช้`
+    // ป้ายตัวเลขเฉพาะเดือนสูงสุดและเดือนล่าสุด (ไม่ติดทุกแท่ง)
+    const showLabel = (i === maxIdx || i === lastIdx) && m.orgs > 0
+    return `
+      <g class="barg" data-tip="${label}">
+        ${h > 0 ? `<path class="bar" d="${barPath(x, y, bw, h, 4)}"></path>` : ''}
+        <rect x="${padL + i * slot}" y="${padT}" width="${slot}" height="${plotH}" fill="transparent"></rect>
+        ${showLabel ? `<text class="barlabel" x="${x + bw / 2}" y="${y - 6}" text-anchor="middle">${num(m.orgs)}</text>` : ''}
+        <text class="axis" x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${monthShort(m.month)}</text>
+      </g>`
+  }).join('')
+
+  return `
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="กราฟแท่งยอดองค์กรที่สมัครรายเดือน 12 เดือนล่าสุด">
+      ${bars}
+      <line class="baseline" x1="${padL}" y1="${padT + plotH + 0.5}" x2="${W - padR}" y2="${padT + plotH + 0.5}"></line>
+    </svg>`
+}
+
+function table(monthly) {
+  const rows = monthly.map((m) => `
+    <tr><td>${monthFull(m.month)}</td><td class="n">${num(m.orgs)}</td><td class="n">${num(m.users)}</td></tr>`).join('')
+  return `
+    <details>
+      <summary>ดูเป็นตาราง</summary>
+      <table>
+        <tr><th>เดือน</th><th class="n">องค์กรใหม่</th><th class="n">ผู้ใช้ใหม่</th></tr>
+        ${rows}
+      </table>
+    </details>`
+}
+
+function render(d) {
+  const monthly = Array.isArray(d.monthly) ? d.monthly : []
+  document.getElementById('app').innerHTML = `
+    <div class="tiles">
+      <div class="tile">
+        <b>${num(d.orgs_total)}</b><span>องค์กรที่สมัครใช้งาน</span>
+        ${Number(d.orgs_30d) > 0 ? `<em>+${num(d.orgs_30d)} ใน 30 วัน</em>` : ''}
+      </div>
+      <div class="tile">
+        <b>${num(d.users_total)}</b><span>ผู้ใช้ทั้งหมด</span>
+        ${Number(d.users_30d) > 0 ? `<em>+${num(d.users_30d)} ใน 30 วัน</em>` : ''}
+      </div>
+      <div class="tile">
+        <b>${num(d.properties_total)}</b><span>ทรัพย์ในระบบ</span>
+      </div>
+      <div class="tile">
+        <b>${num(d.orgs_7d)}</b><span>องค์กรใหม่ 7 วันล่าสุด</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>องค์กรที่สมัครรายเดือน</h2>
+      <p class="note">12 เดือนล่าสุด · ชี้ที่แท่งเพื่อดูตัวเลขของเดือนนั้น</p>
+      ${monthly.length ? chart(monthly) + table(monthly) : '<p class="state">ยังไม่มีข้อมูลรายเดือน</p>'}
+    </div>`
+
+  for (const g of document.querySelectorAll('.barg')) {
+    const text = g.getAttribute('data-tip')
+    g.addEventListener('mousemove', (e) => showTip(e, text))
+    g.addEventListener('mouseleave', hideTip)
+  }
+  if (d.updated_at) {
+    const t = new Date(d.updated_at)
+    document.getElementById('updated').textContent = isNaN(t) ? ''
+      : `อัปเดต ${t.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })} · `
+  }
+}
+
+fetch('/api/stats', { headers: { accept: 'application/json' } })
+  .then(async (r) => {
+    const d = await r.json().catch(() => null)
+    if (!r.ok) throw new Error(d?.error || `โหลดไม่สำเร็จ (${r.status})`)
+    return d
+  })
+  .then(render)
+  .catch((e) => {
+    document.getElementById('app').innerHTML =
+      `<div class="err">แสดงยอดสมัครไม่ได้ตอนนี้ — ${e.message}</div>`
+  })
+</script>
+</body>
+</html>

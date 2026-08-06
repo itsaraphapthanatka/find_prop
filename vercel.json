@@ -21,7 +21,8 @@
   "rewrites": [
     { "source": "/docs/training", "destination": "/docs/training.html" },
     { "source": "/docs/system", "destination": "/docs/system.html" },
-    { "source": "/docs/features", "destination": "/docs/features.html" }
+    { "source": "/docs/features", "destination": "/docs/features.html" },
+    { "source": "/stats", "destination": "/stats.html" }
   ],
   "functions": {
     "api/ai.js": {
