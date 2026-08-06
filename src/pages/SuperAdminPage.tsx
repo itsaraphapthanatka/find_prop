@@ -33,6 +33,8 @@ interface OrgOverview {
   created_at: string
   member_count: number
   property_count: number
+  /** องค์กรภายใน/ทดสอบ — ไม่นับในหน้ายอดสมัครสาธารณะ /stats (ต้องรัน supabase/public-stats.sql) */
+  internal?: boolean | null
 }
 
 // องค์กรกำลังอยู่ในช่วงทดลองใช้ (ยังไม่ได้จ่ายจริง)
@@ -394,6 +396,21 @@ export default function SuperAdminPage() {
   }
 
   // คลิกชื่อองค์กร → สวมสิทธิ์เข้าไปทำงานเสมือนสมาชิกองค์กรนั้น (ต้องรัน supabase/impersonate.sql ก่อน)
+  /** สลับธง "องค์กรทดสอบ" — มีผลกับตัวเลขในหน้า /stats ทันที (แคช CDN 5 นาที) */
+  const [internalBusy, setInternalBusy] = useState<string | null>(null)
+  async function toggleInternal(o: OrgOverview) {
+    setInternalBusy(o.id)
+    const { error } = await supabase.rpc('super_set_internal', { p_org: o.id, p_internal: !o.internal })
+    setInternalBusy(null)
+    if (error) {
+      alert(error.message.includes('super_set_internal')
+        ? 'ยังไม่ได้ติดตั้งฟีเจอร์นี้ — รัน supabase/public-stats.sql ก่อน'
+        : `สลับไม่สำเร็จ: ${error.message}`)
+      return
+    }
+    await reload()
+  }
+
   async function enterOrg(o: OrgOverview) {
     setEnteringId(o.id)
     const { error } = await supabase.rpc('super_impersonate', { p_org: o.id })
@@ -969,6 +986,7 @@ export default function SuperAdminPage() {
                     <th>องค์กร</th>
                     <th>สมาชิก</th>
                     <th>ทรัพย์</th>
+                    <th>นับใน /stats</th>
                     <th>แพ็กเกจ</th>
                     <th>หมดอายุ</th>
                     <th>สถานะ</th>
@@ -997,6 +1015,19 @@ export default function SuperAdminPage() {
                       </td>
                       <td data-label="สมาชิก">{o.member_count}</td>
                       <td data-label="ทรัพย์">{o.property_count}</td>
+                      <td data-label="นับใน /stats">
+                        {/* หน้ายอดสมัครสาธารณะต้องโชว์แต่ผู้ใช้จริง — องค์กรทดสอบของทีมกดปิดที่นี่ */}
+                        <button
+                          className="btn sm"
+                          disabled={internalBusy === o.id}
+                          title={o.internal
+                            ? 'ตอนนี้ไม่ถูกนับใน /stats (องค์กรทดสอบ) — กดเพื่อให้นับ'
+                            : 'ตอนนี้ถูกนับใน /stats — กดเพื่อตั้งเป็นองค์กรทดสอบ'}
+                          onClick={() => void toggleInternal(o)}
+                        >
+                          {internalBusy === o.id ? '…' : o.internal ? '🧪 ทดสอบ' : '✅ นับ'}
+                        </button>
+                      </td>
                       <td data-label="แพ็กเกจ">
                         <select
                           className="plan-select"

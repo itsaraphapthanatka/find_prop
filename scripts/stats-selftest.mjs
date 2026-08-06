@@ -45,6 +45,19 @@ for (const bad of ['name', 'email', 'full_name', 'phone', 'lessor_name', 'code']
   check(`SQL ไม่คืนฟิลด์ระบุตัวตน (${bad})`, !new RegExp(`'${bad}'\\s*,`).test(sqlFn))
 }
 check('SQL ไม่นับบัญชีทีมงาน (super) เป็นผู้สมัคร', /is_super, false\) = false/.test(sql$))
+// ⭐ ต้องตัดองค์กรทดสอบ/ของทีมงานออกจากตัวเลขสาธารณะ
+check('SQL มีธง organizations.internal', /add column if not exists internal boolean/.test(sql$))
+check('SQL นับเฉพาะองค์กรที่ไม่ใช่ทดสอบ', /where internal = false/.test(sqlFn))
+check('SQL นับผู้ใช้ผ่านองค์กรจริงเท่านั้น', /join real_orgs ro on ro\.id = m\.org_id/.test(sqlFn))
+check('SQL นับทรัพย์เฉพาะขององค์กรจริง', /from real_orgs ro where ro\.id = pr\.org_id/.test(sqlFn))
+check('SQL มี self-test เทียบยอดกับองค์กรที่ไม่ใช่ทดสอบ', /ไม่เท่ากับองค์กรที่ไม่ใช่ทดสอบ/.test(sql$))
+check('SQL ให้ super สลับธงได้ (คนอื่นไม่ได้)',
+  /function public\.super_set_internal/.test(sql$) && /revoke all on function public\.super_set_internal\(uuid, boolean\) from public, anon/.test(sql$))
+check('SQL backfill ทำครั้งเดียว (ไม่ทับค่าที่ super แก้)', /statsBackfilled/.test(sql$))
+const superPage$ = readFileSync('src/pages/SuperAdminPage.tsx', 'utf8')
+check('หน้า Super Admin มีปุ่มสลับ "นับใน /stats"', superPage$.includes('นับใน /stats'))
+check('ปุ่มเรียก RPC super_set_internal', superPage$.includes("rpc('super_set_internal'"))
+check('หน้า /stats บอกว่าไม่นับองค์กรทดสอบ', page$.includes('ไม่นับองค์กรทดสอบ'))
 check('SQL มี self-test กันข้อมูลหลุด', sql$.includes('ผลลัพธ์มีอีเมลหลุดออกมา'))
 check('SQL ไม่เปิดเผยยอดที่จ่ายเงิน/รายได้', !/payments|revenue|mrr/i.test(sql$.split('-- ==')[2] ?? sql$))
 
