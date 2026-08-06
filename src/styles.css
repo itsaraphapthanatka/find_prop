@@ -1628,8 +1628,11 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .ld-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
 /* การ์ดประเภททรัพย์มี 5 ใบ — จอกว้างให้เรียงแถวเดียว ไม่ปล่อยใบสุดท้ายตกบรรทัดโดดๆ */
 .ld-grid.types { grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); }
-/* การ์ดฟีเจอร์ 6 ใบ — จำกัด ~3 คอลัมน์ให้แบ่ง 3+3 ไม่ใช่ 4+2 */
-.ld-grid.why { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+/* การ์ดฟีเจอร์ — จำนวนใบเพิ่มได้เรื่อยๆ ตามฟีเจอร์ที่มี จึงใช้ flex + จัดกลาง:
+   แถวสุดท้ายที่ไม่เต็มคอลัมน์จะอยู่กลางหน้า ไม่ค้างชิดซ้ายใบเดียวเวลาจำนวนใบไม่ลงตัว
+   (max-width มีผลเฉพาะใบที่เหลือโดดในแถวสุดท้าย — แถวที่เต็มการ์ดยังแคบกว่าค่านี้) */
+.ld-grid.why { display: flex; flex-wrap: wrap; justify-content: center; }
+.ld-grid.why > .ld-card { flex: 1 1 280px; max-width: 380px; }
 .ld-card {
   background: #fff; border: 1px solid var(--line); border-radius: 16px;
   padding: 22px 20px; box-shadow: var(--shadow);

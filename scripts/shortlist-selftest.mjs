@@ -312,7 +312,31 @@ eqArr('null กับ undefined ถือว่าเท่ากัน (ไม�
 eqArr('ฟิลด์ที่ไม่ใช่ราคาเปลี่ยน ไม่เตือน (เตือนเฉพาะข้อเสนอ)',
   drift([{ code: 'A', rent_per_month: 1000, nearby: 'BTS' }], [{ code: 'A', rent_per_month: 1000, nearby: 'MRT' }]), [])
 
-// ── 14) super admin ตั้งอายุลิงก์ได้ ─────────────────────────────
+// ── 14) หน้า landing ต้องพูดตรงกับที่ระบบทำได้จริง ───────────────
+const landing = readFileSync('src/pages/LandingPage.tsx', 'utf8')
+ok('landing มีฟีเจอร์ลิงก์เสนอลูกค้า', /title: 'ส่งลิงก์ให้ลูกค้าดู/.test(landing))
+ok('landing บอกว่าลูกค้าไม่ต้องล็อกอิน', landing.includes('ไม่ต้องล็อกอิน'))
+ok('landing บอกว่าลิงก์มีวันหมดอายุ + ยกเลิกได้', /วันหมดอายุ[\s\S]{0,40}ยกเลิกได้/.test(landing))
+ok('landing บอกว่าลูกค้าไม่เห็นข้อมูลติดต่อเจ้าของ',
+  /ไม่เห็นชื่อ\/เบอร์เจ้าของทรัพย์[\s\S]{0,40}พิกัด/.test(landing))
+ok('landing บอกว่าตรึงราคาตามวันที่เสนอ', landing.includes('ตรึงไว้ตามวันที่เสนอ'))
+ok('landing มีฟีเจอร์บันทึกชอร์ตลิสต์', landing.includes('บันทึกเป็นชอร์ตลิสต์'))
+ok('ตารางเทียบแพ็กเกจมีแถวชอร์ตลิสต์', /label: 'บันทึกชอร์ตลิสต์เสนอลูกค้า/.test(landing))
+ok('ตารางเทียบแพ็กเกจมีแถวลิงก์เสนอลูกค้า', /label: 'ส่งลิงก์ให้ลูกค้าดู/.test(landing))
+// /compare ไม่ถูก gate ตามแพ็กเกจ (ดู App.tsx) → landing ต้องไม่โฆษณาว่าเป็นของ Pro เท่านั้น
+const shareRow = landing.slice(landing.indexOf("label: 'ส่งลิงก์ให้ลูกค้าดู"))
+  .slice(0, landing.slice(landing.indexOf("label: 'ส่งลิงก์ให้ลูกค้าดู")).indexOf('\n') + 1)
+ok('landing บอกว่าลิงก์เสนอลูกค้าใช้ได้ทุกแพ็กเกจ (ตรงกับที่ไม่ได้ gate ไว้)',
+  /free: true, pro: true/.test(shareRow))
+ok('landing ไม่ได้อ้างว่าลูกค้าเห็นแผนที่/พิกัดในลิงก์',
+  !/ลิงก์[\s\S]{0,60}(ดูแผนที่|เห็นพิกัด)/.test(landing))
+// เพิ่มการ์ดฟีเจอร์เป็น 10 ใบ → ตาราง 3 คอลัมน์เหลือใบสุดท้ายโดดชิดซ้าย
+// จัดกลางไว้แล้ว จำนวนใบเปลี่ยนอีกก็ยังดูเรียบร้อย
+ok('การ์ดฟีเจอร์จัดกลางเมื่อแถวสุดท้ายไม่เต็ม',
+  /\.ld-grid\.why \{[^}]*justify-content: center/.test(css)
+  && /\.ld-grid\.why > \.ld-card \{[^}]*max-width/.test(css))
+
+// ── 15) super admin ตั้งอายุลิงก์ได้ ─────────────────────────────
 ok('หน้า Super Admin มีการ์ดตั้งค่าลิงก์แชร์', superPage.includes('ลิงก์แชร์ชอร์ตลิสต์ให้ลูกค้า'))
 ok('super admin บันทึกลง app_settings key share', /key: 'share'/.test(superPage))
 ok('ตรวจค่าเพดาน 0–365 ก่อนบันทึก', /maxDays < 0 \|\| maxDays > 365/.test(superPage))
