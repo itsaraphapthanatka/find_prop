@@ -12,14 +12,16 @@
 --   v_email        = อีเมลบัญชีที่จะเพิ่มเข้า Demo Estate
 --   v_make_active  = true  → สลับให้บัญชีนี้ "เข้าใช้งาน Demo Estate" ทันทีหลังล็อกอินรอบถัดไป
 --                    false → คงองค์กรเดิมที่ใช้อยู่ แล้วค่อยกดสลับเองในแอป
---   v_role         = 'admin'  → เห็นทุกอย่างของ Demo Estate + จัดการทีม/ดูประวัติการใช้งานได้
---                    'member' → เห็นทรัพย์/นัด/แผนทั้งองค์กรเหมือนกัน (เพราะ see_all_properties = true)
+--   v_role         = 'owner'   → เห็นทุกอย่างของ Demo Estate + จัดการทีม/แพ็กเกจ/ดูประวัติได้
+--                    'manager'  → เห็น/แก้ทรัพย์ทั้งองค์กร แต่ไม่ได้จัดการทีม
+--                    (บทบาทอื่น: associate · analyst · survey · temporary · social · trainee
+--                     — ดู supabase/roles.sql · ชื่อเดิม admin/member ใช้ไม่ได้แล้ว)
 --                               แต่ไม่เห็นประวัติการใช้งานและจัดการทีมไม่ได้
 --
 -- ⚠️ RLS ผูกกับ "องค์กรที่กำลังใช้งาน" (current_org) — 1 บัญชีเห็นได้ทีละองค์กร (สลับได้ในแอป)
 --
 -- ไฟล์นี้ "ไม่แตะ" profiles.is_super เด็ดขาด — บัญชีจะไม่กลายเป็น super admin
---   role = 'admin' ที่นี่ = แอดมินของ Demo Estate เท่านั้น (จัดการทีม/ดูประวัติ ขององค์กรนี้)
+--   role = 'owner' ที่นี่ = เจ้าของ Demo Estate เท่านั้น (จัดการทีม/ดูประวัติ ขององค์กรนี้)
 --   ไม่เห็นข้อมูลองค์กรอื่น ไม่มีเมนู Super Admin ไม่มีสิทธิ์สวมสิทธิ์องค์กรใคร
 begin;
 
@@ -27,7 +29,7 @@ do $$
 declare
   v_email       text := 'admin@prop.com';
   v_make_active boolean := true;
-  v_role        text := 'admin';   -- 'admin' หรือ 'member' (ดูหมายเหตุหัวไฟล์)
+  v_role        text := 'owner';   -- 'owner' / 'manager' / บทบาทอื่นใน roles.sql (ดูหมายเหตุหัวไฟล์)
   v_org         uuid;
   v_uid         uuid;
   v_props       int;

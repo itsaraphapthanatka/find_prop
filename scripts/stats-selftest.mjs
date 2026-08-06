@@ -54,6 +54,19 @@ check('SQL มี self-test เทียบยอดกับองค์กร�
 check('SQL ให้ super สลับธงได้ (คนอื่นไม่ได้)',
   /function public\.super_set_internal/.test(sql$) && /revoke all on function public\.super_set_internal\(uuid, boolean\) from public, anon/.test(sql$))
 check('SQL backfill ทำครั้งเดียว (ไม่ทับค่าที่ super แก้)', /statsBackfilled/.test(sql$))
+// องค์กรเดโมที่สร้าง "ทีหลัง" ต้องถูกตัดออกเองด้วย ไม่ใช่พึ่ง backfill ครั้งเดียว
+check('มี trigger ติดธงองค์กรเดโม/ทดสอบที่สร้างใหม่',
+  /create trigger mark_internal_org[\s\S]*?before insert on public\.organizations/.test(sql$))
+check('เกณฑ์ชื่อครอบคำว่า เดโม/demo ทั้งไทยและอังกฤษ',
+  /ทดสอบ\|ตัวอย่าง\|เดโม\|test\|demo\|sandbox\|dummy/.test(sql$))
+check('trigger ไม่ทับค่าที่ super ตั้งเอง (เช็คก่อนว่ายังเป็น false)',
+  /if coalesce\(new\.internal, false\) = false/.test(sql$))
+check('SQL มี self-test ว่าไม่มีองค์กรชื่อเดโมหลุดเข้าเลขสาธารณะ',
+  /ยังมีองค์กรชื่อเดโม\/ทดสอบ/.test(sql$))
+const demoSql$ = readFileSync('supabase/demo-org.sql', 'utf8')
+check('ไฟล์สร้างองค์กรเดโมติดธง internal ให้ตัวเอง', /set internal = true where id = v_org/.test(demoSql$))
+check('ไฟล์เดโมทนกรณียังไม่มีคอลัมน์ (รันก่อน public-stats.sql)',
+  /exception when undefined_column then null/.test(demoSql$))
 const superPage$ = readFileSync('src/pages/SuperAdminPage.tsx', 'utf8')
 check('หน้า Super Admin มีปุ่มสลับ "นับใน /stats"', superPage$.includes('นับใน /stats'))
 check('ปุ่มเรียก RPC super_set_internal', superPage$.includes("rpc('super_set_internal'"))

@@ -23,9 +23,14 @@ begin
     raise exception 'ไม่พบผู้ใช้ admin@demo.com ในตาราง profiles (สร้างบัญชี auth ให้เสร็จก่อน)';
   end if;
 
-  -- ตั้งให้เป็นแอดมินของ Demo Estate (ไม่ว่าก่อนหน้าจะเป็น member/องค์กรอื่น)
+  -- ตั้งให้เป็นเจ้าของ Demo Estate (บทบาท 'owner' ยุค 8 บทบาท — เดิมใช้ 'admin')
+  -- ต้องมีแถวใน memberships ด้วย ไม่งั้น current_org() เป็น null แล้วเข้าไปไม่เห็นข้อมูล
+  insert into public.memberships (user_id, org_id, role, active, see_all_properties)
+  values (v_uid, v_org, 'owner', true, true)
+  on conflict (user_id, org_id) do update
+    set role = 'owner', active = true, see_all_properties = true;
   update public.profiles
-  set org_id = v_org, role = 'admin', active = true
+  set org_id = v_org, active_org_id = v_org, role = 'owner', active = true
   where id = v_uid;
 
   -- ยกทรัพย์ทั้งหมดของ Demo Estate ให้ admin@demo.com เป็นเจ้าของ

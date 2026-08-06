@@ -29,13 +29,26 @@ begin
     values ('Demo Estate', 'pro', 'active', (current_date + interval '1 year')::date)
     returning id into v_org;
   end if;
+  -- องค์กรเดโมต้องไม่ถูกนับในหน้ายอดสมัครสาธารณะ /stats (ดู supabase/public-stats.sql)
+  -- ตั้งตรงนี้ด้วย เผื่อรันไฟล์นี้ก่อน public-stats.sql (คอลัมน์ยังไม่มี → ข้ามไป ไม่ error)
+  begin
+    update public.organizations set internal = true where id = v_org;
+  exception when undefined_column then null;
+  end;
 
   -- เจ้าของทรัพย์เดโม: admin@demo.com ถ้ามี (ตั้งให้เป็นแอดมินของ Demo Estate ด้วย)
   -- ไม่มีก็ยกให้ super คนแรกไปก่อน กันทรัพย์กำพร้า
   select id into v_owner from public.profiles where email = 'admin@demo.com';
   if v_owner is not null then
+    -- บทบาท 'owner' (ยุคใหม่ 8 บทบาท — เดิมชื่อ 'admin' ซึ่งตอนนี้ผิด constraint)
+    -- และต้องมีแถวใน memberships ด้วย ไม่ใช่แค่ profiles.org_id — current_org() อ่านจาก
+    -- memberships คู่กับ active_org_id ถ้าไม่มีแถว จะล็อกอินเข้าไปแล้วไม่เห็นข้อมูลอะไรเลย
+    insert into public.memberships (user_id, org_id, role, active, see_all_properties)
+    values (v_owner, v_org, 'owner', true, true)
+    on conflict (user_id, org_id) do update
+      set role = 'owner', active = true, see_all_properties = true;
     update public.profiles
-    set org_id = v_org, role = 'admin', active = true
+    set org_id = v_org, active_org_id = v_org, role = 'owner', active = true
     where id = v_owner;
   else
     select id into v_owner from public.profiles

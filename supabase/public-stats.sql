@@ -34,7 +34,7 @@ begin
   -- เกณฑ์เดา: ชื่อองค์กรบอกเองว่าทดสอบ · หรือสมาชิกทุกคนเป็นอีเมลทดสอบ/โดเมนของทีมงาน
   -- เดาผิดฝั่ง "ตัดออกเกิน" ปลอดภัยกว่า "นับเกิน" — super ปรับกลับได้ทีหลัง
   update public.organizations o set internal = true
-   where o.name ~* '(ทดสอบ|ตัวอย่าง|test|demo|sandbox|dummy)'
+   where o.name ~* '(ทดสอบ|ตัวอย่าง|เดโม|test|demo|sandbox|dummy)'
       or not exists (
            select 1 from public.memberships m
              join public.profiles p on p.id = m.user_id
@@ -47,6 +47,25 @@ begin
   on conflict (key) do update set value = public.app_settings.value || jsonb_build_object('statsBackfilled', true),
                                   updated_at = now();
 end $$;
+
+-- ── 1.1) องค์กรเดโม/ทดสอบที่สร้างใหม่ ติดธงให้เอง ──────────
+-- backfill ข้างบนทำครั้งเดียว ถ้าไม่มีตัวนี้ องค์กรเดโมที่สร้างทีหลัง (เช่นรัน demo-org.sql ใหม่
+-- หรือเปิดเดโมให้ลูกค้าดู) จะไหลเข้าไปนับในเลขสาธารณะเงียบๆ
+-- ⚠️ ทำงานตอน insert เท่านั้น — super ยังกดสลับกลับเป็น "นับ" ได้ทุกเมื่อ (ไม่ทับค่าที่ตั้งเอง)
+create or replace function public.mark_internal_org() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if coalesce(new.internal, false) = false
+     and new.name ~* '(ทดสอบ|ตัวอย่าง|เดโม|test|demo|sandbox|dummy)' then
+    new.internal := true;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists mark_internal_org on public.organizations;
+create trigger mark_internal_org
+  before insert on public.organizations
+  for each row execute function public.mark_internal_org();
 
 -- ── 2) ตัวเลขสาธารณะ (นับเฉพาะองค์กรที่ไม่ใช่ internal) ──
 create or replace function public.public_signup_stats()
@@ -161,6 +180,16 @@ begin
   end if;
   select count(*) into n from public.organizations where internal = true;
   raise notice 'ตัดองค์กรทดสอบออก % แห่ง', n;
+
+  -- ⭐ องค์กรเดโม/ทดสอบต้องไม่หลุดเข้าเลขสาธารณะ (ทั้งที่มีอยู่และที่สร้างใหม่)
+  select count(*) into n from public.organizations
+   where internal = false and name ~* '(ทดสอบ|ตัวอย่าง|เดโม|test|demo|sandbox|dummy)';
+  if n > 0 then
+    raise exception 'ยังมีองค์กรชื่อเดโม/ทดสอบ % แห่ง ที่ถูกนับใน /stats — กดปิดในหน้า Super Admin หรือแก้ชื่อ', n;
+  end if;
+  if not exists (select 1 from pg_trigger where tgname = 'mark_internal_org' and not tgisinternal) then
+    raise exception 'ไม่มี trigger mark_internal_org — องค์กรเดโมที่สร้างใหม่จะถูกนับ';
+  end if;
 
   -- anon ต้องเรียกได้ (หน้า /stats ไม่ต้องล็อกอิน) แต่ต้องอ่านตารางตรงๆ ไม่ได้
   if not has_function_privilege('anon', 'public.public_signup_stats()', 'execute') then

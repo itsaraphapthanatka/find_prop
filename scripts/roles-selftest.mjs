@@ -143,6 +143,26 @@ eq('อ่านคอลัมน์ของตาราง properties จา�
   eq('view ส่งฟิลด์ที่แอปใช้มาครบ (ยกเว้น org_name ที่จับคู่ฝั่งแอป)', notInView, [])
 }
 
+// ── สคริปต์ตั้งค่าที่ "รันซ้ำได้ตลอด" ต้องไม่ใช้ชื่อบทบาทที่เลิกใช้แล้ว ──
+// (เจอจริง: demo-org.sql ยังเขียน role = 'admin' → รันแล้วชน profiles_role_check)
+// ไฟล์ migration เก่าที่รันไปแล้วไม่นับ — ตรวจเฉพาะไฟล์ที่ยังต้องรันซ้ำเป็นปกติ
+// ไม่รวม roles.sql — ไฟล์นั้นคือตัวแปลงบทบาทเอง (`set role = 'owner' where role = 'admin'`)
+const RERUNNABLE = ['demo-org.sql', 'demo-admin-assign.sql', 'demo-estate-add-member.sql']
+for (const f of RERUNNABLE) {
+  const t = readFileSync(`supabase/${f}`, 'utf8')
+  // เขียนบทบาทเก่าลงตาราง (role = 'admin' / values (…,'member',…)) = พังตอนรัน
+  const writes = [...t.matchAll(/role\s*(?:=|:=)\s*'(admin|member)'/g)].map((m) => m[0])
+  eq(`${f}: ไม่เขียนบทบาทเก่า (admin/member) ลงตาราง`, writes, [])
+  const inserts = [...t.matchAll(/values\s*\([^)]*'(admin|member)'[^)]*\)/g)].map((m) => m[1])
+  eq(`${f}: insert ไม่ใช้บทบาทเก่า`, inserts, [])
+}
+// สคริปต์เดโมต้องสร้าง membership ด้วย ไม่ใช่ตั้งแค่ profiles.org_id (current_org อ่านจาก memberships)
+for (const f of ['demo-org.sql', 'demo-admin-assign.sql']) {
+  const t = readFileSync(`supabase/${f}`, 'utf8')
+  eq(`${f}: สร้างแถวใน memberships ให้ด้วย`, /insert into public\.memberships/.test(t), true)
+  eq(`${f}: ตั้ง active_org_id ให้ด้วย`, /active_org_id = v_org/.test(t), true)
+}
+
 // ── ไฟล์ SQL ต้องรันซ้ำได้ (idempotent) ──
 // (เคยพลาด: create policy "membership owner update" ไม่มี drop คู่กัน → รันไฟล์ซ้ำ error 42710)
 for (const f of ['roles.sql', 'seats.sql']) {
