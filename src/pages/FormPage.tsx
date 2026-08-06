@@ -7,6 +7,7 @@ import VoiceButton from '../components/VoiceButton'
 import { usePlanAccess } from '../lib/plan'
 import { aiExtractProperty } from '../lib/ai'
 import { logActivity } from '../lib/activityLog'
+import { uploadErrorText } from '../lib/upload'
 import { useAuth } from '../lib/auth'
 import { IconSparkles } from '../components/icons'
 import { getPosition } from '../lib/native'
@@ -282,7 +283,7 @@ export default function FormPage() {
       const f = await compressImage(pick[i])
       const path = `${Date.now()}-${i}-${f.name.replace(/[^a-zA-Z0-9.]+/g, '_')}`
       const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, f)
-      if (error) { alert(`อัปโหลดรูปไม่สำเร็จ: ${error.message}`); continue }
+      if (error) { alert(`อัปโหลดรูปไม่สำเร็จ: ${uploadErrorText(error.message)}`); continue }
       urls.push(supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl)
     }
     if (urls.length) {
@@ -327,7 +328,7 @@ export default function FormPage() {
       const f = await compressImage(pick[i])
       const path = `docs/${Date.now()}-${i}-${f.name.replace(/[^a-zA-Z0-9.]+/g, '_')}`
       const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, f)
-      if (error) { alert(`อัปโหลด ${f.name} ไม่สำเร็จ: ${error.message}`); continue }
+      if (error) { alert(`อัปโหลด ${f.name} ไม่สำเร็จ: ${uploadErrorText(error.message)}`); continue }
       // ชื่อเริ่มต้น = ชื่อไฟล์ (ตัดนามสกุล) — แก้เป็นชื่อจริงในช่องได้เลย
       added.push({ name: f.name.replace(/\.[^.]+$/, ''), url: supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl })
     }

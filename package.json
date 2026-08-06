@@ -22,7 +22,8 @@
     "test:auth": "node scripts/auth-selftest.mjs",
     "test:auth-ui": "node scripts/auth-ui-test.mjs",
     "test:stats": "node scripts/stats-selftest.mjs",
-    "test:shortlist": "node scripts/shortlist-selftest.mjs"
+    "test:shortlist": "node scripts/shortlist-selftest.mjs",
+    "test:upload": "node scripts/upload-selftest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",
