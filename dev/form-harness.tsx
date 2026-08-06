@@ -90,9 +90,18 @@ function DetailDemo() {
   const masked = !mine && perm.maskContact
   const maskedHouseNo = !mine && perm.maskHouseNo
   const maskedLoc = !mine && perm.maskLocation !== false
+  // รูปปลอมเป็น SVG data URI (ไม่ต้องต่อเน็ต) — ?pics=N กำหนดจำนวนรูปเพื่อทดสอบแกลเลอรี/ดูรูปเต็มจอ
+  const nPics = Number(params.get('pics') ?? 0)
+  const fakePic = (n: number, w = 1600, h = 1200) =>
+    'data:image/svg+xml;utf8,' + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="hsl(${n * 67},60%,55%)"/>`
+      + `<text x="50%" y="50%" font-size="${Math.round(h / 4)}" fill="#fff" text-anchor="middle" dominant-baseline="middle">${n}</text></svg>`,
+    )
+  const photos = nPics > 0 ? Array.from({ length: nPics }, (_, k) => fakePic(k + 1)) : undefined
   const p = {
     id: 'demo', code: 'DEMO001', record_date: '2026-08-01',
     property_type: 'โกดัง', listing_type: 'เช่า',
+    photos, photo_url: photos?.[0],
     house_no: maskedHouseNo ? null : '88/123',
     lessor_name: masked ? null : 'คุณสมชาย ใจดี',
     lessor_company: masked ? null : 'บริษัท ตัวอย่าง จำกัด',

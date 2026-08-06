@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Property } from '../types'
 import { LABELS, formatDate, formatNumber, houseNoLabel, kindOf } from '../labels'
 import { useAuth } from '../lib/auth'
@@ -6,6 +7,7 @@ import { ContractTag, DealTag, ZoneSwatch } from '../lib/propertyStyle'
 import { IconClose, IconPhone, IconSms } from './icons'
 import LocationPicker from './LocationPicker'
 import FollowUpSection from './FollowUpSection'
+import Lightbox from './Lightbox'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === '' || value === '—') return null
@@ -78,6 +80,8 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
   // ป้ายองค์กรเฉพาะ super โหมดภาพรวม — ตอนสวมสิทธิ์มุมมองเหมือนสมาชิกจริง
   const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
   const pics = p.photos?.length ? p.photos : p.photo_url ? [p.photo_url] : []
+  // รูปที่กดดูเต็มจอ (null = ยังไม่ได้เปิด)
+  const [zoomAt, setZoomAt] = useState<number | null>(null)
   return (
     <>
       <div className="detail-overlay" onClick={onClose} />
@@ -94,7 +98,12 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
         <div className="detail-body">
           {pics.length > 0 && (
             <div className="detail-gallery">
-              {pics.map((src, i) => <img key={i} src={src} alt={`${p.code} ${i + 1}`} />)}
+              {pics.map((src, i) => (
+                <button key={i} type="button" title="กดเพื่อดูรูปใหญ่ (ซูมได้)" onClick={() => setZoomAt(i)}>
+                  <img src={src} alt={`${p.code} ${i + 1}`} />
+                  {i === 0 && pics.length > 1 && <span className="gal-more">{pics.length} รูป</span>}
+                </button>
+              ))}
             </div>
           )}
 
@@ -301,6 +310,9 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           {access.followUps && <FollowUpSection property={p} />}
         </div>
       </aside>
+      {zoomAt !== null && (
+        <Lightbox images={pics} startIndex={zoomAt} label={p.code} onClose={() => setZoomAt(null)} />
+      )}
     </>
   )
 }

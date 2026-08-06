@@ -312,8 +312,80 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .detail-body { flex: 1; overflow: auto; padding: 16px 20px; }
 .detail-photo { width: 100%; border-radius: var(--radius); margin-bottom: 14px; max-height: 260px; object-fit: cover; }
 .detail-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-.detail-gallery img { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; }
-.detail-gallery img:first-child { grid-column: 1 / -1; height: 240px; }
+.detail-gallery button {
+  padding: 0; border: none; background: none; cursor: zoom-in; border-radius: 10px;
+  overflow: hidden; display: block; position: relative;
+}
+.detail-gallery button:first-child { grid-column: 1 / -1; }
+.detail-gallery img { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; display: block; }
+.detail-gallery button:first-child img { height: 240px; }
+.detail-gallery button:hover img { opacity: 0.92; }
+/* ป้ายจำนวนรูปมุมล่างขวาของรูปปก — บอกว่ากดดูได้อีกกี่รูป */
+.gal-more {
+  position: absolute; right: 8px; bottom: 8px; background: rgba(0, 0, 0, 0.62); color: #fff;
+  font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; pointer-events: none;
+}
+
+/* ── ดูรูปเต็มจอ (ซูม/ปัดเปลี่ยนรูป) ───────────── */
+/* z-index ต้องสูงกว่า .detail-pane (1201) และ .review-overlay (1201)
+   ไม่งั้นการ์ดรายละเอียดลอยทับ กดปุ่มซูม/ปิดของหน้าดูรูปไม่ได้ */
+/* พื้นทึบ ไม่ใช่กึ่งโปร่ง — การ์ดรายละเอียดพื้นขาวอยู่ข้างหลัง ถ้าโปร่งจะเห็นทะลุ
+   เป็นแถบสว่างข้างขวา ดูรกและแย่งความสนใจจากรูป */
+.lb {
+  position: fixed; inset: 0; z-index: 1300; background: #0a0a0f;
+  display: flex; flex-direction: column; overscroll-behavior: contain;
+}
+.lb-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); color: #fff; flex: none;
+}
+.lb-count { font-size: 14px; color: rgba(255, 255, 255, 0.8); }
+.lb-count b { color: #fff; }
+.lb-tools { display: flex; gap: 6px; align-items: center; }
+.lb-btn {
+  min-width: 38px; height: 34px; padding: 0 9px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 14px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.lb-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.lb-btn:disabled { opacity: 0.45; cursor: default; }
+/* touch-action: none — จัดการนิ้วเองทั้งหมด (ปัด/หนีบ) ไม่ให้เบราว์เซอร์แย่งไปเลื่อนหน้า */
+.lb-stage { flex: 1; min-height: 0; overflow: hidden; touch-action: none; cursor: grab; }
+.lb-stage.zoomed { cursor: grab; }
+.lb-track { display: flex; height: 100%; will-change: transform; }
+.lb-slide {
+  flex: 0 0 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  padding: 0 8px; box-sizing: border-box;
+}
+.lb-slide img {
+  max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none;
+  transform-origin: center; will-change: transform;
+}
+.lb-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 42px; height: 42px;
+  border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(0, 0, 0, 0.45);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.lb-nav:hover { background: rgba(0, 0, 0, 0.7); }
+.lb-nav:disabled { opacity: 0.3; cursor: default; }
+.lb-nav.prev { left: 10px; }
+.lb-nav.next { right: 10px; }
+/* ไอคอนลูกศรขึ้น/ลง หมุนเป็นซ้าย/ขวา (ไม่ต้องเพิ่มไอคอนใหม่) */
+.lb-nav.prev svg { transform: rotate(-90deg); }
+.lb-nav.next svg { transform: rotate(-90deg); }
+.lb-dots { display: flex; gap: 6px; justify-content: center; padding: 10px 0 2px; flex: none; }
+.lb-dot {
+  width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0;
+  background: rgba(255, 255, 255, 0.32);
+}
+.lb-dot.on { background: #fff; width: 20px; border-radius: 999px; }
+.lb-hint {
+  text-align: center; color: rgba(255, 255, 255, 0.5); font-size: 12px; flex: none;
+  padding: 6px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+@media (max-width: 560px) {
+  .lb-nav { display: none; }  /* มือถือใช้ปัดนิ้ว ไม่ต้องมีปุ่มบังรูป */
+}
 /* ── ฟอร์ม: แกลเลอรีรูปหลายรูป ── */
 .photo-count { color: var(--muted); font-size: 12px; font-weight: 400; }
 .photo-grid { display: flex; flex-wrap: wrap; gap: 10px; }
