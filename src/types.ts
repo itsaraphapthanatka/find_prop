@@ -197,4 +197,15 @@ export interface Shortlist {
   created_by?: string | null
   created_at?: string
   updated_at?: string
+  /** ลิงก์แชร์ให้ลูกค้า (null = ยังไม่แชร์) — ดู supabase/shortlist-share.sql */
+  share_token?: string | null
+  share_expires_at?: string | null
+  shared_at?: string | null
+  share_views?: number | null
+  /** สำเนาข้อมูลทรัพย์ที่ตรึงไว้ตอนสร้างลิงก์ — ลูกค้าเห็นราคานี้ ไม่ใช่ราคาปัจจุบัน */
+  snapshot?: SharedItem[] | null
+  snapshot_at?: string | null
 }
+
+/** ทรัพย์ 1 รายการในสำเนาที่ตรึงไว้ (ชุดฟิลด์เดียวกับ shortlist_items ใน SQL) */
+export type SharedItem = Partial<Property> & { code: string }

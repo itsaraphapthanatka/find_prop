@@ -5,45 +5,16 @@ import { useShortlists } from '../hooks/useShortlists'
 import { usePerm } from '../hooks/usePerm'
 import { supabase } from '../lib/supabase'
 import { aiChat, extractJson, propertyDetailText } from '../lib/ai'
+import { daysLeft, priceDrift, shareShortlist, shareUrl, unshareShortlist, useShareSetting } from '../lib/share'
 import type { CompareResult, Property, Shortlist } from '../types'
-import { formatDate, formatNumber } from '../labels'
+import { formatDate } from '../labels'
 import Combo from '../components/Combo'
+import CompareSheet from '../components/CompareSheet'
 import VoiceButton from '../components/VoiceButton'
-import { IconClose, IconHouse, IconPrint, IconSparkles, IconTrash } from '../components/icons'
+import { IconClose, IconLink, IconPrint, IconSparkles, IconTrash } from '../components/icons'
 import { printPage } from '../lib/native'
 
 const MAX_PICK = 4
-
-/** แถวสเปกในตารางเปรียบเทียบ — แสดงเฉพาะแถวที่มีข้อมูลอย่างน้อย 1 ทรัพย์ */
-const SPEC_ROWS: { label: string; get: (p: Property) => string | null }[] = [
-  { label: 'ประเภท', get: (p) => p.property_type },
-  { label: 'เช่า/ขาย', get: (p) => p.listing_type },
-  { label: 'ทำเล', get: (p) => [p.subdistrict, p.district, p.province].filter(Boolean).join(', ') || null },
-  { label: 'ค่าเช่า/เดือน', get: (p) => (p.rent_per_month != null ? `${formatNumber(p.rent_per_month)} ฿` : null) },
-  { label: 'ราคาขาย', get: (p) => (p.sale_price != null ? `${formatNumber(p.sale_price)} ฿` : null) },
-  { label: 'ราคา/ตร.ม.', get: (p) => (p.price_per_sqm != null ? `${formatNumber(p.price_per_sqm)} ฿` : null) },
-  {
-    label: 'พื้นที่ที่ดิน',
-    get: (p) => [
-      p.land_rai != null ? `${formatNumber(p.land_rai)} ไร่` : null,
-      p.land_ngan != null ? `${formatNumber(p.land_ngan)} งาน` : null,
-      p.land_wa != null ? `${formatNumber(p.land_wa)} ตร.วา` : null,
-    ].filter(Boolean).join(' ') || p.land_area,
-  },
-  { label: 'พื้นที่ใช้สอย', get: (p) => (p.usable_area != null ? `${formatNumber(p.usable_area)} ตร.ม.` : null) },
-  { label: 'พื้นที่อาคาร', get: (p) => (p.building_area != null ? `${formatNumber(p.building_area)} ตร.ม.` : null) },
-  { label: 'ความสูงอาคาร', get: (p) => (p.building_height != null ? `${formatNumber(p.building_height)} ม.` : null) },
-  { label: 'ความสูงเพดาน', get: (p) => (p.ceiling_height != null ? `${formatNumber(p.ceiling_height)} ม.` : null) },
-  { label: 'พื้นรับน้ำหนัก', get: (p) => p.floor_load },
-  { label: 'ระบบไฟฟ้า', get: (p) => p.power_system },
-  { label: 'พื้นที่สีผังเมือง', get: (p) => p.color_zone },
-  { label: 'โซน', get: (p) => p.zones?.join(', ') || null },
-  { label: 'คุณสมบัติ', get: (p) => p.features?.join(', ') || null },
-  { label: 'เหมาะกับ', get: (p) => p.usages?.join(', ') || null },
-  { label: 'สัญญา', get: (p) => p.contract_period },
-  { label: 'มัดจำ', get: (p) => p.deposit },
-  { label: 'ใกล้เคียง', get: (p) => p.nearby },
-]
 
 export default function ComparePage() {
   const { items } = useProperties()
@@ -60,6 +31,11 @@ export default function ComparePage() {
   const [curId, setCurId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
+  // ลิงก์แชร์: อายุลิงก์ที่เลือก (เพดานมาจาก super admin) · สถานะปุ่มคัดลอก
+  const shareSet = useShareSetting()
+  const [shareDays, setShareDays] = useState('')
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const byCode = useMemo(() => new Map(items.map((p) => [p.code, p])), [items])
   const picked = codes.map((c) => byCode.get(c)).filter((p): p is Property => Boolean(p))
@@ -90,6 +66,8 @@ export default function ComparePage() {
 
   // ── บันทึก/เปิดชอร์ตลิสต์ที่เก็บไว้ ─────────────────────────
   const cur = lists.find((l) => l.id === curId) ?? null
+  // ราคาปัจจุบันต่างจากที่ตรึงไว้ในลิงก์ไหม (เตือนนายหน้า ลูกค้ายังเห็นราคาที่เสนอ)
+  const drift = useMemo(() => priceDrift(cur?.snapshot, items), [cur?.snapshot, items])
   /** มีอะไรเปลี่ยนจากที่บันทึกไว้ไหม (ยังไม่บันทึก = ถือว่าเปลี่ยนถ้ามีทรัพย์ครบ 2) */
   const dirty = cur
     ? cur.title !== title.trim()
@@ -167,6 +145,49 @@ export default function ComparePage() {
     }
   }
 
+  // ── ลิงก์แชร์ให้ลูกค้า (เปิดดูได้โดยไม่ต้องล็อกอิน) ──────────
+  // ราคาในลิงก์ถูกตรึงไว้ตอนสร้าง — ต่ออายุไม่แตะราคา ต้องกด "อัปเดตราคา" แยก
+  async function makeShare(refresh = false) {
+    if (!curId) return
+    setSharing(true)
+    const { data, error } = await shareShortlist(curId, Number(shareDays) || undefined, refresh)
+    setSharing(false)
+    if (error || !data) {
+      alert(error ?? 'สร้างลิงก์ไม่สำเร็จ')
+      return
+    }
+    await reloadLists()
+    // สร้างลิงก์ครั้งแรกเท่านั้นที่คัดลอกให้ (ต่ออายุ/อัปเดตราคาใช้ลิงก์เดิม ไม่ต้องส่งใหม่)
+    if (!cur?.share_token) await copyShare(data.token)
+  }
+
+  async function refreshPrices() {
+    if (!window.confirm(
+      'อัปเดตราคาในลิงก์ให้ตรงกับข้อมูลปัจจุบัน?\n\n' +
+      'ลูกค้าที่เปิดลิงก์เดิมจะเห็นราคาใหม่ (ลิงก์ไม่เปลี่ยน ไม่ต้องส่งใหม่)',
+    )) return
+    await makeShare(true)
+  }
+
+  async function copyShare(token: string) {
+    const url = shareUrl(token)
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // เบราว์เซอร์บล็อกคลิปบอร์ด (เช่นไม่ใช่ https) — ให้ผู้ใช้คัดลอกจากช่องเอง
+      window.prompt('คัดลอกลิงก์นี้ส่งให้ลูกค้า', url)
+    }
+  }
+
+  async function stopShare() {
+    if (!curId || !window.confirm('ยกเลิกลิงก์นี้? ลูกค้าที่ได้ลิงก์ไปแล้วจะเปิดดูไม่ได้อีก')) return
+    const err = await unshareShortlist(curId)
+    if (err) alert(`ยกเลิกลิงก์ไม่สำเร็จ: ${err}`)
+    else await reloadLists()
+  }
+
   async function runAnalysis() {
     setAiBusy(true)
     setAiError(null)
@@ -200,8 +221,6 @@ ${details}
       setAiBusy(false)
     }
   }
-
-  const aiOf = (code: string) => ai?.items?.find((i) => i.code === code)
 
   return (
     <>
@@ -314,93 +333,97 @@ ${details}
           {aiError && <div className="auth-error" style={{ marginTop: 10 }}>{aiError}</div>}
         </section>
 
-        {picked.length >= 2 && (
-          <div className="compare-sheet">
-            <header className="sheet-head">
-              <div className="brand">
-                <svg width="30" height="30" viewBox="0 0 32 32">
-                  <rect width="32" height="32" rx="7" fill="#7132f5" />
-                  <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
-                </svg>
-                <span>H<span className="brand-accent">OP</span></span>
-              </div>
-              <div className="sheet-title">
-                <h2>ชอร์ตลิสต์เปรียบเทียบทรัพย์</h2>
-                <div className="sheet-sub">
-                  {customer.trim() && <>เรียน {customer.trim()} · </>}จัดทำวันที่ {today}
-                </div>
-                {requirement.trim() && <div className="sheet-req">ความต้องการ: {requirement.trim()}</div>}
-              </div>
-            </header>
-
-            {ai?.intro && <p className="sheet-intro">{ai.intro}</p>}
-
-            <div className="compare-scroll">
-              <table className="compare-table">
-                <thead>
-                  <tr>
-                    <th className="spec-col"></th>
-                    {picked.map((p) => (
-                      <th key={p.code}>
-                        <div className="cmp-photo">
-                          {p.photo_url ? <img src={p.photo_url} alt={p.code} /> : <IconHouse size={30} />}
-                        </div>
-                        <div className="cmp-code">{p.code}</div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {SPEC_ROWS.filter((row) => picked.some((p) => row.get(p))).map((row) => (
-                    <tr key={row.label}>
-                      <td className="spec-col">{row.label}</td>
-                      {picked.map((p) => <td key={p.code}>{row.get(p) ?? '—'}</td>)}
-                    </tr>
-                  ))}
-                  {ai && (
-                    <>
-                      <tr className="ai-row">
-                        <td className="spec-col"><IconSparkles size={13} /> จุดเด่น</td>
-                        {picked.map((p) => (
-                          <td key={p.code}>
-                            <ul className="cmp-list">
-                              {(aiOf(p.code)?.pros ?? []).map((x, i) => <li key={i}>{x}</li>)}
-                            </ul>
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="ai-row">
-                        <td className="spec-col"><IconSparkles size={13} /> ข้อควรพิจารณา</td>
-                        {picked.map((p) => (
-                          <td key={p.code}>
-                            <ul className="cmp-list">
-                              {(aiOf(p.code)?.cons ?? []).map((x, i) => <li key={i}>{x}</li>)}
-                            </ul>
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="ai-row">
-                        <td className="spec-col"><IconSparkles size={13} /> ความเหมาะสม</td>
-                        {picked.map((p) => <td key={p.code}>{aiOf(p.code)?.fit ?? '—'}</td>)}
-                      </tr>
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {ai?.recommendation && (
-              <div className="sheet-reco">
-                <div className="sheet-reco-title"><IconSparkles size={15} /> คำแนะนำ</div>
-                <p>{ai.recommendation}</p>
-              </div>
+        {/* ลิงก์แชร์ให้ลูกค้า — ต้องบันทึกชุดก่อน (ลิงก์ชี้ไปที่ชุดที่บันทึกไว้) */}
+        {!perm.readOnly && (curId || picked.length >= 2) && (
+          <section className="form-card compare-share">
+            <h3><IconLink size={16} /> ส่งลิงก์ให้ลูกค้าดู</h3>
+            {shareSet.maxDays <= 0 ? (
+              <p className="stop-sub">ผู้ดูแลระบบปิดการแชร์ลิงก์ไว้</p>
+            ) : !curId ? (
+              <p className="stop-sub">บันทึกชอร์ตลิสต์ก่อน แล้วจะสร้างลิงก์ได้</p>
+            ) : (
+              <>
+                <p className="ai-hint">
+                  ลูกค้าเปิดดูได้เลยไม่ต้องล็อกอิน · เห็นเท่าที่อยู่ในเอกสารที่พิมพ์ให้
+                  (<b>ไม่เห็น</b>ชื่อ/เบอร์เจ้าของทรัพย์ · บ้านเลขที่ · พิกัดแผนที่)
+                </p>
+                {cur?.share_token ? (
+                  <>
+                    {/* กดตรงไหนของแถบก็คัดลอก (เป้ากดใหญ่ ใช้บนมือถือสะดวก) */}
+                    <button
+                      type="button"
+                      className={`share-link ${copied ? 'copied' : ''}`}
+                      title={`คลิกเพื่อคัดลอก · ${shareUrl(cur.share_token)}`}
+                      onClick={() => void copyShare(cur.share_token!)}
+                    >
+                      <IconLink size={15} className="share-link-icon" />
+                      <span className="share-link-url">{shareUrl(cur.share_token)}</span>
+                      <span className="share-link-copy">{copied ? 'คัดลอกแล้ว ✓' : 'คัดลอก'}</span>
+                    </button>
+                    {cur.snapshot_at && (
+                      <p className="stop-sub" style={{ margin: '0 0 8px' }}>
+                        💰 ราคาในลิงก์ตรึงไว้ ณ วันที่เสนอ ({formatDate(cur.snapshot_at.slice(0, 10))}) —
+                        แก้ราคาทรัพย์ในระบบทีหลัง ลูกค้าที่ถือลิงก์นี้ยังเห็นราคาเดิม
+                      </p>
+                    )}
+                    {drift.length > 0 && (
+                      <div className="banner-warn" style={{ margin: '0 0 10px' }}>
+                        ราคาปัจจุบันของ <b>{drift.join(', ')}</b> ไม่ตรงกับราคาที่ตรึงไว้ในลิงก์ —
+                        ลูกค้ายังเห็นราคาที่เสนอไว้เดิม{' '}
+                        <button className="link-btn" disabled={sharing} onClick={() => void refreshPrices()}>
+                          อัปเดตราคาในลิงก์
+                        </button>
+                      </div>
+                    )}
+                    <div className="ai-actions">
+                      <span className="stop-sub">
+                        {(() => {
+                          const left = daysLeft(cur.share_expires_at)
+                          if (left == null) return 'ไม่มีวันหมดอายุ'
+                          return left > 0
+                            ? `หมดอายุ ${formatDate(cur.share_expires_at!.slice(0, 10))} (อีก ${left} วัน)`
+                            : `⚠️ ลิงก์หมดอายุแล้ว — กด "ต่ออายุลิงก์" เพื่อเปิดใช้ใหม่`
+                        })()}
+                        {(cur.share_views ?? 0) > 0 && ` · ลูกค้าเปิดดู ${cur.share_views} ครั้ง`}
+                      </span>
+                      <button className="btn sm" disabled={sharing} onClick={() => void makeShare()}>
+                        {sharing ? 'กำลังต่ออายุ…' : 'ต่ออายุลิงก์ (ราคาเดิม)'}
+                      </button>
+                      {drift.length === 0 && (
+                        <button className="btn sm" disabled={sharing} onClick={() => void refreshPrices()}>
+                          อัปเดตข้อมูลในลิงก์
+                        </button>
+                      )}
+                      <button className="btn sm danger" onClick={() => void stopShare()}>ยกเลิกลิงก์</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="ai-actions">
+                    <label style={{ fontSize: 14 }}>
+                      ลิงก์ใช้ได้{' '}
+                      <input type="number" className="date-input" style={{ width: 80 }}
+                        min={1} max={shareSet.maxDays} value={shareDays}
+                        placeholder={String(shareSet.days)}
+                        onChange={(e) => setShareDays(e.target.value)} />{' '}
+                      วัน
+                    </label>
+                    <button className="btn primary" disabled={sharing || dirty} onClick={() => void makeShare()}>
+                      <IconLink size={16} /> {sharing ? 'กำลังสร้างลิงก์…' : 'สร้างลิงก์ + คัดลอก'}
+                    </button>
+                    <span className="stop-sub">
+                      {dirty
+                        ? 'บันทึกการแก้ไขก่อน แล้วจะสร้างลิงก์ได้'
+                        : `สูงสุด ${shareSet.maxDays} วัน (ผู้ดูแลระบบกำหนด)`}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
+          </section>
+        )}
 
-            <footer className="sheet-foot">
-              เอกสารนี้จัดทำจากข้อมูลในระบบ HOP เพื่อประกอบการตัดสินใจเบื้องต้น
-              ข้อมูลอาจเปลี่ยนแปลงได้ กรุณาตรวจสอบหน้างานอีกครั้ง
-            </footer>
-          </div>
+        {picked.length >= 2 && (
+          <CompareSheet picked={picked} customer={customer} requirement={requirement} ai={ai} dateText={today} />
         )}
 
         {picked.length < 2 && (

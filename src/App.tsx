@@ -18,6 +18,7 @@ import FollowUpPage from './pages/FollowUpPage'
 const ImportPage = lazy(() => import('./pages/ImportPage'))
 import LoginPage, { CreateOrgScreen, JoinOrgScreen, PendingScreen, ResetPasswordScreen, SuspendedScreen } from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
+import SharePage from './pages/SharePage'
 import Assistant from './components/Assistant'
 import ReviewPanel from './components/ReviewPanel'
 import TourOverlay from './components/TourOverlay'
@@ -122,6 +123,12 @@ export default function App() {
       </div>
     )
   }
+  // ลิงก์ชอร์ตลิสต์ที่นายหน้าแชร์ให้ลูกค้า — ต้องอยู่ "เหนือ" ด่านล็อกอินทุกด่าน
+  // (ลูกค้าไม่มีบัญชี · ถ้าเช็คหลังด่าน จะถูกเด้งไป landing page)
+  if (location.pathname.startsWith('/share/')) {
+    return <SharePage token={location.pathname.slice('/share/'.length).replace(/\/+$/, '')} />
+  }
+
   if (loading) return <div className="loading" style={{ paddingTop: 80 }}>กำลังโหลด…</div>
   // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → ลิงก์ล็อกอินให้แล้ว แต่ต้องตั้งรหัสก่อนเข้าแอป
   if (recovery) return <ResetPasswordScreen />

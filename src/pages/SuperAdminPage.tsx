@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth'
 import { formatDate } from '../labels'
 import { listReviews, setReviewMode, useReviewMode, type ReviewRow } from '../lib/review'
 import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, fetchContactSetting, type ContactSetting, type TrialSetting } from '../lib/plan'
+import { fetchShareSetting } from '../lib/share'
 import {
   fetchPaymentTestEnabled, fetchSeatSetting, TIERS, type SeatSetting, type Tier,
 } from '../lib/payments'
@@ -249,6 +250,46 @@ export default function SuperAdminPage() {
       alert(
         error.message.includes('app_settings')
           ? 'ยังไม่ได้ติดตั้งตารางตั้งค่า — รัน supabase/referral-setting.sql ใน SQL Editor ก่อน'
+          : `บันทึกไม่สำเร็จ: ${error.message}`,
+      )
+    }
+  }
+
+  // อายุลิงก์แชร์ชอร์ตลิสต์ (app_settings key 'share') — days = ค่าเริ่มต้น · maxDays = เพดาน (0 = ปิดการแชร์)
+  const [share, setShare] = useState<{ days: string; maxDays: string } | null>(null)
+  const [shareSaving, setShareSaving] = useState(false)
+  useEffect(() => {
+    void fetchShareSetting().then((s) => setShare({ days: String(s.days), maxDays: String(s.maxDays) }))
+  }, [])
+
+  async function saveShare() {
+    if (!share) return
+    const days = Number(share.days)
+    const maxDays = Number(share.maxDays)
+    // เพดาน 0 = ปิดการแชร์ทั้งระบบ (ตั้งใจได้) · ไม่ควรเกิน 1 ปี
+    if (!Number.isInteger(maxDays) || maxDays < 0 || maxDays > 365) {
+      alert('เพดานอายุลิงก์ต้องเป็นเลขจำนวนเต็ม 0–365 วัน (0 = ปิดการแชร์ลิงก์ทั้งระบบ)')
+      return
+    }
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      alert('อายุลิงก์เริ่มต้นต้องเป็นเลขจำนวนเต็ม 1–365 วัน')
+      return
+    }
+    if (maxDays > 0 && days > maxDays) {
+      alert('อายุลิงก์เริ่มต้นต้องไม่เกินเพดาน')
+      return
+    }
+    setShareSaving(true)
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'share',
+      value: { days, maxDays },
+      updated_at: new Date().toISOString(),
+    })
+    setShareSaving(false)
+    if (error) {
+      alert(
+        error.message.includes('app_settings')
+          ? 'ยังไม่ได้ติดตั้งตารางตั้งค่า — รัน supabase/shortlist-share.sql ใน SQL Editor ก่อน'
           : `บันทึกไม่สำเร็จ: ${error.message}`,
       )
     }
@@ -874,6 +915,47 @@ export default function SuperAdminPage() {
               <span style={{ color: 'var(--muted)', fontSize: 13 }}>
                 ชวนครบทุก {referral.need} คน = Pro +{referral.days} วัน · สะสมได้สูงสุด{' '}
                 {Number(referral.maxDays) === 0 ? 'ปิดรางวัล' : `${referral.maxDays} วัน`}
+              </span>
+            </div>
+          )}
+        </section>
+
+        <section className="form-card">
+          <h3>ลิงก์แชร์ชอร์ตลิสต์ให้ลูกค้า</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            นายหน้าส่งลิงก์ให้ลูกค้าเปิดดูเอกสารเปรียบเทียบได้โดยไม่ต้องล็อกอิน · ลิงก์แสดงเฉพาะข้อมูลที่อยู่ในเอกสาร
+            (ไม่มีชื่อ/เบอร์เจ้าของทรัพย์ · บ้านเลขที่ · พิกัดแผนที่) ·
+            <b> เพดานอายุ</b> คือค่าสูงสุดที่นายหน้าตั้งได้ — ตั้ง <b>0</b> เพื่อปิดการแชร์ลิงก์ทั้งระบบ
+            (ลิงก์ที่ออกไปแล้วจะสร้าง/ต่ออายุใหม่ไม่ได้ · ยกเลิกลิงก์เดิมทำได้จากหน้าเปรียบเทียบ)
+          </p>
+          {!share && <div className="loading">กำลังโหลด…</div>}
+          {share && (
+            <div className="org-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 14 }}>
+                อายุลิงก์เริ่มต้น{' '}
+                <input
+                  type="number" min={1} max={365} className="date-input" style={{ width: 80 }}
+                  value={share.days}
+                  onChange={(e) => setShare({ ...share, days: e.target.value })}
+                />{' '}
+                วัน
+              </label>
+              <label style={{ fontSize: 14 }}>
+                เพดานสูงสุด{' '}
+                <input
+                  type="number" min={0} max={365} className="date-input" style={{ width: 80 }}
+                  value={share.maxDays}
+                  onChange={(e) => setShare({ ...share, maxDays: e.target.value })}
+                />{' '}
+                วัน
+              </label>
+              <button className="btn sm primary" disabled={shareSaving} onClick={() => void saveShare()}>
+                {shareSaving ? 'กำลังบันทึก…' : 'บันทึก'}
+              </button>
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>
+                {Number(share.maxDays) === 0
+                  ? 'ปิดการแชร์ลิงก์ทั้งระบบ'
+                  : `นายหน้าตั้งได้ 1–${share.maxDays} วัน · ไม่ระบุ = ${share.days} วัน`}
               </span>
             </div>
           )}
