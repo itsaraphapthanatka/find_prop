@@ -177,3 +177,24 @@ export interface VisitPlan {
   created_at?: string
   updated_at?: string
 }
+
+/** บทวิเคราะห์เปรียบเทียบจาก AI ต่อชอร์ตลิสต์หนึ่งชุด (เก็บลง shortlists.ai) */
+export interface CompareResult {
+  intro?: string
+  items?: { code: string; pros?: string[]; cons?: string[]; fit?: string }[]
+  recommendation?: string
+}
+
+/** ชอร์ตลิสต์เสนอลูกค้า — ชุดทรัพย์ที่เลือกเปรียบเทียบ + บทวิเคราะห์ที่บันทึกไว้ */
+export interface Shortlist {
+  id: string
+  org_id?: string
+  title: string
+  customer_name: string | null
+  requirement: string | null
+  codes: string[]
+  ai: CompareResult | null
+  created_by?: string | null
+  created_at?: string
+  updated_at?: string
+}

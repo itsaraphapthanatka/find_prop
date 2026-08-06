@@ -1,20 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useProperties } from '../hooks/useProperties'
+import { useShortlists } from '../hooks/useShortlists'
+import { usePerm } from '../hooks/usePerm'
+import { supabase } from '../lib/supabase'
 import { aiChat, extractJson, propertyDetailText } from '../lib/ai'
-import type { Property } from '../types'
-import { formatNumber } from '../labels'
+import type { CompareResult, Property, Shortlist } from '../types'
+import { formatDate, formatNumber } from '../labels'
 import Combo from '../components/Combo'
 import VoiceButton from '../components/VoiceButton'
-import { IconClose, IconHouse, IconPrint, IconSparkles } from '../components/icons'
+import { IconClose, IconHouse, IconPrint, IconSparkles, IconTrash } from '../components/icons'
 import { printPage } from '../lib/native'
-
-/** บทวิเคราะห์จาก AI ต่อชอร์ตลิสต์หนึ่งชุด */
-interface CompareResult {
-  intro?: string
-  items?: { code: string; pros?: string[]; cons?: string[]; fit?: string }[]
-  recommendation?: string
-}
 
 const MAX_PICK = 4
 
@@ -51,6 +47,8 @@ const SPEC_ROWS: { label: string; get: (p: Property) => string | null }[] = [
 
 export default function ComparePage() {
   const { items } = useProperties()
+  const { lists, loading: listsLoading, error: listsError, reload: reloadLists } = useShortlists()
+  const perm = usePerm()
   const [codes, setCodes] = useState<string[]>([])
   const [addCode, setAddCode] = useState<string | null>(null)
   const [customer, setCustomer] = useState('')
@@ -58,6 +56,10 @@ export default function ComparePage() {
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const [ai, setAi] = useState<CompareResult | null>(null)
+  // ชุดที่กำลังเปิดอยู่ (null = ยังไม่เคยบันทึก)
+  const [curId, setCurId] = useState<string | null>(null)
+  const [title, setTitle] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const byCode = useMemo(() => new Map(items.map((p) => [p.code, p])), [items])
   const picked = codes.map((c) => byCode.get(c)).filter((p): p is Property => Boolean(p))
@@ -84,6 +86,85 @@ export default function ComparePage() {
   function removeProp(code: string) {
     setCodes(codes.filter((c) => c !== code))
     setAi(null)
+  }
+
+  // ── บันทึก/เปิดชอร์ตลิสต์ที่เก็บไว้ ─────────────────────────
+  const cur = lists.find((l) => l.id === curId) ?? null
+  /** มีอะไรเปลี่ยนจากที่บันทึกไว้ไหม (ยังไม่บันทึก = ถือว่าเปลี่ยนถ้ามีทรัพย์ครบ 2) */
+  const dirty = cur
+    ? cur.title !== title.trim()
+      || (cur.customer_name ?? '') !== customer.trim()
+      || (cur.requirement ?? '') !== requirement.trim()
+      || cur.codes.join(',') !== codes.join(',')
+      || JSON.stringify(cur.ai ?? null) !== JSON.stringify(ai ?? null)
+    : picked.length >= 2
+
+  function openList(sl: Shortlist) {
+    setCurId(sl.id)
+    setTitle(sl.title)
+    setCustomer(sl.customer_name ?? '')
+    setRequirement(sl.requirement ?? '')
+    // เก็บรหัสตามที่บันทึกไว้ (ไม่กรองด้วย byCode — ทรัพย์อาจยังโหลดไม่เสร็จ
+    // ถ้ากรองตอนนี้แล้วผู้ใช้กดบันทึก รหัสที่ยังไม่โหลดจะหายไปเงียบๆ)
+    // ตัวที่ถูกลบจริงจะไม่ขึ้นในตารางเปรียบเทียบเอง เพราะ picked กรองอีกชั้นตอน render
+    setCodes(sl.codes.slice(0, MAX_PICK))
+    setAi(sl.ai ?? null)
+    setAiError(null)
+    appliedParam.current = true // เปิดชุดที่บันทึกไว้แล้ว — อย่าให้ ?codes= มาทับ
+  }
+
+  function newList() {
+    setCurId(null)
+    setTitle('')
+    setCustomer('')
+    setRequirement('')
+    setCodes([])
+    setAi(null)
+    setAiError(null)
+  }
+
+  /** ชื่อชุดอัตโนมัติเมื่อผู้ใช้ไม่ได้ตั้งเอง */
+  const autoTitle = () =>
+    customer.trim() ? `เสนอ ${customer.trim()}` : `ชอร์ตลิสต์ ${codes.join(' · ')}`
+
+  async function saveList(asNew = false) {
+    if (picked.length < 2) return
+    setSaving(true)
+    const payload = {
+      title: title.trim() || autoTitle(),
+      customer_name: customer.trim() || null,
+      requirement: requirement.trim() || null,
+      codes,
+      ai,
+    }
+    const res = curId && !asNew
+      ? await supabase.from('shortlists').update(payload).eq('id', curId).select().single()
+      : await supabase.from('shortlists').insert(payload).select().single()
+    setSaving(false)
+    if (res.error) {
+      alert(
+        res.error.code === '42501'
+          ? 'บันทึกไม่สำเร็จ: สิทธิ์ไม่ผ่าน (RLS) — บทบาท "ดูได้อย่างเดียว" บันทึกชอร์ตลิสต์ไม่ได้'
+          : res.error.message.includes('shortlists')
+            ? 'ยังไม่ได้เปิดระบบบันทึกชอร์ตลิสต์ — รัน supabase/shortlists.sql ใน SQL Editor ก่อน'
+            : `บันทึกไม่สำเร็จ: ${res.error.message}`,
+      )
+      return
+    }
+    const saved = res.data as Shortlist
+    setCurId(saved.id)
+    setTitle(saved.title)
+    await reloadLists()
+  }
+
+  async function deleteList(sl: Shortlist) {
+    if (!window.confirm(`ลบชอร์ตลิสต์ "${sl.title}"?`)) return
+    const { error } = await supabase.from('shortlists').delete().eq('id', sl.id)
+    if (error) alert(`ลบไม่สำเร็จ: ${error.message}`)
+    else {
+      if (curId === sl.id) setCurId(null)
+      await reloadLists()
+    }
   }
 
   async function runAnalysis() {
@@ -126,14 +207,72 @@ ${details}
     <>
       <div className="view-header">
         <h1>เปรียบเทียบทรัพย์ {picked.length > 0 && <span className="count-badge">{picked.length}</span>}</h1>
-        {picked.length >= 2 && (
-          <button className="btn" onClick={() => void printPage()}><IconPrint size={16} /> พิมพ์ / บันทึก PDF</button>
-        )}
+        <div className="header-actions">
+          {!perm.readOnly && picked.length >= 2 && (
+            <>
+              <button className="btn primary" disabled={saving || !dirty} onClick={() => void saveList()}>
+                {saving ? 'กำลังบันทึก…' : curId ? 'บันทึกการแก้ไข' : 'บันทึกชอร์ตลิสต์'}
+              </button>
+              {curId && (
+                <button className="btn" disabled={saving} onClick={() => void saveList(true)}>บันทึกเป็นชุดใหม่</button>
+              )}
+            </>
+          )}
+          {picked.length >= 2 && (
+            <button className="btn" onClick={() => void printPage()}><IconPrint size={16} /> พิมพ์ / บันทึก PDF</button>
+          )}
+        </div>
       </div>
 
       <div className="team-wrap compare-wrap">
+        {listsError && <div className="banner-warn" style={{ margin: '0 0 14px' }}>{listsError}</div>}
+
+        {!listsLoading && lists.length > 0 && (
+          <section className="form-card compare-saved">
+            <h3>ชอร์ตลิสต์ที่บันทึกไว้ <span className="count-badge">{lists.length}</span></h3>
+            {lists.map((sl) => (
+              <div key={sl.id} className={`plan-row ${curId === sl.id ? 'selected' : ''}`} onClick={() => openList(sl)}>
+                <div className="plan-info">
+                  <div className="plan-title">{sl.title}</div>
+                  <div className="plan-sub">
+                    {sl.customer_name && <>ลูกค้า {sl.customer_name} · </>}
+                    {sl.codes.length} รายการ ({sl.codes.join(', ')})
+                    {sl.ai && <> · มีบทวิเคราะห์ AI</>}
+                    {sl.updated_at && <> · แก้ไข {formatDate(sl.updated_at.slice(0, 10))}</>}
+                  </div>
+                </div>
+                {perm.canDelete({ created_by: sl.created_by ?? null }) && (
+                  <button className="icon-btn danger" title="ลบชอร์ตลิสต์"
+                    onClick={(e) => { e.stopPropagation(); void deleteList(sl) }}><IconTrash /></button>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
+
         <section className="form-card compare-controls">
-          <h3>สร้างชอร์ตลิสต์เสนอลูกค้า</h3>
+          <h3>
+            {curId ? 'แก้ชอร์ตลิสต์' : 'สร้างชอร์ตลิสต์เสนอลูกค้า'}
+            {curId && (
+              <button type="button" className="link-btn" style={{ marginLeft: 10 }} onClick={newList}>
+                + เริ่มชุดใหม่
+              </button>
+            )}
+          </h3>
+          {curId && dirty && (
+            <p className="stop-sub" style={{ marginTop: -4 }}>มีการแก้ไขที่ยังไม่บันทึก</p>
+          )}
+          <div className="form-grid-2">
+            <div className="form-field">
+              <label>ชื่อชุด (สำหรับค้นหาภายหลัง)</label>
+              <input type="text" value={title} placeholder={picked.length >= 2 ? autoTitle() : 'เช่น โกดังบางพลี ให้คุณสมชาย'}
+                onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label>ชื่อลูกค้า (แสดงบนเอกสาร)</label>
+              <input type="text" value={customer} placeholder="เช่น คุณสมชาย ใจดี" onChange={(e) => setCustomer(e.target.value)} />
+            </div>
+          </div>
           <div className="form-grid-2">
             <div className="form-field">
               <label>เลือกทรัพย์ (2–{MAX_PICK} รายการ)</label>
@@ -156,10 +295,6 @@ ${details}
                 </div>
               )}
             </div>
-            <div className="form-field">
-              <label>ชื่อลูกค้า (แสดงบนเอกสาร)</label>
-              <input type="text" value={customer} placeholder="เช่น คุณสมชาย ใจดี" onChange={(e) => setCustomer(e.target.value)} />
-            </div>
           </div>
           <div className="form-field">
             <label>requirement ของลูกค้า (ให้ AI วิเคราะห์ความเหมาะสม — ไม่บังคับ)</label>
@@ -172,6 +307,9 @@ ${details}
               <IconSparkles size={16} /> {aiBusy ? 'AI กำลังเขียนบทวิเคราะห์…' : 'สร้างบทวิเคราะห์ด้วย AI'}
             </button>
             {picked.length < 2 && <span className="stop-sub">เลือกทรัพย์อย่างน้อย 2 รายการก่อน</span>}
+            {ai && dirty && !perm.readOnly && (
+              <span className="stop-sub">กด "{curId ? 'บันทึกการแก้ไข' : 'บันทึกชอร์ตลิสต์'}" ด้านบนเพื่อเก็บบทวิเคราะห์นี้ไว้ใช้ซ้ำ</span>
+            )}
           </div>
           {aiError && <div className="auth-error" style={{ marginTop: 10 }}>{aiError}</div>}
         </section>
