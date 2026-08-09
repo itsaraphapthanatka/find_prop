@@ -98,7 +98,7 @@
 
 <!-- ═══ 1 · ปก ═══ -->
 <section class="slide brand-bg center">
-  <div class="logo">
+  <div class="logo" id="deck-logo">
     <svg width="46" height="46" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#fff"/><path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#7132f5"/></svg>
     HOP
   </div>
@@ -327,6 +327,24 @@
     es.forEach((en) => { if (en.isIntersecting) { i = slides.indexOf(en.target); document.getElementById('cur').textContent = i + 1 } })
   }, { threshold: 0.6 })
   slides.forEach((s) => obs.observe(s))
+
+  // โลโก้ตามการตั้งค่าระบบ (Super Admin → โลโก้ระบบ) — ดึงจาก app_settings 'branding'
+  // ออฟไลน์/ยังไม่ตั้งโลโก้ = ใช้โลโก้ HOP มาตรฐานตามเดิม (anon key เป็นคีย์สาธารณะอยู่แล้ว)
+  ;(async () => {
+    try {
+      const SUPA = 'undefined'
+      const ANON = 'undefined'
+      const r = await fetch(`${SUPA}/rest/v1/app_settings?key=eq.branding&select=value`, {
+        headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+      })
+      const url = (await r.json())?.[0]?.value?.logoUrl
+      if (!url) return
+      const el = document.getElementById('deck-logo')
+      // ชิปพื้นขาว — กันโลโก้สีเข้มจมหายไปกับพื้นม่วงของสไลด์ปก
+      el.innerHTML = `<span style="background:#fff;border-radius:16px;padding:10px 22px;display:inline-flex">
+        <img src="${url}" alt="โลโก้" style="height:56px;max-width:280px;object-fit:contain;display:block"></span>`
+    } catch { /* เปิดออฟไลน์/เน็ตหลุด — ใช้โลโก้มาตรฐาน */ }
+  })()
 </script>
 </body>
 </html>
