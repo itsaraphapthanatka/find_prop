@@ -16,13 +16,16 @@
     { "source": "/docs/SYSTEM.html", "destination": "/docs/system", "permanent": false },
     { "source": "/docs/system.html", "destination": "/docs/system", "permanent": false },
     { "source": "/docs/FEATURES.html", "destination": "/docs/features", "permanent": false },
-    { "source": "/docs/features.html", "destination": "/docs/features", "permanent": false }
+    { "source": "/docs/features.html", "destination": "/docs/features", "permanent": false },
+    { "source": "/presentation.html", "destination": "/presentation", "permanent": false },
+    { "source": "/PRESENTATION.html", "destination": "/presentation", "permanent": false }
   ],
   "rewrites": [
     { "source": "/docs/training", "destination": "/docs/training.html" },
     { "source": "/docs/system", "destination": "/docs/system.html" },
     { "source": "/docs/features", "destination": "/docs/features.html" },
-    { "source": "/stats", "destination": "/stats.html" }
+    { "source": "/stats", "destination": "/stats.html" },
+    { "source": "/presentation", "destination": "/presentation.html" }
   ],
   "functions": {
     "api/ai.js": {
