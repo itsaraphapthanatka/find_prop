@@ -6,6 +6,7 @@ import { formatDate } from '../labels'
 import { listReviews, setReviewMode, useReviewMode, type ReviewRow } from '../lib/review'
 import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, fetchContactSetting, type ContactSetting, type TrialSetting } from '../lib/plan'
 import { fetchShareSetting } from '../lib/share'
+import { BRANDING_BUCKET, fetchBrandingSetting, setLogoCache } from '../lib/branding'
 import {
   fetchPaymentTestEnabled, fetchSeatSetting, TIERS, type SeatSetting, type Tier,
 } from '../lib/payments'
@@ -329,6 +330,64 @@ export default function SuperAdminPage() {
       return
     }
     setAlertDays(uniq.join(', '))
+  }
+
+  // โลโก้ระบบ (app_settings key 'branding' + storage bucket 'branding') — ต้องรัน supabase/branding.sql
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [logoSaving, setLogoSaving] = useState(false)
+  useEffect(() => {
+    void fetchBrandingSetting().then((b) => setLogoUrl(b.logoUrl))
+  }, [])
+
+  async function saveBranding(url: string | null) {
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'branding',
+      value: { logoUrl: url },
+      updated_at: new Date().toISOString(),
+    })
+    if (error) {
+      alert(
+        error.message.includes('app_settings')
+          ? 'ยังไม่ได้ติดตั้งตารางตั้งค่า — รัน supabase/app-settings-jsonb-fix.sql ก่อน'
+          : `บันทึกไม่สำเร็จ: ${error.message}`,
+      )
+      return false
+    }
+    setLogoUrl(url)
+    setLogoCache(url) // โลโก้บนหัวเว็บ/landing เปลี่ยนทันทีไม่ต้องรีเฟรช
+    return true
+  }
+
+  async function uploadLogo(f: File) {
+    if (!f.type.startsWith('image/')) {
+      alert('เลือกไฟล์รูปภาพ (PNG/JPG/WebP/SVG)')
+      return
+    }
+    if (f.size > 1024 * 1024) {
+      alert('ไฟล์ใหญ่เกิน 1MB — ย่อรูปก่อนอัปโหลด (โลโก้ควรเล็ก โหลดไว)')
+      return
+    }
+    setLogoSaving(true)
+    const ext = (f.name.split('.').pop() || 'png').toLowerCase()
+    const path = `logo-${Date.now()}.${ext}` // ชื่อใหม่ทุกครั้ง — กันแคชเบราว์เซอร์ค้างรูปเก่า
+    const up = await supabase.storage.from(BRANDING_BUCKET).upload(path, f)
+    if (up.error) {
+      setLogoSaving(false)
+      alert(`อัปโหลดไม่สำเร็จ: ${up.error.message}\n(ยังไม่ได้รัน supabase/branding.sql หรือเปล่า?)`)
+      return
+    }
+    const url = supabase.storage.from(BRANDING_BUCKET).getPublicUrl(path).data.publicUrl
+    const ok = await saveBranding(url)
+    setLogoSaving(false)
+    if (ok) alert('เปลี่ยนโลโก้แล้ว ✓ มีผลทันทีทั้งเว็บ (แท็บอื่นเห็นเมื่อรีเฟรช)')
+  }
+
+  async function resetLogo() {
+    if (!confirm('กลับไปใช้โลโก้มาตรฐาน HOP?')) return
+    setLogoSaving(true)
+    const ok = await saveBranding(null)
+    setLogoSaving(false)
+    if (ok) alert('กลับมาใช้โลโก้มาตรฐานแล้ว ✓')
   }
 
   // ช่องทางติดต่อ/LINE OA (app_settings key 'contact') — โชว์บน landing + ปุ่ม "คุยกับเซลล์"
@@ -959,6 +1018,52 @@ export default function SuperAdminPage() {
               </span>
             </div>
           )}
+        </section>
+
+        <section className="form-card">
+          <h3>โลโก้ระบบ</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            แสดงแทนโลโก้ HOP ทุกจุด (หัวเว็บ, หน้าเข้าสู่ระบบ, landing) — มีผลทันทีไม่ต้อง deploy ·
+            แนะนำ PNG พื้นโปร่งใส สูงอย่างน้อย 64px ไม่เกิน 1MB · ไอคอนแอปบนมือถือไม่เปลี่ยนตาม
+          </p>
+          <div className="org-row" style={{ alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            {/* พรีวิวโลโก้ปัจจุบัน — พื้นหลังลายตารางให้เห็นขอบรูปโปร่งใส */}
+            <div style={{
+              border: '1px solid var(--line-soft, #e5e7eb)', borderRadius: 10, padding: '10px 18px',
+              background: 'repeating-conic-gradient(#00000010 0% 25%, transparent 0% 50%) 0 0 / 16px 16px',
+            }}>
+              {logoUrl
+                ? <img src={logoUrl} alt="โลโก้ปัจจุบัน" style={{ height: 40, maxWidth: 220, objectFit: 'contain', display: 'block' }} />
+                : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 20 }}>
+                    <svg width="30" height="30" viewBox="0 0 32 32">
+                      <rect width="32" height="32" rx="7" fill="#7132f5" />
+                      <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
+                    </svg>
+                    H<span style={{ color: '#7132f5' }}>OP</span>
+                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>(มาตรฐาน)</span>
+                  </span>
+                )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <label className={`btn sm primary ${logoSaving ? 'disabled' : ''}`} style={{ cursor: 'pointer' }}>
+                {logoSaving ? 'กำลังอัปโหลด…' : 'อัปโหลดโลโก้ใหม่'}
+                <input
+                  type="file" accept="image/*" hidden disabled={logoSaving}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = '' // เลือกไฟล์เดิมซ้ำได้
+                    if (f) void uploadLogo(f)
+                  }}
+                />
+              </label>
+              {logoUrl && (
+                <button className="btn sm" disabled={logoSaving} onClick={() => void resetLogo()}>
+                  ใช้โลโก้มาตรฐาน
+                </button>
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="form-card">

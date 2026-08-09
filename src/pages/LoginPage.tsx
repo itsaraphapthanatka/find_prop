@@ -4,17 +4,10 @@ import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { rememberMe, setRememberMe } from '../lib/authStorage'
 import { API_BASE, isInstalledApp } from '../lib/native'
+import BrandLogo from '../components/BrandLogo'
 
 function Brand() {
-  return (
-    <div className="brand">
-      <svg width="30" height="30" viewBox="0 0 32 32">
-        <rect width="32" height="32" rx="7" fill="#7132f5" />
-        <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
-      </svg>
-      <span>H<span className="brand-accent">OP</span></span>
-    </div>
-  )
+  return <BrandLogo size={30} />
 }
 
 function GoogleIcon() {

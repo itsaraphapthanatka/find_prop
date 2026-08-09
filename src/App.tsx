@@ -35,6 +35,7 @@ import {
   IMPERSONATED_OPTION, needsExitImpersonation, orgSwitchOptions, orgSwitchValue, urlAfterOrgSwitch,
 } from './lib/orgSwitch'
 import { IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
+import BrandLogo from './components/BrandLogo'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
 function NavText({ full, short }: { full: string; short?: string }) {
@@ -233,13 +234,7 @@ export default function App() {
         </div>
       )}
       <header className="topbar">
-        <div className="brand">
-          <svg width="26" height="26" viewBox="0 0 32 32">
-            <rect width="32" height="32" rx="7" fill="#7132f5" />
-            <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
-          </svg>
-          <span>H<span className="brand-accent">OP</span></span>
-        </div>
+        <BrandLogo size={26} />
         <input
           data-tour="search"
           placeholder="ค้นหาทรัพย์ (รหัส, ทำเล, ประเภท…)"

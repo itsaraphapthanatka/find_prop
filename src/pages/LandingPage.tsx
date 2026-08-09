@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPlanPrices, DEFAULT_PRICES, TIERS, type PlanPrices, type Tier } from '../lib/payments'
 import { fetchTrialSetting, DEFAULT_TRIAL, fetchReferralSetting, DEFAULT_REFERRAL, fetchContactSetting, DEFAULT_CONTACT } from '../lib/plan'
+import BrandLogo from '../components/BrandLogo'
 import {
   IconBell,
   IconChart,
@@ -169,15 +170,7 @@ const STEPS = [
 ]
 
 function Brand() {
-  return (
-    <div className="brand">
-      <svg width="30" height="30" viewBox="0 0 32 32">
-        <rect width="32" height="32" rx="7" fill="#7132f5" />
-        <path d="M6 24V14l10-6 10 6v10h-7v-6h-6v6H6z" fill="#fff" />
-      </svg>
-      <span>H<span className="brand-accent">OP</span></span>
-    </div>
-  )
+  return <BrandLogo size={30} />
 }
 
 /** กรอบเบราว์เซอร์ครอบสกรีนช็อตจริง */
