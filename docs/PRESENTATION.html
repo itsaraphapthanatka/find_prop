@@ -332,8 +332,8 @@
   // ออฟไลน์/ยังไม่ตั้งโลโก้ = ใช้โลโก้ HOP มาตรฐานตามเดิม (anon key เป็นคีย์สาธารณะอยู่แล้ว)
   ;(async () => {
     try {
-      const SUPA = 'undefined'
-      const ANON = 'undefined'
+      const SUPA = 'https://aiwnpndmlbrbaxmorvdd.supabase.co'
+      const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpd25wbmRtbGJyYmF4bW9ydmRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNzEzNjIsImV4cCI6MjA5OTg0NzM2Mn0.7mzlk-UbBWK3JS3z4WnxCuy7DQpuiUdmuXQzQ48FTYw'
       const r = await fetch(`${SUPA}/rest/v1/app_settings?key=eq.branding&select=value`, {
         headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
       })
