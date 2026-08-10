@@ -100,7 +100,8 @@ export default async function handler(req, res) {
     method: 'POST',
     headers: { ...svc, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({
-      id: newId, email: mail, full_name: name || null, org_id: targetOrg, active: true, role: 'member',
+      // 'manager' = ค่าเดียวกับ default ของคำเชิญ (บทบาท 8 ระดับ — 'member' เดิมถูกยกเลิกแล้ว)
+      id: newId, email: mail, full_name: name || null, org_id: targetOrg, active: true, role: 'manager',
     }),
   })
   if (!upRes.ok) {
