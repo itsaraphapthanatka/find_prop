@@ -25,7 +25,10 @@
     { "source": "/docs/system", "destination": "/docs/system.html" },
     { "source": "/docs/features", "destination": "/docs/features.html" },
     { "source": "/stats", "destination": "/stats.html" },
-    { "source": "/presentation", "destination": "/presentation.html" }
+    { "source": "/presentation", "destination": "/presentation.html" },
+    { "source": "/geo",        "destination": "https://geo.appreview.cloud/e/e9Sp3HRpMMuhM1MxKbqUyA/a/" },
+    { "source": "/geo/:path*", "destination": "https://geo.appreview.cloud/e/e9Sp3HRpMMuhM1MxKbqUyA/a/:path*" },
+    { "source": "/llms.txt",   "destination": "https://geo.appreview.cloud/e/e9Sp3HRpMMuhM1MxKbqUyA/llms.txt" }
   ],
   "functions": {
     "api/ai.js": {
