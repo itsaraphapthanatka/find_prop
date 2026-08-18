@@ -11,6 +11,7 @@ import { IconCamera, IconLocate, IconUpload } from '../../components/icons'
 import Combo from '../../components/Combo'
 import LocationPicker from '../../components/LocationPicker'
 import { isNativeApp, takePhoto } from '../../lib/native'
+import { photoList } from '../../lib/photo'
 import {
   AppliancesField, BoolField, ButtonsField, ComboField, type FieldPack, LatLngField, MultiField,
   NearbyPlacesField, NumberField, Section, TextField, UtilityField,
@@ -555,6 +556,18 @@ export function StepMedia({
     <Section title="ลงภาพและวิดีโอ">
       <div className="form-field">
         <label>{LABELS.photo_url} <span className="photo-count">{photos.length}/{maxPhotos}</span></label>
+        {photos.length === 0 && photoList(form.photo_url, 640).length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <p className="plan-line" style={{ margin: '0 0 6px' }}>รูปจากข้อมูลเดิม (ลิงก์ภายนอก — ดูได้อย่างเดียว · เพิ่มรูปใหม่เข้าระบบได้ด้านล่าง)</p>
+            <div className="photo-grid">
+              {photoList(form.photo_url, 640).map((src, i) => (
+                <div className="photo-item" key={i}>
+                  <img src={src} alt={`รูปเดิม ${i + 1}`} loading="lazy" onError={(e) => { const el = (e.currentTarget as HTMLImageElement).closest('.photo-item'); if (el instanceof HTMLElement) el.style.display = 'none' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="photo-grid">
           {photos.map((url, idx) => (
             <div className="photo-item" key={url}>

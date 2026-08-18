@@ -4,6 +4,7 @@ import { LABELS, formatDate, formatNumber, houseNoLabel, kindOf } from '../label
 import { useAuth } from '../lib/auth'
 import { usePlanAccess } from '../lib/plan'
 import { ContractTag, DealTag, ZoneSwatch } from '../lib/propertyStyle'
+import { photoList } from '../lib/photo'
 import { IconClose, IconPhone, IconSms } from './icons'
 import LocationPicker from './LocationPicker'
 import FollowUpSection from './FollowUpSection'
@@ -79,7 +80,8 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
   const access = usePlanAccess()
   // ป้ายองค์กรเฉพาะ super โหมดภาพรวม — ตอนสวมสิทธิ์มุมมองเหมือนสมาชิกจริง
   const isSuper = Boolean(profile?.is_super && !profile?.impersonate_org_id)
-  const pics = p.photos?.length ? p.photos : p.photo_url ? [p.photo_url] : []
+  // แยกทุกลิงก์ (บางแถวเก็บหลายลิงก์ต่อกันด้วย " | ") + แปลง Google Drive → รูปที่แสดงได้
+  const pics = (p.photos?.length ? p.photos : p.photo_url ? [p.photo_url] : []).flatMap((x) => photoList(x, 1600))
   // รูปที่กดดูเต็มจอ (null = ยังไม่ได้เปิด)
   const [zoomAt, setZoomAt] = useState<number | null>(null)
   return (
@@ -100,7 +102,7 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
             <div className="detail-gallery">
               {pics.map((src, i) => (
                 <button key={i} type="button" title="กดเพื่อดูรูปใหญ่ (ซูมได้)" onClick={() => setZoomAt(i)}>
-                  <img src={src} alt={`${p.code} ${i + 1}`} />
+                  <img src={src} alt={`${p.code} ${i + 1}`} loading="lazy" onError={(e) => { const b = (e.currentTarget as HTMLImageElement).closest('button'); if (b) b.style.display = 'none' }} />
                   {i === 0 && pics.length > 1 && <span className="gal-more">{pics.length} รูป</span>}
                 </button>
               ))}
