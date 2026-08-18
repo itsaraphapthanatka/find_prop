@@ -117,10 +117,10 @@ export default function SuperAdminPage() {
   }, [])
 
   // ตั้งค่าทดลองใช้ฟรี (app_settings key 'trial') — มีผลกับ "องค์กรที่สมัครใหม่" เท่านั้น
-  const [trial, setTrial] = useState<{ days: string; plan: TrialSetting['plan'] } | null>(null)
+  const [trial, setTrial] = useState<{ days: string; plan: TrialSetting['plan']; until: string } | null>(null)
   const [trialSaving, setTrialSaving] = useState(false)
   useEffect(() => {
-    void fetchTrialSetting().then((t) => setTrial({ days: String(t.days), plan: t.plan }))
+    void fetchTrialSetting().then((t) => setTrial({ days: String(t.days), plan: t.plan, until: t.until ?? '' }))
   }, [])
 
   async function saveTrial() {
@@ -130,10 +130,21 @@ export default function SuperAdminPage() {
       alert('กรุณากรอกจำนวนวันเป็นเลขจำนวนเต็ม 0–365 (0 = ปิดช่วงทดลอง)')
       return
     }
+    const until = trial.until.trim() || null
+    if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) {
+      alert('รูปแบบวันสิ้นสุดไม่ถูกต้อง')
+      return
+    }
+    // วันสิ้นสุดเป็นอดีต = องค์กรใหม่จะไม่ได้ทดลองเลย — เตือนกันพลาด
+    if (until && until < new Date().toISOString().slice(0, 10)
+      && !window.confirm('วันสิ้นสุดที่เลือกเป็นอดีต — องค์กรที่สมัครใหม่จะไม่ได้ทดลองใช้เลย ยืนยันบันทึกมั้ย?')) {
+      return
+    }
     setTrialSaving(true)
+    // until (ถ้ามี) จะถูกใช้แทน days ในฝั่งฐานข้อมูล (create_organization ใน supabase/trial.sql)
     const { error } = await supabase.from('app_settings').upsert({
       key: 'trial',
-      value: { days, plan: trial.plan },
+      value: { days, plan: trial.plan, until },
       updated_at: new Date().toISOString(),
     })
     setTrialSaving(false)
@@ -779,17 +790,24 @@ export default function SuperAdminPage() {
         <section className="form-card">
           <h3>ทดลองใช้ฟรี (องค์กรสมัครใหม่)</h3>
           <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
-            องค์กรที่สมัครใหม่ได้สิทธิ์แพ็กเกจนี้ฟรีตามจำนวนวัน · หมดช่วงทดลอง = องค์กรถูกล็อกจนกว่าจะเลือกแพ็กเกจ
-            (แอดมินองค์กรเข้าหน้าจ่ายเงินได้เอง) · ไม่มีผลย้อนหลังกับองค์กรที่มีอยู่แล้ว
+            องค์กรที่สมัครใหม่ได้สิทธิ์แพ็กเกจนี้ฟรี — นับจากวันสมัคร (จำนวนวัน) <b>หรือ</b> ถึงวันสิ้นสุดที่กำหนดตายตัว
+            (เช่น โปรฯ ทดลองฟรีถึงสิ้นปี) · หมดช่วงทดลอง = องค์กรถูกล็อกจนกว่าจะเลือกแพ็กเกจ (แอดมินองค์กรเข้าหน้าจ่ายเงินได้เอง) ·
+            ไม่มีผลย้อนหลังกับองค์กรที่มีอยู่แล้ว
           </p>
           {!trial && <div className="loading">กำลังโหลด…</div>}
-          {trial && (
+          {trial && (() => {
+            const today = new Date().toISOString().slice(0, 10)
+            const planTxt = trial.plan === 'pro' ? 'Pro' : 'เริ่มต้น'
+            const untilTxt = trial.until
+              ? new Date(trial.until + 'T00:00:00').toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
+              : ''
+            return (
             <div className="org-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <label style={{ fontSize: 14 }}>
+              <label style={{ fontSize: 14, opacity: trial.until ? 0.45 : 1 }}>
                 จำนวนวัน{' '}
                 <input
                   type="number" min={0} max={365} className="date-input" style={{ width: 80 }}
-                  value={trial.days}
+                  value={trial.days} disabled={!!trial.until}
                   onChange={(e) => setTrial({ ...trial, days: e.target.value })}
                 />
               </label>
@@ -804,16 +822,32 @@ export default function SuperAdminPage() {
                   <option value="pro">Pro</option>
                 </select>
               </label>
+              <label style={{ fontSize: 14 }}>
+                หรือสิ้นสุดวันที่{' '}
+                <input
+                  type="date" className="date-input"
+                  value={trial.until}
+                  onChange={(e) => setTrial({ ...trial, until: e.target.value })}
+                />
+              </label>
+              {trial.until && (
+                <button className="btn sm" onClick={() => setTrial({ ...trial, until: '' })}>ล้างวันที่</button>
+              )}
               <button className="btn sm primary" disabled={trialSaving} onClick={() => void saveTrial()}>
                 {trialSaving ? 'กำลังบันทึก…' : 'บันทึก'}
               </button>
               <span style={{ color: 'var(--muted)', fontSize: 13 }}>
-                {Number(trial.days) > 0
-                  ? `สมัครใหม่ได้ ${trial.plan === 'pro' ? 'Pro' : 'เริ่มต้น'} ฟรี ${trial.days} วัน`
-                  : 'ปิดช่วงทดลอง — สมัครใหม่เริ่มที่ Free ทันที'}
+                {trial.until
+                  ? (trial.until >= today
+                      ? `สมัครใหม่ได้ ${planTxt} ฟรีถึง ${untilTxt}`
+                      : 'วันสิ้นสุดเป็นอดีต — องค์กรใหม่จะไม่ได้ทดลอง')
+                  : Number(trial.days) > 0
+                    ? `สมัครใหม่ได้ ${planTxt} ฟรี ${trial.days} วัน`
+                    : 'ปิดช่วงทดลอง — สมัครใหม่เริ่มที่ Free ทันที'}
               </span>
             </div>
-          )}
+            )
+          })()}
         </section>
 
         <section className="form-card">

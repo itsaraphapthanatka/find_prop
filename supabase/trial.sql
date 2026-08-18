@@ -49,26 +49,38 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- 5) สร้างองค์กรใหม่ → แถมช่วงทดลองตามตั้งค่า (ทับเวอร์ชัน multiorg-stage2.sql)
+--    รองรับ 2 แบบ: นับวันจากวันสมัคร (days) หรือ วันสิ้นสุดตายตัว (until) — until ถ้ากำหนดไว้จะใช้แทน days
 create or replace function public.create_organization(org_name text) returns uuid
 language plpgsql security definer set search_path = public as $$
 declare
   v_org uuid;
   v_days int := 0;
   v_plan text := 'pro';
+  v_until date := null;
+  v_expires date := null;
 begin
   if auth.uid() is null then raise exception 'ต้องเข้าสู่ระบบก่อน'; end if;
   if coalesce(trim(org_name), '') = '' then raise exception 'กรุณาระบุชื่อองค์กร'; end if;
 
-  select coalesce((value->>'days')::int, 0), coalesce(nullif(value->>'plan', ''), 'pro')
-    into v_days, v_plan
+  select coalesce((value->>'days')::int, 0),
+         coalesce(nullif(value->>'plan', ''), 'pro'),
+         nullif(value->>'until', '')::date
+    into v_days, v_plan, v_until
     from public.app_settings where key = 'trial';
   if v_plan not in ('starter', 'pro') then v_plan := 'pro'; end if;
+
+  -- วันสิ้นสุดตายตัว (until) ถ้ากำหนดไว้ = ใช้วันนั้น (เป็นอดีต = ไม่ได้ทดลอง) · ไม่กำหนด = นับวันจากวันนี้
+  if v_until is not null then
+    if v_until >= current_date then v_expires := v_until; end if;
+  elsif v_days > 0 then
+    v_expires := current_date + v_days;
+  end if;
 
   insert into public.organizations (name, trial_plan, trial_expires_at)
   values (
     trim(org_name),
-    case when v_days > 0 then v_plan end,
-    case when v_days > 0 then current_date + v_days end
+    case when v_expires is not null then v_plan end,
+    v_expires
   ) returning id into v_org;
 
   insert into public.memberships (user_id, org_id, role, active) values (auth.uid(), v_org, 'admin', true)

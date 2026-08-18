@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPlanPrices, DEFAULT_PRICES, TIERS, type PlanPrices, type Tier } from '../lib/payments'
-import { fetchTrialSetting, DEFAULT_TRIAL, fetchReferralSetting, DEFAULT_REFERRAL, fetchContactSetting, DEFAULT_CONTACT } from '../lib/plan'
+import { fetchTrialSetting, DEFAULT_TRIAL, trialActive, trialLabel, fetchReferralSetting, DEFAULT_REFERRAL, fetchContactSetting, DEFAULT_CONTACT } from '../lib/plan'
 import BrandLogo from '../components/BrandLogo'
 import {
   IconBell,
@@ -230,19 +230,20 @@ export default function LandingPage() {
   const [tier, setTier] = useState<Tier>(100)
   // ราคาจริงจากตาราง plan_prices (super admin ตั้งเอง) — ระหว่างโหลด/พลาดใช้ราคามาตรฐาน
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
-  // จำนวนวันทดลองใช้จริงจากตั้งค่า (super admin) — 0 = ปิดช่วงทดลอง
-  const [trialDays, setTrialDays] = useState(DEFAULT_TRIAL.days)
+  // ตั้งค่าทดลองใช้จริงจาก super admin — รองรับทั้งแบบนับวัน และแบบกำหนดวันสิ้นสุด
+  const [trialSet, setTrialSet] = useState(DEFAULT_TRIAL)
   // เกณฑ์ชวนเพื่อน (super admin ตั้งได้)
   const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
   // ช่องทางติดต่อจริง (LINE OA / โทร / อีเมล) — super admin ตั้งเอง
   const [contact, setContact] = useState(DEFAULT_CONTACT)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
-    void fetchTrialSetting().then((t) => setTrialDays(t.days))
+    void fetchTrialSetting().then(setTrialSet)
     void fetchReferralSetting().then(setRefSet)
     void fetchContactSetting().then(setContact)
   }, [])
-  const trialTxt = trialDays > 0 ? `ทดลองฟรี ${trialDays} วัน` : 'สมัครใช้งานฟรี'
+  const trialOn = trialActive(trialSet)
+  const trialTxt = trialLabel(trialSet) || 'สมัครใช้งานฟรี'
   // แทน {trial} ในข้อความจาก FEATURES/STEPS/PLANS
   const tt = (s: string) => s.replace('{trial}', trialTxt)
   // % ประหยัดเมื่อจ่ายรายปี (คำนวณจากราคาจริงของแพ็ก Basic ระดับที่เลือก)
@@ -365,9 +366,9 @@ export default function LandingPage() {
 
       <section className="ld-section" id="pricing">
         <span className="ld-kicker">แพ็กเกจ</span>
-        <h2>{trialDays > 0 ? `ราคาโปร่งใส ทดลองฟรี ${trialDays} วัน` : 'ราคาโปร่งใส'}</h2>
+        <h2>{trialOn ? `ราคาโปร่งใส · ${trialTxt}` : 'ราคาโปร่งใส'}</h2>
         <p className="ld-lead">
-          {trialDays > 0 ? `สมัครแล้วทดลองใช้ฟรี ${trialDays} วัน ` : 'สมัครใช้งานได้ทันที '}
+          {trialOn ? `สมัครแล้ว${trialTxt} ` : 'สมัครใช้งานได้ทันที '}
           ไม่ต้องผูกบัตรเครดิต — จ่ายรายปีถูกกว่า
         </p>
         {/* .ld-billing เป็น inline-flex — ครอบด้วย div block เพื่อบังคับให้อยู่คนละบรรทัด */}
@@ -471,7 +472,7 @@ export default function LandingPage() {
       <section className="ld-contact" id="contact">
         <h2>พร้อมยกระดับทีมของคุณหรือยัง?</h2>
         <p>
-          {trialDays > 0 ? `ทดลองใช้ฟรี ${trialDays} วันแล้วเริ่มได้ทันที` : 'สมัครแล้วเริ่มได้ทันที'}
+          {trialOn ? `${trialTxt} แล้วเริ่มได้ทันที` : 'สมัครแล้วเริ่มได้ทันที'}
           {' '}— หรือถ้ามีคำถาม/อยากให้ช่วยย้ายข้อมูลเดิม ทักทีมงานได้เลย ไม่มีค่าใช้จ่าย
         </p>
         <div className="ld-cta-row">

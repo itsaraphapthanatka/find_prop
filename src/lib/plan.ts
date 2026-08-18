@@ -112,10 +112,29 @@ export function usePlanAccess(): PlanAccess {
 
 // ── ตั้งค่าทดลองใช้ (app_settings key 'trial') — super admin แก้ได้จากหน้า Super Admin ──
 export interface TrialSetting {
-  days: number // 0 = ปิดช่วงทดลอง
+  days: number // 0 = ปิดช่วงทดลอง (ใช้เมื่อไม่ได้กำหนดวันสิ้นสุด)
   plan: 'starter' | 'pro'
+  /** กำหนด "วันสิ้นสุดตายตัว" (YYYY-MM-DD) — ถ้าตั้งไว้ องค์กรใหม่ทุกรายจะทดลองถึงวันนี้ (ไม่สนใจ days)
+   *  ว่าง/null = ใช้แบบนับวันจากวันสมัคร · เหมาะกับโปรฯ "ทดลองฟรีถึงสิ้นปี" */
+  until?: string | null
 }
-export const DEFAULT_TRIAL: TrialSetting = { days: 14, plan: 'pro' }
+export const DEFAULT_TRIAL: TrialSetting = { days: 14, plan: 'pro', until: null }
+
+/** ช่วงทดลองยังเปิดรับองค์กรใหม่อยู่ไหม (โหมดวันสิ้นสุด: ต้องยังไม่เลยวันนั้น · โหมดนับวัน: days>0) */
+export function trialActive(t: TrialSetting): boolean {
+  if (t.until) return t.until >= new Date().toISOString().slice(0, 10)
+  return t.days > 0
+}
+
+/** ข้อความโปรโมตช่วงทดลอง (ใช้บน landing) — คืน '' ถ้าปิดช่วงทดลอง */
+export function trialLabel(t: TrialSetting): string {
+  if (!trialActive(t)) return ''
+  if (t.until) {
+    const d = new Date(t.until + 'T00:00:00')
+    return `ทดลองฟรีถึง ${d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}`
+  }
+  return `ทดลองฟรี ${t.days} วัน`
+}
 
 // ── เกณฑ์ชวนเพื่อน (app_settings key 'referral') — super admin แก้ได้จากหน้า Super Admin ──
 export interface ReferralSetting {
@@ -202,11 +221,12 @@ export async function fetchContractAlertSetting(): Promise<ContractAlertSetting>
 export async function fetchTrialSetting(): Promise<TrialSetting> {
   try {
     const { data } = await supabase.from('app_settings').select('value').eq('key', 'trial').maybeSingle()
-    const v = (data?.value ?? null) as { days?: number; plan?: string } | null
+    const v = (data?.value ?? null) as { days?: number; plan?: string; until?: string | null } | null
     if (!v) return DEFAULT_TRIAL
     const days = Number(v.days)
     const plan = v.plan === 'starter' ? 'starter' : 'pro'
-    return { days: Number.isFinite(days) && days >= 0 ? days : DEFAULT_TRIAL.days, plan }
+    const until = typeof v.until === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.until) ? v.until : null
+    return { days: Number.isFinite(days) && days >= 0 ? days : DEFAULT_TRIAL.days, plan, until }
   } catch {
     return DEFAULT_TRIAL
   }
