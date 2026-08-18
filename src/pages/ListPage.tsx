@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { deleteProperty, getAllPropertiesFull, getProperty, useProperties } from '../hooks/useProperties'
+import { deleteProperty, getAllPropertiesFull, getProperty, setPropertyLatLng, useProperties } from '../hooks/useProperties'
 import { usePerm } from '../hooks/usePerm'
 import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
@@ -13,6 +13,7 @@ import { usePlanAccess } from '../lib/plan'
 import { buildPropertiesCsv } from '../lib/importProps'
 import { isStaleClientError, reloadLatestVersion } from '../lib/staleClient'
 import { photoThumb } from '../lib/photo'
+import { parseLatLng, roundLatLng, type LatLng } from '../lib/latlng'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -37,6 +38,7 @@ export default function ListPage({ search }: { search: string }) {
   const [selected, setSelected] = useState<Property | null>(null)
   const [openingId, setOpeningId] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(50)
+  const [geoBusy, setGeoBusy] = useState(false)
   const navigate = useNavigate()
   const { profile } = useAuth()
   const access = usePlanAccess()
@@ -180,6 +182,35 @@ export default function ListPage({ search }: { search: string }) {
     URL.revokeObjectURL(a.href)
   }
 
+  // เติมพิกัด lat/lng จากลิงก์ Google Maps ในช่อง map_url ให้ทรัพย์ที่ยังไม่มีพิกัด
+  // (แกะที่ client ด้วย parseLatLng แล้วอัปเดตด้วยสิทธิ์ผู้ใช้ — ไม่แตะแถวที่มีพิกัดอยู่แล้ว)
+  async function backfillLatLng() {
+    const missing = items.filter((p) => p.lat == null || p.lng == null)
+    const targets = missing
+      .map((p) => ({ id: p.id, coord: parseLatLng(p.map_url) }))
+      .filter((t): t is { id: string; coord: LatLng } => t.coord != null)
+    if (targets.length === 0) {
+      alert(missing.length === 0
+        ? 'ทุกรายการมีพิกัดครบแล้ว'
+        : `มี ${missing.length} รายการยังไม่มีพิกัด แต่ไม่มีลิงก์แผนที่ที่แกะพิกัดได้ (ไม่มี map_url หรือเป็นลิงก์ย่อ maps.app.goo.gl) — วิธีนี้ใช้ไม่ได้ อาจต้อง geocode จากที่อยู่แทน`)
+      return
+    }
+    if (!window.confirm(`แกะพิกัดจากลิงก์แผนที่ได้ ${targets.length} รายการ — เติมให้เลยมั้ย?`)) return
+    setGeoBusy(true)
+    let filled = 0
+    for (let i = 0; i < targets.length; i += 20) {
+      const oks = await Promise.all(targets.slice(i, i + 20).map((t) => {
+        const r = roundLatLng(t.coord)
+        return setPropertyLatLng(t.id, r.lat, r.lng)
+      }))
+      filled += oks.filter(Boolean).length
+    }
+    setGeoBusy(false)
+    const noParse = missing.length - targets.length
+    alert(`เติมพิกัดให้ ${filled} รายการ${noParse > 0 ? `\nยังไม่มีพิกัดอีก ${noParse} รายการ (ไม่มีลิงก์/ลิงก์ย่อ/แกะไม่ได้)` : ''}`)
+    await reload()
+  }
+
   async function handleDelete(p: Property) {
     if (!window.confirm(`ลบรายการ ${p.code}?`)) return
     const err = await deleteProperty(p.id)
@@ -208,6 +239,11 @@ export default function ListPage({ search }: { search: string }) {
           {perm.canExport && (
             <button className="btn mob-icon" onClick={() => void exportCsv()} title="นำออกเป็นไฟล์ CSV (เปิดใน Excel ได้)">
               <IconDownload size={16} /><span className="btn-label">นำออก</span>
+            </button>
+          )}
+          {perm.canExport && (
+            <button className="btn mob-icon" onClick={() => void backfillLatLng()} disabled={geoBusy} title="เติมพิกัด lat/lng จากลิงก์แผนที่ (map_url) ให้ทรัพย์ที่ยังไม่มีพิกัด">
+              <IconPin size={16} /><span className="btn-label">{geoBusy ? 'กำลังเติม…' : 'เติมพิกัด'}</span>
             </button>
           )}
           {!perm.readOnly && <button className="btn primary" onClick={addProperty}>+ เพิ่มทรัพย์</button>}

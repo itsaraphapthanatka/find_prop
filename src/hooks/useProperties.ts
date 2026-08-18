@@ -77,3 +77,9 @@ export async function getAllPropertiesFull(): Promise<Property[]> {
   const { data } = await supabase.from('properties_view').select('*')
   return (data as Property[] | null) ?? []
 }
+
+/** เติมพิกัดให้ทรัพย์ 1 รายการ — ใช้ตอน backfill lat/lng จากลิงก์แผนที่ (map_url) */
+export async function setPropertyLatLng(id: string, lat: number, lng: number): Promise<boolean> {
+  const { error } = await supabase.from('properties').update({ lat, lng }).eq('id', id)
+  return !error
+}
