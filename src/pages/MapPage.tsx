@@ -103,6 +103,9 @@ export default function MapPage() {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ label: string; lat: number; lng: number }[]>([])
   const [searching, setSearching] = useState(false)
+  // ref ไปยัง cluster group + หมุดแต่ละอัน — ใช้ตอนเลือกทรัพย์จากผลค้นหา (ซูมโชว์หมุด + เปิด popup)
+  const clusterRef = useRef<{ zoomToShowLayer: (l: L.Layer, cb: () => void) => void } | null>(null)
+  const markerRefs = useRef(new Map<string, L.Marker>())
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const focusId = params.get('focus')
@@ -142,6 +145,16 @@ export default function MapPage() {
     [withCoords],
   )
   const focused = focusId ? withCoords.find((p) => p.id === focusId) : undefined
+
+  // ค้นหา "ทรัพย์" ในแผนที่ (รหัส/โครงการ/ทำเล/ประเภท) — ค้นทั้งองค์กรที่เลือก ไม่สนตัวกรองประเภท
+  const propMatches = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    if (!term) return []
+    return base
+      .filter((p) => [p.code, p.project_name, p.province, p.district, p.subdistrict, p.nearby, p.property_type, p.listing_type]
+        .filter(Boolean).join(' ').toLowerCase().includes(term))
+      .slice(0, 8)
+  }, [q, base])
 
   async function handleDelete(p: Property) {
     if (!window.confirm(`ลบรายการ ${p.code}?`)) return
@@ -223,6 +236,21 @@ export default function MapPage() {
     setQ('')
   }
 
+  // เลือก "ทรัพย์" จากผลค้นหา → เอาตัวกรองประเภทออก (เผื่อถูกซ่อน) → ซูมจนหมุดโผล่จากกลุ่ม + เปิด popup
+  function pickProperty(p: Property & { lat: number; lng: number }) {
+    setFType(null)
+    setQ('')
+    setResults([])
+    setPicking(false)
+    // รอให้ marker ถูก render (หลังเคลียร์ filter) ก่อนค่อยเรียกเปิด popup
+    setTimeout(() => {
+      const marker = markerRefs.current.get(p.id)
+      const cg = clusterRef.current
+      if (cg && marker) cg.zoomToShowLayer(marker, () => marker.openPopup())
+      else map?.flyTo([p.lat, p.lng], 17, { duration: 0.8 })
+    }, 0)
+  }
+
   return (
     <div className={`map-page ${picking ? 'picking' : ''}`}>
       <div className="view-header">
@@ -255,24 +283,48 @@ export default function MapPage() {
             <IconLocate size={20} className={locating ? 'locating' : undefined} />
           </button>
         )}
-        {/* ค้นหาที่อยู่/สถานที่ (geocoder ฟรี) — เลือกผลแล้วเด้งไป + ปักหมุด */}
+        {/* ค้นหาทรัพย์ (รหัส/ทำเล) หรือ สถานที่ (geocoder ฟรี) */}
         {!loading && (
           <div className="map-search">
             <input
               type="text"
-              placeholder="ค้นหาที่อยู่ / สถานที่…"
+              placeholder="ค้นหาทรัพย์ (รหัส/ทำเล) หรือสถานที่…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            {q.trim().length >= 3 && (
+            {q.trim().length >= 1 && (propMatches.length > 0 || q.trim().length >= 3) && (
               <div className="map-search-results">
-                {searching && <div className="map-search-empty">กำลังค้นหา…</div>}
-                {!searching && results.length === 0 && <div className="map-search-empty">ไม่พบผลลัพธ์</div>}
-                {results.map((r, i) => (
-                  <button key={i} type="button" className="map-search-item" onClick={() => pickResult(r)}>
-                    {r.label}
-                  </button>
-                ))}
+                {/* ทรัพย์ที่ตรงคำค้น (ค้นในเครื่อง ทันที) */}
+                {propMatches.length > 0 && (
+                  <>
+                    <div className="map-search-head">ทรัพย์</div>
+                    {propMatches.map((p) => (
+                      <button key={p.id} type="button" className="map-search-item" onClick={() => pickProperty(p)}>
+                        <b>{p.code}</b>
+                        <span className="map-search-sub">
+                          {[p.property_type, p.district, p.province].filter(Boolean).join(' · ')}
+                        </span>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {/* สถานที่/ที่อยู่ จาก OSM (ยิงเมื่อพิมพ์ ≥ 3 ตัวอักษร) */}
+                {q.trim().length >= 3 && (
+                  <>
+                    <div className="map-search-head">สถานที่</div>
+                    {searching && <div className="map-search-empty">กำลังค้นหา…</div>}
+                    {!searching && results.length === 0 && (
+                      <div className="map-search-empty">
+                        {propMatches.length === 0 ? 'ไม่พบผลลัพธ์' : 'ไม่พบสถานที่'}
+                      </div>
+                    )}
+                    {results.map((r, i) => (
+                      <button key={i} type="button" className="map-search-item" onClick={() => pickResult(r)}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -370,11 +422,21 @@ export default function MapPage() {
             />
             {/* จับหมุดที่อยู่ใกล้กันเป็นกลุ่ม (cluster) — เรนเดอร์หมุดหลายร้อยตัวพร้อมกันทำให้แผนที่หน่วงมาก
                 cluster จะโชว์เป็นตัวเลขรวมตอนซูมออก แล้วแตกเป็นหมุดเดี่ยวตอนซูมเข้า · chunkedLoading = ทยอยเพิ่มไม่ให้ค้าง */}
-            <MarkerClusterGroup chunkedLoading maxClusterRadius={60} disableClusteringAtZoom={16}>
+            <MarkerClusterGroup
+              ref={(cg: L.Layer | null) => { clusterRef.current = (cg as unknown as { zoomToShowLayer: (l: L.Layer, cb: () => void) => void }) ?? null }}
+              chunkedLoading
+              maxClusterRadius={60}
+              disableClusteringAtZoom={16}
+            >
               {withCoords.map((p) => {
                 const thumb = photoThumb(p.photo_url, 240)
                 return (
-                  <Marker key={p.id} position={[p.lat, p.lng]} icon={pinFor(p.property_type)}>
+                  <Marker
+                    key={p.id}
+                    ref={(m) => { if (m) markerRefs.current.set(p.id, m) }}
+                    position={[p.lat, p.lng]}
+                    icon={pinFor(p.property_type)}
+                  >
                     <Popup>
                       <div className="map-popup">
                         {thumb && <img className="map-popup-img" src={thumb} alt={p.code} loading="lazy" />}

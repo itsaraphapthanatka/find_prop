@@ -188,6 +188,13 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .map-search-item:last-child { border-bottom: none; }
 .map-search-item:hover { background: var(--purple-tint); }
 .map-search-empty { padding: 9px 12px; font-size: 13px; color: var(--muted); }
+/* หัวข้อกลุ่มในผลค้นหา (ทรัพย์ / สถานที่) */
+.map-search-head {
+  padding: 6px 12px 4px; font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  color: var(--muted); background: var(--bg-soft, #f6f6fb); text-transform: uppercase;
+  position: sticky; top: 0;
+}
+.map-search-sub { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
 /* ปุ่มสลับ แผนที่ ↔ ดาวเทียม — มุมบนขวา */
 .map-layer-toggle {
   position: absolute; top: 12px; right: 12px; z-index: 1100;
