@@ -217,9 +217,11 @@ export default function ListPage({ search }: { search: string }) {
   // ทำที่เซิร์ฟเวอร์ (service role) เพราะ Drive บล็อก CORS + ต้องเขียน Storage ทั้งองค์กร · กดซ้ำได้ (ข้ามที่ย้ายแล้ว)
   async function migratePhotos() {
     if (migMsg) return // กำลังทำอยู่
+    // super สวมสิทธิ์องค์กร = เฉพาะองค์กรนั้น · โหมดภาพรวม (ไม่สวมสิทธิ์) = ทุกองค์กร
+    const scope = profile?.impersonate_org_id ? 'องค์กรนี้' : 'ทุกองค์กร'
     if (!window.confirm(
       'ย้ายรูปเดิม (ลิงก์ Google Drive) เข้าระบบ เพื่อให้ลบ/จัดเรียงรูปในหน้าแก้ไขได้\n'
-      + 'ทำครั้งเดียวกับทรัพย์ทั้งองค์กร (อาจใช้เวลาสักครู่) — เริ่มเลยมั้ย?',
+      + `ทำครั้งเดียวกับทรัพย์ใน ${scope} (อาจใช้เวลาสักครู่) — เริ่มเลยมั้ย?`,
     )) return
     setMigMsg('กำลังย้ายรูป… 0 รายการ')
     try {
@@ -269,12 +271,13 @@ export default function ListPage({ search }: { search: string }) {
               <IconDownload size={16} /><span className="btn-label">นำออก</span>
             </button>
           )}
-          {perm.canExport && (
+          {/* เครื่องมือดูแลข้อมูล (migration) — เฉพาะ super admin เท่านั้น */}
+          {profile?.is_super && (
             <button className="btn mob-icon" onClick={() => void backfillLatLng()} disabled={geoBusy} title="เติมพิกัด lat/lng จากลิงก์แผนที่ (map_url) ให้ทรัพย์ที่ยังไม่มีพิกัด">
               <IconPin size={16} /><span className="btn-label">{geoBusy ? 'กำลังเติม…' : 'เติมพิกัด'}</span>
             </button>
           )}
-          {perm.canExport && (
+          {profile?.is_super && (
             <button className="btn mob-icon" onClick={() => void migratePhotos()} disabled={!!migMsg} title="ย้ายรูปเดิม (ลิงก์ Google Drive) เข้าถังของระบบ เพื่อให้ลบ/จัดเรียงรูปในหน้าแก้ไขได้">
               <IconCamera size={16} /><span className="btn-label">{migMsg ? 'กำลังย้าย…' : 'ย้ายรูปเข้าระบบ'}</span>
             </button>

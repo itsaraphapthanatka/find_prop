@@ -77,19 +77,20 @@ export default async function handler(req, res) {
   }
   if (!uid) return res.status(401).json({ error: 'เซสชันไม่ถูกต้อง' })
 
+  // เครื่องมือ migration = เฉพาะ super admin (เจ้าของแพลตฟอร์ม) — org owner ทำเองไม่ได้
+  //  • super สวมสิทธิ์องค์กร (impersonate_org_id) → ย้ายเฉพาะองค์กรนั้น
+  //  • super โหมดภาพรวม (ไม่สวมสิทธิ์) → ย้ายทุกองค์กร (orgId = null)
   let orgId
   try {
     const pRes = await fetch(
-      `${url}/rest/v1/profiles?id=eq.${uid}&select=role,org_id,is_super,impersonate_org_id,active`,
+      `${url}/rest/v1/profiles?id=eq.${uid}&select=is_super,impersonate_org_id`,
       { headers: svc },
     )
     const prof = ((await pRes.json().catch(() => [])) || [])[0]
-    orgId = (prof?.is_super ? prof?.impersonate_org_id : null) || prof?.org_id
-    const isAdmin = ((prof?.role === 'owner' || prof?.role === 'admin') && prof?.active === true)
-      || Boolean(prof?.is_super && prof?.impersonate_org_id)
-    if (!orgId || !isAdmin) {
-      return res.status(403).json({ error: 'เฉพาะแอดมินขององค์กรเท่านั้นที่ย้ายรูปเข้าระบบได้' })
+    if (!prof?.is_super) {
+      return res.status(403).json({ error: 'เฉพาะ super admin เท่านั้นที่ย้ายรูปเข้าระบบได้' })
     }
+    orgId = prof?.impersonate_org_id || null
   } catch {
     return res.status(502).json({ error: 'ตรวจสอบสิทธิ์ไม่สำเร็จ' })
   }
@@ -97,11 +98,12 @@ export default async function handler(req, res) {
   // ── ดึงทรัพย์ที่มี photo_url (เรียงตาม id เดินหน้าอย่างเดียว ด้วย cursor `after`) ──
   const after = String((req.body || {}).after || '')
   const cursor = after ? `&id=gt.${encodeURIComponent(after)}` : ''
+  const orgFilter = orgId ? `org_id=eq.${orgId}&` : '' // ไม่มี = ทุกองค์กร (super ภาพรวม)
   let rows
   try {
     const r = await fetch(
-      `${url}/rest/v1/properties?org_id=eq.${orgId}&photo_url=not.is.null${cursor}`
-      + `&order=id.asc&limit=${DB_LIMIT}&select=id,photo_url,photos`,
+      `${url}/rest/v1/properties?${orgFilter}photo_url=not.is.null${cursor}`
+      + `&order=id.asc&limit=${DB_LIMIT}&select=id,org_id,photo_url,photos`,
       { headers: svc },
     )
     if (!r.ok) return res.status(502).json({ error: `อ่านรายการทรัพย์ไม่สำเร็จ (${r.status})` })
@@ -128,7 +130,7 @@ export default async function handler(req, res) {
     if (srcs.length === 0) { skippedRows++; continue }
 
     // โหลด+อัปโหลดรูปของแถวนี้พร้อมกัน (เร็วกว่าทีละใบ) — แล้วค่อยเขียน photos[] ครั้งเดียวเมื่อครบ
-    const results = await Promise.all(srcs.map((src, i) => migrateOne(url, svc, orgId, row.id, i, src)))
+    const results = await Promise.all(srcs.map((src, i) => migrateOne(url, svc, row.org_id, row.id, i, src)))
     const urls = results.filter(Boolean)
     failedImages += results.length - urls.length
     if (urls.length === 0) { skippedRows++; continue }
