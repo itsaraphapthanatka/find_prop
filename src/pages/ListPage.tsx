@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { deleteProperty, useProperties } from '../hooks/useProperties'
+import { deleteProperty, getAllPropertiesFull, getProperty, useProperties } from '../hooks/useProperties'
 import { usePerm } from '../hooks/usePerm'
 import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
@@ -26,10 +26,25 @@ function priceLabel(p: Property): string | null {
 export default function ListPage({ search }: { search: string }) {
   const { items, loading, error, reload } = useProperties()
   const [selected, setSelected] = useState<Property | null>(null)
+  const [openingId, setOpeningId] = useState<string | null>(null)
   const navigate = useNavigate()
   const { profile } = useAuth()
   const access = usePlanAccess()
   const perm = usePerm()
+
+  // เปิดรายละเอียด: รายการโหลดมาแค่คอลัมน์เบา → ดึงข้อมูลเต็มของตัวนั้นก่อนเปิด panel
+  async function openDetail(p: Property) {
+    setOpeningId(p.id)
+    try {
+      const full = await getProperty(p.id)
+      if (full) setSelected({ ...full, org_name: p.org_name, created_by_name: p.created_by_name })
+      else window.alert('โหลดรายละเอียดไม่สำเร็จ — ลองอีกครั้ง')
+    } catch {
+      window.alert('โหลดรายละเอียดไม่สำเร็จ — ลองอีกครั้ง')
+    } finally {
+      setOpeningId(null)
+    }
+  }
 
   function addProperty() {
     // โควตาทรัพย์ตามแพ็กเกจ: Free 5 · Basic/Pro ตามระดับ (100/250/500) · Enterprise ไม่จำกัด
@@ -125,8 +140,12 @@ export default function ListPage({ search }: { search: string }) {
   }
 
   /** นำรายการที่กรองอยู่ออกเป็น CSV (หัวคอลัมน์ไทยชุดเดียวกับการนำเข้า → นำเข้ากลับได้) */
-  function exportCsv() {
-    const csv = buildPropertiesCsv(filtered)
+  async function exportCsv() {
+    // รายการโหลดมาแค่คอลัมน์เบา — ดึงข้อมูลเต็มก่อนทำ CSV ให้ครบทุกคอลัมน์
+    const allFull = await getAllPropertiesFull()
+    const fullById = new Map(allFull.map((r) => [r.id, r]))
+    const rows = filtered.map((p) => fullById.get(p.id) ?? p)
+    const csv = buildPropertiesCsv(rows)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -161,7 +180,7 @@ export default function ListPage({ search }: { search: string }) {
           </button>
           {/* นำข้อมูลออกได้เฉพาะบทบาท Owner (ฐานข้อมูลมี can_export() คู่กัน) */}
           {perm.canExport && (
-            <button className="btn mob-icon" onClick={exportCsv} title="นำออกเป็นไฟล์ CSV (เปิดใน Excel ได้)">
+            <button className="btn mob-icon" onClick={() => void exportCsv()} title="นำออกเป็นไฟล์ CSV (เปิดใน Excel ได้)">
               <IconDownload size={16} /><span className="btn-label">นำออก</span>
             </button>
           )}
@@ -288,8 +307,8 @@ export default function ListPage({ search }: { search: string }) {
         {filtered.map((p) => (
           <div
             key={p.id}
-            className={`prop-row ${selected?.id === p.id ? 'selected' : ''}`}
-            onClick={() => setSelected(p)}
+            className={`prop-row ${selected?.id === p.id || openingId === p.id ? 'selected' : ''}`}
+            onClick={() => void openDetail(p)}
           >
             <div className="thumb">
               {p.photo_url ? <img src={p.photo_url} alt={p.code} /> : <IconHouse />}
