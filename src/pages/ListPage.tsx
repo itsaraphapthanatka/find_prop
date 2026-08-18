@@ -12,6 +12,7 @@ import { ContractTag, DealTag, ListingTag, TypeTag } from '../lib/propertyStyle'
 import { usePlanAccess } from '../lib/plan'
 import { buildPropertiesCsv } from '../lib/importProps'
 import { isStaleClientError, reloadLatestVersion } from '../lib/staleClient'
+import { photoThumb } from '../lib/photo'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -21,6 +22,14 @@ function priceLabel(p: Property): string | null {
   if (p.rent_per_month != null) return `${formatNumber(p.rent_per_month)} ฿/เดือน`
   if (p.sale_price != null) return `ขาย ${formatNumber(p.sale_price)} ฿`
   return null
+}
+
+/** รูปย่อการ์ด — แยกลิงก์แรก + แปลง Google Drive + โหลดแบบ lazy + โหลดไม่ได้แสดงไอคอนแทน (กัน 404 ท่วม) */
+function Thumb({ photo, alt }: { photo: string | null | undefined; alt: string }) {
+  const [err, setErr] = useState(false)
+  const src = photoThumb(photo)
+  if (!src || err) return <IconHouse />
+  return <img src={src} alt={alt} loading="lazy" decoding="async" onError={() => setErr(true)} />
 }
 
 export default function ListPage({ search }: { search: string }) {
@@ -328,7 +337,7 @@ export default function ListPage({ search }: { search: string }) {
             onClick={() => void openDetail(p)}
           >
             <div className="thumb">
-              {p.photo_url ? <img src={p.photo_url} alt={p.code} /> : <IconHouse />}
+              <Thumb photo={p.photo_url} alt={p.code} />
             </div>
             <div className="info">
               <div className="title-line">
