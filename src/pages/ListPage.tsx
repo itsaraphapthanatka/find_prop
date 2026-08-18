@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { deleteProperty, getAllPropertiesFull, getProperty, useProperties } from '../hooks/useProperties'
@@ -27,6 +27,7 @@ export default function ListPage({ search }: { search: string }) {
   const { items, loading, error, reload } = useProperties()
   const [selected, setSelected] = useState<Property | null>(null)
   const [openingId, setOpeningId] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(50)
   const navigate = useNavigate()
   const { profile } = useAuth()
   const access = usePlanAccess()
@@ -128,6 +129,22 @@ export default function ListPage({ search }: { search: string }) {
       return true
     })
   }, [items, search, fType, fListing, fDeal, fProvince, fOrg, priceMin, priceMax])
+
+  // เรนเดอร์ทีละ 50 แถว แล้วโหลดเพิ่มตอนเลื่อนใกล้ท้าย (ค้นหา/กรองยังทำงานครบทุกแถว)
+  const shown = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
+  // เปลี่ยนตัวกรอง/ค้นหา → กลับไปเริ่มที่ 50 ใหม่
+  useEffect(() => { setVisibleCount(50) }, [search, fType, fListing, fDeal, fProvince, fOrg, priceMin, priceMax])
+  // sentinel: เลื่อนถึงใกล้ท้าย → เพิ่มอีก 50 (callback ref = (un)observe อัตโนมัติ)
+  const sentinelObs = useRef<IntersectionObserver | null>(null)
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    sentinelObs.current?.disconnect()
+    if (!node) return
+    sentinelObs.current = new IntersectionObserver(
+      (e) => { if (e[0].isIntersecting) setVisibleCount((c) => c + 50) },
+      { rootMargin: '600px' },
+    )
+    sentinelObs.current.observe(node)
+  }, [])
 
   function clearFilters() {
     setFType(null)
@@ -304,7 +321,7 @@ export default function ListPage({ search }: { search: string }) {
       )}
 
       <div className="prop-list">
-        {filtered.map((p) => (
+        {shown.map((p) => (
           <div
             key={p.id}
             className={`prop-row ${selected?.id === p.id || openingId === p.id ? 'selected' : ''}`}
@@ -353,6 +370,11 @@ export default function ListPage({ search }: { search: string }) {
             </div>
           </div>
         ))}
+        {shown.length < filtered.length && (
+          <div ref={sentinelRef} aria-hidden="true" style={{ padding: 16, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+            กำลังโหลดเพิ่ม… ({shown.length}/{filtered.length})
+          </div>
+        )}
       </div>
 
       {selected && (
