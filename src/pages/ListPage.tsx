@@ -7,13 +7,14 @@ import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
-import { IconCompare, IconDownload, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
+import { IconCamera, IconCompare, IconDownload, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
 import { ContractTag, DealTag, ListingTag, TypeTag } from '../lib/propertyStyle'
 import { usePlanAccess } from '../lib/plan'
 import { buildPropertiesCsv } from '../lib/importProps'
 import { isStaleClientError, reloadLatestVersion } from '../lib/staleClient'
 import { photoThumb } from '../lib/photo'
 import { parseLatLng, roundLatLng, type LatLng } from '../lib/latlng'
+import { runPhotoMigration } from '../lib/migratePhotos'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -39,6 +40,7 @@ export default function ListPage({ search }: { search: string }) {
   const [openingId, setOpeningId] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(50)
   const [geoBusy, setGeoBusy] = useState(false)
+  const [migMsg, setMigMsg] = useState<string | null>(null)
   const navigate = useNavigate()
   const { profile } = useAuth()
   const access = usePlanAccess()
@@ -211,6 +213,32 @@ export default function ListPage({ search }: { search: string }) {
     await reload()
   }
 
+  // ย้ายรูป migrated (ลิงก์ Google Drive ภายนอก) เข้าถังของระบบ → ลบ/จัดเรียงในหน้าแก้ไขได้เต็มที่
+  // ทำที่เซิร์ฟเวอร์ (service role) เพราะ Drive บล็อก CORS + ต้องเขียน Storage ทั้งองค์กร · กดซ้ำได้ (ข้ามที่ย้ายแล้ว)
+  async function migratePhotos() {
+    if (migMsg) return // กำลังทำอยู่
+    if (!window.confirm(
+      'ย้ายรูปเดิม (ลิงก์ Google Drive) เข้าระบบ เพื่อให้ลบ/จัดเรียงรูปในหน้าแก้ไขได้\n'
+      + 'ทำครั้งเดียวกับทรัพย์ทั้งองค์กร (อาจใช้เวลาสักครู่) — เริ่มเลยมั้ย?',
+    )) return
+    setMigMsg('กำลังย้ายรูป… 0 รายการ')
+    try {
+      const t = await runPhotoMigration((p) =>
+        setMigMsg(`กำลังย้ายรูป… ตรวจแล้ว ${p.scanned} · ย้ายสำเร็จ ${p.migrated_rows} รายการ`))
+      alert(
+        `ย้ายรูปเข้าระบบเสร็จ\n`
+        + `• ย้ายสำเร็จ ${t.migrated_rows} รายการ (${t.uploaded_images} รูป)\n`
+        + `• ข้าม ${t.skipped_rows} รายการ (ย้ายแล้ว/ไม่มีรูป/โหลดรูปไม่ได้)`
+        + (t.failed_images > 0 ? `\n• โหลดบางรูปไม่ได้ ${t.failed_images} รูป (ไฟล์ Drive อาจไม่ได้แชร์สาธารณะ)` : ''),
+      )
+      await reload()
+    } catch (e) {
+      alert(`ย้ายรูปไม่สำเร็จ: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setMigMsg(null)
+    }
+  }
+
   async function handleDelete(p: Property) {
     if (!window.confirm(`ลบรายการ ${p.code}?`)) return
     const err = await deleteProperty(p.id)
@@ -244,6 +272,11 @@ export default function ListPage({ search }: { search: string }) {
           {perm.canExport && (
             <button className="btn mob-icon" onClick={() => void backfillLatLng()} disabled={geoBusy} title="เติมพิกัด lat/lng จากลิงก์แผนที่ (map_url) ให้ทรัพย์ที่ยังไม่มีพิกัด">
               <IconPin size={16} /><span className="btn-label">{geoBusy ? 'กำลังเติม…' : 'เติมพิกัด'}</span>
+            </button>
+          )}
+          {perm.canExport && (
+            <button className="btn mob-icon" onClick={() => void migratePhotos()} disabled={!!migMsg} title="ย้ายรูปเดิม (ลิงก์ Google Drive) เข้าถังของระบบ เพื่อให้ลบ/จัดเรียงรูปในหน้าแก้ไขได้">
+              <IconCamera size={16} /><span className="btn-label">{migMsg ? 'กำลังย้าย…' : 'ย้ายรูปเข้าระบบ'}</span>
             </button>
           )}
           {!perm.readOnly && <button className="btn primary" onClick={addProperty}>+ เพิ่มทรัพย์</button>}
