@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
@@ -12,6 +13,7 @@ import PropertyDetail from '../components/PropertyDetail'
 import { IconClose, IconLocate, IconPin } from '../components/icons'
 import { getPosition } from '../lib/native'
 import { DealTag, PROPERTY_STYLE as PIN_STYLE, TYPE_FALLBACK as PIN_FALLBACK } from '../lib/propertyStyle'
+import { photoThumb } from '../lib/photo'
 
 // PIN_STYLE / PIN_FALLBACK (สี + glyph ต่อประเภท) ย้ายไปใช้ร่วมกันที่ src/lib/propertyStyle
 // (import ด้านบน) — ปุ่มเลือกประเภทในฟอร์มใช้ชุดเดียวกัน สี/ไอคอนจึงตรงกับหมุดเสมอ
@@ -366,25 +368,32 @@ export default function MapPage() {
                 setPicking(false)
               }}
             />
-            {withCoords.map((p) => (
-              <Marker key={p.id} position={[p.lat, p.lng]} icon={pinFor(p.property_type)}>
-                <Popup>
-                  <div className="map-popup">
-                    {p.photo_url && <img className="map-popup-img" src={p.photo_url} alt={p.code} />}
-                    <div className="title">{p.code} <DealTag status={p.deal_status} /></div>
-                    {isSuper && p.org_name && <div className="hint">องค์กร: {p.org_name}</div>}
-                    <div>{[p.property_type, p.listing_type].filter(Boolean).join(' · ')}</div>
-                    <div>{[p.district, p.province].filter(Boolean).join(', ')}</div>
-                    {p.rent_per_month != null && (
-                      <div>ค่าเช่า {formatNumber(p.rent_per_month)} บ./เดือน</div>
-                    )}
-                    <button className="btn sm" style={{ marginTop: 6 }} onClick={() => setSelected(p)}>
-                      ดูรายละเอียด
-                    </button>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            {/* จับหมุดที่อยู่ใกล้กันเป็นกลุ่ม (cluster) — เรนเดอร์หมุดหลายร้อยตัวพร้อมกันทำให้แผนที่หน่วงมาก
+                cluster จะโชว์เป็นตัวเลขรวมตอนซูมออก แล้วแตกเป็นหมุดเดี่ยวตอนซูมเข้า · chunkedLoading = ทยอยเพิ่มไม่ให้ค้าง */}
+            <MarkerClusterGroup chunkedLoading maxClusterRadius={60} disableClusteringAtZoom={16}>
+              {withCoords.map((p) => {
+                const thumb = photoThumb(p.photo_url, 240)
+                return (
+                  <Marker key={p.id} position={[p.lat, p.lng]} icon={pinFor(p.property_type)}>
+                    <Popup>
+                      <div className="map-popup">
+                        {thumb && <img className="map-popup-img" src={thumb} alt={p.code} loading="lazy" />}
+                        <div className="title">{p.code} <DealTag status={p.deal_status} /></div>
+                        {isSuper && p.org_name && <div className="hint">องค์กร: {p.org_name}</div>}
+                        <div>{[p.property_type, p.listing_type].filter(Boolean).join(' · ')}</div>
+                        <div>{[p.district, p.province].filter(Boolean).join(', ')}</div>
+                        {p.rent_per_month != null && (
+                          <div>ค่าเช่า {formatNumber(p.rent_per_month)} บ./เดือน</div>
+                        )}
+                        <button className="btn sm" style={{ marginTop: 6 }} onClick={() => setSelected(p)}>
+                          ดูรายละเอียด
+                        </button>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )
+              })}
+            </MarkerClusterGroup>
             {me && (
               <>
                 <Circle
