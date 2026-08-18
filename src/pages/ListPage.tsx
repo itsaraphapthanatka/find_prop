@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { deleteProperty, getAllPropertiesFull, getProperty, setPropertyLatLng, useProperties } from '../hooks/useProperties'
+import { deleteProperty, getAllPropertiesFull, getProperty, useProperties } from '../hooks/useProperties'
 import { usePerm } from '../hooks/usePerm'
 import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
@@ -13,8 +13,8 @@ import { usePlanAccess } from '../lib/plan'
 import { buildPropertiesCsv } from '../lib/importProps'
 import { isStaleClientError, reloadLatestVersion } from '../lib/staleClient'
 import { photoThumb } from '../lib/photo'
-import { parseLatLng, roundLatLng, type LatLng } from '../lib/latlng'
 import { runPhotoMigration } from '../lib/migratePhotos'
+import { runLatLngBackfill } from '../lib/backfillLatLng'
 
 function effectivePrice(p: Property): number | null {
   return p.rent_per_month ?? p.sale_price ?? null
@@ -184,33 +184,29 @@ export default function ListPage({ search }: { search: string }) {
     URL.revokeObjectURL(a.href)
   }
 
-  // เติมพิกัด lat/lng จากลิงก์ Google Maps ในช่อง map_url ให้ทรัพย์ที่ยังไม่มีพิกัด
-  // (แกะที่ client ด้วย parseLatLng แล้วอัปเดตด้วยสิทธิ์ผู้ใช้ — ไม่แตะแถวที่มีพิกัดอยู่แล้ว)
+  // เติมพิกัด lat/lng จาก map_url ให้ทรัพย์ที่ยังไม่มีพิกัด — ทำที่เซิร์ฟเวอร์เพราะ map_url
+  // ส่วนใหญ่เป็นลิงก์ย่อ (maps.app.goo.gl) ที่ต้องยิงตามลิงก์ไปกางก่อนถึงจะได้ตัวเลขพิกัด (browser ทำข้ามโดเมนไม่ได้)
   async function backfillLatLng() {
-    const missing = items.filter((p) => p.lat == null || p.lng == null)
-    const targets = missing
-      .map((p) => ({ id: p.id, coord: parseLatLng(p.map_url) }))
-      .filter((t): t is { id: string; coord: LatLng } => t.coord != null)
-    if (targets.length === 0) {
-      alert(missing.length === 0
-        ? 'ทุกรายการมีพิกัดครบแล้ว'
-        : `มี ${missing.length} รายการยังไม่มีพิกัด แต่ไม่มีลิงก์แผนที่ที่แกะพิกัดได้ (ไม่มี map_url หรือเป็นลิงก์ย่อ maps.app.goo.gl) — วิธีนี้ใช้ไม่ได้ อาจต้อง geocode จากที่อยู่แทน`)
-      return
-    }
-    if (!window.confirm(`แกะพิกัดจากลิงก์แผนที่ได้ ${targets.length} รายการ — เติมให้เลยมั้ย?`)) return
+    if (geoBusy) return
+    const scope = profile?.impersonate_org_id ? 'องค์กรนี้' : 'ทุกองค์กร'
+    if (!window.confirm(
+      `เติมพิกัดให้ทรัพย์ใน ${scope} ที่ยังไม่มีพิกัด — กางลิงก์แผนที่ (รวมลิงก์ย่อ maps.app.goo.gl) แล้วแกะพิกัดให้อัตโนมัติ\n`
+      + 'อาจใช้เวลาสักครู่ — เริ่มเลยมั้ย?',
+    )) return
     setGeoBusy(true)
-    let filled = 0
-    for (let i = 0; i < targets.length; i += 20) {
-      const oks = await Promise.all(targets.slice(i, i + 20).map((t) => {
-        const r = roundLatLng(t.coord)
-        return setPropertyLatLng(t.id, r.lat, r.lng)
-      }))
-      filled += oks.filter(Boolean).length
+    try {
+      const t = await runLatLngBackfill()
+      alert(
+        `เติมพิกัดเสร็จ\n• เติมสำเร็จ ${t.filled} รายการ`
+        + (t.unresolved > 0 ? `\n• แกะพิกัดไม่ได้ ${t.unresolved} รายการ (ลิงก์เสีย/ในลิงก์ไม่มีพิกัด)` : '')
+        + (t.scanned === 0 ? '\n(ทุกรายการมีพิกัดครบแล้ว)' : ''),
+      )
+      await reload()
+    } catch (e) {
+      alert(`เติมพิกัดไม่สำเร็จ: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setGeoBusy(false)
     }
-    setGeoBusy(false)
-    const noParse = missing.length - targets.length
-    alert(`เติมพิกัดให้ ${filled} รายการ${noParse > 0 ? `\nยังไม่มีพิกัดอีก ${noParse} รายการ (ไม่มีลิงก์/ลิงก์ย่อ/แกะไม่ได้)` : ''}`)
-    await reload()
   }
 
   // ย้ายรูป migrated (ลิงก์ Google Drive ภายนอก) เข้าถังของระบบ → ลบ/จัดเรียงในหน้าแก้ไขได้เต็มที่
