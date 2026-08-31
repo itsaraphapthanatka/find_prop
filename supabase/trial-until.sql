@@ -37,9 +37,10 @@ begin
     v_expires
   ) returning id into v_org;
 
-  insert into public.memberships (user_id, org_id, role, active) values (auth.uid(), v_org, 'admin', true)
-    on conflict (user_id, org_id) do update set role = 'admin', active = true;
-  update public.profiles set active_org_id = v_org, org_id = v_org, role = 'admin', active = true where id = auth.uid();
+  -- บทบาทผู้สร้างองค์กร = 'owner' (ระบบบทบาท 8 ระดับใน roles.sql · 'admin' เดิมถูกยกเลิกแล้ว → constraint ปฏิเสธ)
+  insert into public.memberships (user_id, org_id, role, active) values (auth.uid(), v_org, 'owner', true)
+    on conflict (user_id, org_id) do update set role = 'owner', active = true;
+  update public.profiles set active_org_id = v_org, org_id = v_org, role = 'owner', active = true where id = auth.uid();
   return v_org;
 end $$;
 grant execute on function public.create_organization(text) to authenticated;
