@@ -50,13 +50,35 @@ async function expandRedirect(u) {
   return url
 }
 
-/** แกะพิกัดจาก map_url — ลองตรงๆ ก่อน ถ้าเป็นลิงก์ย่อค่อยกาง redirect แล้วแกะซ้ำ (คืน null ถ้าไม่ได้) */
+// ลิงก์แบบ place/ftid (…/?q=ชื่อสถานที่&ftid=…) ไม่มีพิกัดใน URL —
+// พิกัดฝังอยู่ในหน้าเว็บ: window.APP_INITIALIZATION_STATE=[[[<ระยะ>,<lng>,<lat>],…] (Google เก็บ lng ก่อน lat)
+async function fromMapsHtml(finalUrl) {
+  try {
+    const res = await fetch(finalUrl, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'curl/8.4.0', Accept: 'text/html' },
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+    const m = html.match(/APP_INITIALIZATION_STATE=\[\[\[-?\d+(?:\.\d+)?,(-?\d+\.\d+),(-?\d+\.\d+)\]/)
+    if (m) {
+      const p = { lat: Number(m[2]), lng: Number(m[1]) } // m[1]=lng, m[2]=lat
+      if (valid(p.lat, p.lng)) return p
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** แกะพิกัดจาก map_url — ตรงๆ ก่อน · ลิงก์ย่อ→กาง redirect แล้วแกะ · ลิงก์ place/ftid→ดึงจากหน้าเว็บ (คืน null ถ้าไม่ได้) */
 export async function resolveToLatLng(mapUrl) {
   const direct = parseLatLng(mapUrl)
   if (direct) return direct
   if (!isShortLink(mapUrl)) return null
   try {
-    return parseLatLng(await expandRedirect(String(mapUrl).trim()))
+    const finalUrl = await expandRedirect(String(mapUrl).trim())
+    return parseLatLng(finalUrl) || (await fromMapsHtml(finalUrl))
   } catch {
     return null
   }
