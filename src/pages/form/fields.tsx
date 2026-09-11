@@ -1,8 +1,9 @@
 // ชิ้นส่วนช่องกรอกของฟอร์มลงทรัพย์ (HOP Form) — ใช้ร่วมกันทั้ง 5 สเต็ป
 // แยกออกจาก FormPage เพื่อให้แต่ละสเต็ปอ่านได้เป็นชุดฟิลด์ล้วนๆ
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { LABELS, NEARBY_PLACE_OPTIONS } from '../../labels'
 import { formatLatLng, parseLatLng, roundLatLng } from '../../lib/latlng'
+import { resolveMapUrl } from '../../lib/resolveLatLng'
 import type { NearbyPlace, PropertyInput } from '../../types'
 import Combo, { MultiSelect } from '../../components/Combo'
 
@@ -256,6 +257,70 @@ export function LatLngField({ form, set }: FieldPack) {
         {dirty
           ? '⚠️ อ่านพิกัดไม่ออก — ใส่เป็น "ละติจูด, ลองจิจูด" เช่น 13.599, 100.618 หรือวางลิงก์จาก Google Maps'
           : 'ก๊อปจาก Google Maps มาวางได้เลย (ตัวเลขหรือลิงก์) · หรือแตะบนแผนที่ด้านบน'}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * ช่องลิงก์ Google Maps — วางลิงก์แล้ว "ดึงพิกัดให้อัตโนมัติ" ลงช่องพิกัดด้านบน
+ * รองรับลิงก์ย่อ maps.app.goo.gl (แกะเองที่ browser ไม่ได้ → เรียก /api/resolve-latlng กางให้)
+ * กติกา: ออกจากช่อง (blur) จะดึงอัตโนมัติเฉพาะตอน "ยังไม่มีพิกัด" (กันทับหมุดที่ตั้งเอง) · ปุ่ม "ดึงพิกัด" = ดึงทับได้เสมอ
+ */
+export function MapUrlField({ form, set }: FieldPack) {
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const lastPulled = useRef('') // ลิงก์ที่เพิ่งดึงไป — กันดึงซ้ำตอน blur โดยไม่ได้แก้ลิงก์
+  const hasCoord = form.lat != null && form.lng != null
+
+  async function pull(rawUrl: string, force: boolean) {
+    const url = (rawUrl || '').trim()
+    if (!url || busy) return
+    if (!force && hasCoord) return          // มีพิกัดแล้ว ไม่ดึงทับอัตโนมัติ
+    if (!force && url === lastPulled.current) return
+    lastPulled.current = url
+    setBusy(true)
+    setStatus('idle')
+    const c = await resolveMapUrl(url)
+    setBusy(false)
+    if (c) {
+      set('lat', c.lat)
+      set('lng', c.lng)
+      setStatus('ok')
+    } else {
+      setStatus('fail')
+    }
+  }
+
+  return (
+    <div className="form-field">
+      <label>{LABELS.map_url}</label>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+        <input
+          type="url"
+          style={{ flex: 1 }}
+          placeholder="วางลิงก์ Google Maps (รองรับลิงก์ย่อ maps.app.goo.gl)"
+          value={form.map_url ?? ''}
+          onChange={(e) => { set('map_url', e.target.value || null); setStatus('idle') }}
+          onBlur={(e) => void pull(e.target.value, false)}
+        />
+        <button
+          type="button" className="btn sm"
+          disabled={busy || !form.map_url}
+          onClick={() => void pull(form.map_url ?? '', true)}
+          title="ดึงพิกัดจากลิงก์นี้ (เขียนทับพิกัดเดิม)"
+        >
+          {busy ? 'กำลังดึง…' : 'ดึงพิกัด'}
+        </button>
+      </div>
+      <p className="field-hint">
+        {busy
+          ? 'กำลังดึงพิกัดจากลิงก์…'
+          : status === 'ok'
+            ? '✓ ดึงพิกัดจากลิงก์แล้ว — ดูหมุดและช่องพิกัดด้านบน'
+            : status === 'fail'
+              ? '⚠️ ดึงพิกัดจากลิงก์นี้ไม่ได้ — ลองเปิดลิงก์แล้วก๊อปพิกัดใส่ช่องด้านบนแทน'
+              : 'วางลิงก์แล้วระบบจะดึงพิกัดให้อัตโนมัติ · กด "ดึงพิกัด" เพื่อดึงซ้ำ/เขียนทับ'}
       </p>
     </div>
   )

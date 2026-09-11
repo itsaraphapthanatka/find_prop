@@ -13,7 +13,7 @@ import LocationPicker from '../../components/LocationPicker'
 import { isNativeApp, takePhoto } from '../../lib/native'
 import { photoList } from '../../lib/photo'
 import {
-  AppliancesField, BoolField, ButtonsField, ComboField, type FieldPack, LatLngField, MultiField,
+  AppliancesField, BoolField, ButtonsField, ComboField, type FieldPack, LatLngField, MapUrlField, MultiField,
   NearbyPlacesField, NumberField, Section, TextField, UtilityField,
 } from './fields'
 
@@ -178,7 +178,7 @@ export function StepLocation({
           <LocationPicker lat={form.lat} lng={form.lng} onPick={onPickLatLng} />
         </div>
         <LatLngField {...fp} />
-        <TextField name="map_url" type="url" {...fp} />
+        <MapUrlField {...fp} />
       </Section>
 
       <Section title="ใกล้เคียง">
