@@ -18,7 +18,8 @@
     { "source": "/docs/FEATURES.html", "destination": "/docs/features", "permanent": false },
     { "source": "/docs/features.html", "destination": "/docs/features", "permanent": false },
     { "source": "/presentation.html", "destination": "/presentation", "permanent": false },
-    { "source": "/PRESENTATION.html", "destination": "/presentation", "permanent": false }
+    { "source": "/PRESENTATION.html", "destination": "/presentation", "permanent": false },
+    { "source": "/geo-sitemap.xml", "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/sitemap.xml" }
   ],
   "rewrites": [
     { "source": "/docs/training", "destination": "/docs/training.html" },
