@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-18T05:16:16.088509Z",
+  "title": "Design System: HOP",
+  "extensions": {
+    "colorMeta": {
+      "ink-violet": {
+        "role": "primary",
+        "displayName": "ม่วงหมึก / Ink Violet",
+        "canonical": "#7132f5",
+        "tonalRamp": [
+          "oklch(15% 0.29 290)",
+          "oklch(26% 0.29 290)",
+          "oklch(37% 0.29 290)",
+          "oklch(48% 0.29 290)",
+          "oklch(59% 0.29 290)",
+          "oklch(70% 0.29 290)",
+          "oklch(82% 0.29 290)",
+          "oklch(95% 0.29 290)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "หมึก / Ink",
+        "canonical": "#101114",
+        "tonalRamp": [
+          "oklch(15% 0.006 265)",
+          "oklch(26% 0.006 265)",
+          "oklch(37% 0.006 265)",
+          "oklch(48% 0.006 265)",
+          "oklch(59% 0.006 265)",
+          "oklch(70% 0.006 265)",
+          "oklch(82% 0.006 265)",
+          "oklch(95% 0.006 265)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "เทาเงียบ / Muted",
+        "canonical": "#6b7280",
+        "tonalRamp": [
+          "oklch(15% 0.015 265)",
+          "oklch(26% 0.015 265)",
+          "oklch(37% 0.015 265)",
+          "oklch(48% 0.015 265)",
+          "oklch(59% 0.015 265)",
+          "oklch(70% 0.015 265)",
+          "oklch(82% 0.015 265)",
+          "oklch(95% 0.015 265)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "เส้น / Line",
+        "canonical": "#e5e7eb",
+        "tonalRamp": [
+          "oklch(15% 0.008 265)",
+          "oklch(26% 0.008 265)",
+          "oklch(37% 0.008 265)",
+          "oklch(48% 0.008 265)",
+          "oklch(59% 0.008 265)",
+          "oklch(70% 0.008 265)",
+          "oklch(82% 0.008 265)",
+          "oklch(95% 0.008 265)"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "พื้นแอป / Bg",
+        "canonical": "#f7f7f9",
+        "tonalRamp": [
+          "oklch(15% 0.004 265)",
+          "oklch(26% 0.004 265)",
+          "oklch(37% 0.004 265)",
+          "oklch(48% 0.004 265)",
+          "oklch(59% 0.004 265)",
+          "oklch(70% 0.004 265)",
+          "oklch(82% 0.004 265)",
+          "oklch(95% 0.004 265)"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "แดงเตือน / Danger",
+        "canonical": "#d92d20",
+        "tonalRamp": [
+          "oklch(15% 0.21 29)",
+          "oklch(26% 0.21 29)",
+          "oklch(37% 0.21 29)",
+          "oklch(48% 0.21 29)",
+          "oklch(59% 0.21 29)",
+          "oklch(70% 0.21 29)",
+          "oklch(82% 0.21 29)",
+          "oklch(95% 0.21 29)"
+        ]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "เขียวสำเร็จ / Success",
+        "canonical": "#149e61",
+        "tonalRamp": [
+          "oklch(15% 0.14 160)",
+          "oklch(26% 0.14 160)",
+          "oklch(37% 0.14 160)",
+          "oklch(48% 0.14 160)",
+          "oklch(59% 0.14 160)",
+          "oklch(70% 0.14 160)",
+          "oklch(82% 0.14 160)",
+          "oklch(95% 0.14 160)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "กระดาษ / Paper (landing เท่านั้น)",
+        "canonical": "#faf9f6",
+        "tonalRamp": [
+          "oklch(15% 0.005 90)",
+          "oklch(26% 0.005 90)",
+          "oklch(37% 0.005 90)",
+          "oklch(48% 0.005 90)",
+          "oklch(59% 0.005 90)",
+          "oklch(70% 0.005 90)",
+          "oklch(82% 0.005 90)",
+          "oklch(95% 0.005 90)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "หัวข้อ section บนหน้า landing เท่านั้น"
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "ชื่อหน้าใน .view-header และแบรนด์บน topbar"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "หัวการ์ด ชื่อทรัพย์ในแถว หัวข้อย่อยในฟอร์ม"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "ข้อความทั่วไป ค่าในฟิลด์ ปุ่ม เนื้อในตาราง — 14px ทั่วทั้งแอป"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "ป้ายกำกับฟิลด์ ค่ารอง คำอธิบายใต้ตัวเลข สี muted"
+      },
+      "kicker": {
+        "displayName": "Kicker",
+        "purpose": "ป้าย mono ตัวพิมพ์ใหญ่เหนือหัวข้อบน landing — อังกฤษเท่านั้น"
+      }
+    },
+    "shadows": [
+      {
+        "name": "hairline",
+        "value": "0 1px 2px rgba(0, 0, 0, 0.03)",
+        "purpose": "พื้นผิวที่พักอยู่ ใช้คู่กับเส้นขอบ 1px เสมอ — เป็นรอยแยก ไม่ใช่การยกขึ้น"
+      },
+      {
+        "name": "lifted",
+        "value": "0 8px 30px rgba(16, 17, 20, 0.12)",
+        "purpose": "hover ของแถวที่กดได้ และ overlay ทุกชนิด (drawer, dropdown, modal, bottom sheet)"
+      },
+      {
+        "name": "accent-glow",
+        "value": "0 8px 24px rgba(113, 50, 245, 0.32)",
+        "purpose": "CTA หลักบนหน้า landing เท่านั้น — ห้ามใช้ในแอป"
+      },
+      {
+        "name": "accent-glow-hover",
+        "value": "0 12px 30px rgba(113, 50, 245, 0.42)",
+        "purpose": "hover ของ CTA หลักบน landing คู่กับ translateY(-1px)"
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 3px rgba(113, 50, 245, 0.12)",
+        "purpose": "วงแหวนจางรอบช่องกรอกตอน focus — มากับขอบที่เปลี่ยนเป็นม่วงหมึก"
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "0.12s",
+        "purpose": "ค่าเริ่มต้นของการเปลี่ยนสถานะปุ่ม/chip/ขอบ — เร็วพอที่จะรู้สึกว่าตอบสนองทันที"
+      },
+      {
+        "name": "input",
+        "value": "0.15s",
+        "purpose": "ขอบและวงแหวนของช่องกรอกตอน focus"
+      },
+      {
+        "name": "topbar-hairline",
+        "value": "0.3s",
+        "purpose": "เส้นล่างของ landing topbar ตอนเริ่มเลื่อน"
+      },
+      {
+        "name": "lift",
+        "value": "translateY(-1px)",
+        "purpose": "ระยะยกของแถวที่กดได้และ CTA ตอน hover — หนึ่งพิกเซล ไม่มากกว่านั้น"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "480px"
+      },
+      {
+        "name": "sm",
+        "value": "560px"
+      },
+      {
+        "name": "md",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "720px"
+      },
+      {
+        "name": "xl",
+        "value": "760px"
+      },
+      {
+        "name": "2xl",
+        "value": "860px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "การกระทำหลักของหน้า — พื้นม่วงหมึกเต็ม ใช้ได้หนึ่งอันต่อบริบท",
+      "html": "<button class=\"ds-btn ds-btn-primary\">บันทึกทรัพย์</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line, #e5e7eb); background: #fff; border-radius: var(--radius, 12px); padding: 7px 16px; font-size: 14px; font-weight: 500; color: var(--ink, #101114); box-shadow: 0 1px 2px rgba(0,0,0,0.03); white-space: nowrap; cursor: pointer; transition: background 0.12s, border-color 0.12s, box-shadow 0.12s; } .ds-btn-primary { background: var(--purple, #7132f5); border-color: var(--purple, #7132f5); color: #fff; } .ds-btn-primary:hover { background: var(--purple-dark, #5741d8); border-color: var(--purple-dark, #5741d8); } .ds-btn:focus-visible { outline: 2px solid var(--purple, #7132f5); outline-offset: 2px; } .ds-btn:disabled { opacity: 0.55; cursor: default; }"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "ปุ่มปกติ — ดูเหมือนพื้นผิวจนกว่าจะชี้ แล้วค่อยเผยม่วงหมึก",
+      "html": "<button class=\"ds-btn2\">ตัวกรอง</button>",
+      "css": ".ds-btn2 { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line, #e5e7eb); background: #fff; border-radius: var(--radius, 12px); padding: 7px 16px; font-size: 14px; font-weight: 500; color: var(--ink, #101114); box-shadow: 0 1px 2px rgba(0,0,0,0.03); cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s; } .ds-btn2:hover { background: var(--purple-tint, #faf8ff); border-color: var(--purple, #7132f5); color: var(--purple, #7132f5); } .ds-btn2:focus-visible { outline: 2px solid var(--purple, #7132f5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "ช่องกรอกมาตรฐานของฟอร์ม 94 ฟิลด์ — label อยู่เหนือช่องเสมอ",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\">ชื่อทรัพย์ <span class=\"ds-req\">*</span></label><input class=\"ds-input\" type=\"text\" placeholder=\"โกดังบางนา กม.19\" /></div>",
+      "css": ".ds-field { margin-bottom: 16px; } .ds-field-label { display: block; font-size: 13px; color: var(--muted, #6b7280); margin-bottom: 5px; } .ds-req { color: var(--danger, #d92d20); } .ds-input { width: 100%; padding: 9px 12px; border: 1px solid var(--line, #e5e7eb); border-radius: 10px; font: inherit; font-size: 14px; background: #fff; color: var(--ink, #101114); outline: none; transition: border-color 0.12s, box-shadow 0.12s; box-sizing: border-box; } .ds-input::placeholder { color: var(--muted, #6b7280); } .ds-input:focus { border-color: var(--purple, #7132f5); box-shadow: 0 0 0 3px rgba(113, 50, 245, 0.12); }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-toggle",
+      "description": "ตัวกรองที่กดเปิด/ปิดได้ — สถานะเลือกอ่านออกจากระยะไกลด้วยม่วงเต็มใบ",
+      "html": "<div style=\"display:flex;gap:6px\"><button class=\"ds-chip\">โกดัง</button><button class=\"ds-chip ds-chip-on\">โรงงาน</button></div>",
+      "css": ".ds-chip { border: 1px solid var(--line, #e5e7eb); background: #fff; color: var(--ink, #101114); border-radius: 20px; padding: 5px 14px; font-size: 13.5px; font-family: inherit; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.03); cursor: pointer; transition: all 0.12s; } .ds-chip:hover { border-color: var(--purple, #7132f5); color: var(--purple, #7132f5); } .ds-chip-on { background: var(--purple, #7132f5); border-color: var(--purple, #7132f5); color: #fff; } .ds-chip-on:hover { color: #fff; } .ds-chip:focus-visible { outline: 2px solid var(--purple, #7132f5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "สถานะดีล — แดงคือยังเปิด เขียวคือปิดแล้ว สองสีนี้พูดได้เฉพาะเรื่องจริง",
+      "html": "<div style=\"display:flex;gap:8px\"><span class=\"ds-pill\">ว่าง</span><span class=\"ds-pill ds-pill-on\">ปิดดีลแล้ว</span></div>",
+      "css": ".ds-pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 10px; border-radius: 10px; background: var(--danger-subtle, #fdecea); color: var(--danger, #d92d20); white-space: nowrap; } .ds-pill-on { background: var(--success-subtle, #e7f6ef); color: var(--success, #149e61); }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "ลายเซ็นของ HOP — รางโค้งเฉพาะด้านขวา ทำให้แถบ active ยื่นออกมาจากขอบจอ",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-nav ds-nav-active\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/><path d=\"M9 22V12h6v10\"/></svg>ทรัพย์ทั้งหมด</a><a class=\"ds-nav\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M1 6v16l7-4 8 4 7-4V2l-7 4-8-4z\"/></svg>แผนที่</a></nav>",
+      "css": ".ds-rail { width: 190px; background: #fff; border-right: 1px solid var(--line, #e5e7eb); padding: 10px 0; display: flex; flex-direction: column; gap: 2px; } .ds-nav { display: flex; align-items: center; gap: 10px; padding: 10px 18px; color: var(--ink, #101114); text-decoration: none; font-size: 14px; border-radius: 0 22px 22px 0; margin-right: 10px; } .ds-nav svg { flex: none; color: var(--muted, #6b7280); } .ds-nav:hover:not(.ds-nav-active) { background: var(--purple-tint, #faf8ff); } .ds-nav-active { background: var(--purple-subtle, #f3eefe); color: var(--purple, #7132f5); font-weight: 600; } .ds-nav-active svg { color: var(--purple, #7132f5); } .ds-nav:focus-visible { outline: 2px solid var(--purple, #7132f5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Stat Tile",
+      "kind": "card",
+      "refersTo": "stat-tile",
+      "description": "ไทล์สรุปบน dashboard — label เล็ก ตัวเลขใหญ่ sparkline ลอยมุมขวาล่าง",
+      "html": "<div class=\"ds-tile\"><div class=\"ds-tile-label\">ทรัพย์ทั้งหมด</div><div class=\"ds-tile-value\">1,284</div><div class=\"ds-tile-sub\">+38 เดือนนี้</div><svg class=\"ds-tile-spark\" width=\"52\" height=\"20\" viewBox=\"0 0 52 20\" fill=\"none\"><path d=\"M1 17L9 12L17 14L25 7L33 9L41 4L51 2\" stroke=\"#7132f5\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div>",
+      "css": ".ds-tile { background: #fff; border: 1px solid var(--line, #e5e7eb); border-radius: var(--radius, 12px); box-shadow: 0 1px 2px rgba(0,0,0,0.03); padding: 12px 14px; position: relative; min-width: 190px; } .ds-tile-label { font-size: 12px; color: var(--muted, #6b7280); } .ds-tile-value { font-size: 26px; font-weight: 700; letter-spacing: -0.6px; margin-top: 2px; color: var(--ink, #101114); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-tile-sub { font-size: 11.5px; color: var(--muted, #6b7280); margin-top: 2px; } .ds-tile-spark { position: absolute; right: 10px; bottom: 10px; opacity: 0.9; }"
+    },
+    {
+      "name": "Property Row",
+      "kind": "card",
+      "refersTo": "stat-tile",
+      "description": "แถวทรัพย์ในรายการ — การ์ดที่กดได้ hover ยก 1px พร้อมเงา lifted แต่ขอบไม่เป็นม่วง เพราะการชี้ยังไม่ใช่การเลือก",
+      "html": "<div class=\"ds-row\"><div class=\"ds-row-thumb\"></div><div class=\"ds-row-main\"><div class=\"ds-row-title\">โกดังบางนา กม.19 พื้นที่ 1,200 ตร.ม.</div><div class=\"ds-row-meta\">สมุทรปราการ · ให้เช่า · ฿180,000/เดือน</div></div><span class=\"ds-pill2\">ว่าง</span></div>",
+      "css": ".ds-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: #fff; cursor: pointer; border: 1px solid var(--line, #e5e7eb); border-radius: var(--radius, 12px); box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: box-shadow 0.12s, transform 0.12s, border-color 0.12s; } .ds-row:hover { box-shadow: 0 8px 30px rgba(16, 17, 20, 0.12); transform: translateY(-1px); border-color: #d8dbe0; } .ds-row-thumb { width: 56px; height: 56px; flex: none; border-radius: 10px; background: linear-gradient(135deg, #f3eefe, #e9e2fb); } .ds-row-main { flex: 1; min-width: 0; } .ds-row-title { font-size: 15px; font-weight: 600; color: var(--ink, #101114); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-row-meta { font-size: 13px; color: var(--muted, #6b7280); margin-top: 2px; } .ds-pill2 { flex: none; font-size: 12px; font-weight: 600; padding: 1px 10px; border-radius: 10px; background: var(--danger-subtle, #fdecea); color: var(--danger, #d92d20); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "แผงควบคุมภาคสนาม (The Field Console)",
+    "overview": "HOP ไม่ใช่เว็บที่คนมาเยี่ยมชม มันคือแผงควบคุมที่คนเปิดค้างไว้ทั้งวัน — บนมือถือขณะยืนอยู่หน้าโกดัง และบนจอใหญ่ขณะนั่งดูว่าทีมมีทรัพย์อะไรในมือ ความงามของมันคือความแม่นยำ: ข้อมูลหนาแน่นแต่อ่านออก ปุ่มที่กดถูกตั้งแต่ครั้งแรกเพราะเป้าใหญ่พอ และสถานะที่บอกตัวเองได้โดยไม่ต้องเดา\n\nระบบนี้จึงเงียบโดยตั้งใจ พื้นขาว เส้นขอบบางเทาอ่อน ตัวอักษรเล็กแต่คมด้วยฟอนต์ไทยที่ออกแบบมาเพื่อความหนาแน่น สีเกือบทั้งหน้าจอเป็นกลาง — เพื่อให้ม่วงหมึกที่โผล่มาน้อยครั้งมีความหมายทุกครั้งที่โผล่ ความรู้สึกที่ต้องการคืออุ่นมือ เข้าถึงง่าย ไม่ใช่เครื่องมือขององค์กรที่ต้องอบรมก่อนใช้: มุมโค้ง เป้าแตะใหญ่ ไม่มีเส้นตารางแข็ง ๆ ระหว่างแถว\n\nสิ่งที่ระบบนี้ตั้งใจไม่เป็น: เว็บอสังหาฯ ไทยทั่วไป (สีจัด แบนเนอร์เยอะ กรอบรูปหนา โปรโมชั่นทับกัน) และ SaaS ฝรั่งทั่วไป (gradient ม่วง-ฟ้า ไอคอนเส้นบาง การ์ดลอยเยอะ สวยแต่บอกไม่ได้ว่าเจ้าไหน) นอกจากสองอย่างนี้ ระบบไม่ได้ปิดกั้นทิศทางอื่นไว้ล่วงหน้า",
+    "keyCharacteristics": [
+      "หนาแน่นแต่อ่านออก — body 14px, label 12–13px, ข้อมูลเยอะต่อหน้าจอโดยตั้งใจ",
+      "แบนเมื่อพัก มีเงาเมื่อโต้ตอบ — เส้นขอบ 1px คือโครงสร้างจริง",
+      "ม่วงหมึกใช้น้อย ใช้เมื่อมีความหมาย",
+      "เป็นกลางเกือบทั้งหมด สีมีความหมายเฉพาะ danger/success",
+      "มุมโค้งทั่วถึง ไม่มีมุมฉาก — ความอุ่นมาจากรูปทรง ไม่ใช่จากสี",
+      "ฟอนต์ไทยเป็นพลเมืองชั้นหนึ่ง ไม่ใช่ fallback ของฟอนต์ละติน"
+    ],
+    "rules": [
+      {
+        "name": "กฎเสียงเดียว (The One Voice Rule)",
+        "body": "ม่วงหมึกอยู่บนหน้าจอได้ไม่เกิน ~10% ของพื้นที่ ถ้าหน้าไหนมีม่วงสองก้อนที่ไม่เกี่ยวกัน แปลว่าก้อนหนึ่งผิด — ความหายากของมันคือประเด็นทั้งหมด",
+        "section": "colors"
+      },
+      {
+        "name": "กฎสีมีเรื่องเล่า (The Color-Has-News Rule)",
+        "body": "แดงกับเขียวใช้ได้เฉพาะตอนที่มีเรื่องจริงต้องบอก (ผิดพลาด · บังคับ · ปิดดีลแล้ว) ห้ามใช้จัดหมวดหมู่หรือตกแต่ง ทรัพย์ที่ปกติต้องไม่มีสีอะไรเลย",
+        "section": "colors"
+      },
+      {
+        "name": "กฎสิบสี่ (The 14px Rule)",
+        "body": "body คือ 14px ทั่วทั้งแอป เล็กกว่านั้นคือ label เท่านั้น ถ้าอยากให้อะไรเด่นขึ้น ใช้น้ำหนัก (600/700) หรือสี ไม่ใช่เพิ่มขนาด — ความหนาแน่นคือฟีเจอร์ หน้าจอที่มีตัวอักษรห้าขนาดคือหน้าจอที่ออกแบบพลาด",
+        "section": "typography"
+      },
+      {
+        "name": "กฎวรรณยุกต์ (The Thai Diacritic Rule)",
+        "body": "ข้อความไทยต้องการที่ว่างแนวตั้งมากกว่าละติน line-height ของเนื้อความไม่ต่ำกว่า 1.5 และห้ามใช้ text-transform: uppercase กับข้อความไทย (mono kicker เป็นอังกฤษล้วนจึงใช้ได้)",
+        "section": "typography"
+      },
+      {
+        "name": "กฎเงาคือสถานะ (The Shadow-Is-State Rule)",
+        "body": "ของที่นิ่งใช้เส้น ของที่กำลังโต้ตอบหรือลอยอยู่ใช้เงา การ์ดที่มีเงาแรงตั้งแต่ตอนพักคือการโกหกผู้ใช้ว่ามีอะไรเกิดขึ้น",
+        "section": "elevation"
+      },
+      {
+        "name": "กฎรางเมนู (The Nav Rail Rule)",
+        "body": "เมนูข้างใช้รัศมี 0 22px 22px 0 — โค้งเฉพาะด้านขวา ทำให้แถบที่ active ดูเหมือนรางที่ยื่นออกมาจากขอบจอ ไม่ใช่ปุ่มที่ลอยอยู่กลางแถบ นี่คือลายเซ็นของ HOP ห้ามแทนด้วยสี่เหลี่ยมมุมโค้งเท่ากันทุกด้าน",
+        "section": "shapes"
+      },
+      {
+        "name": "กฎสิบหรือสิบสอง (The 10-or-12 Rule)",
+        "body": "รัศมีใหม่ต้องเป็น 10px หรือ 12px เว้นแต่เป็น pill หรือวงกลม ปัจจุบันระบบมีรัศมีปนกันถึง 12 ค่า — นั่นคือหนี้ ไม่ใช่แบบแผนที่ต้องทำตาม",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do ใช้เส้นขอบ 1px #e5e7eb เป็นตัวแยกพื้นผิว และเก็บเงาไว้ให้ hover/overlay เท่านั้น",
+      "Do ให้ม่วงหมึกหมายถึง \"สิ่งที่กำลังทำหรือต้องทำต่อ\" เสมอ และเก็บไว้ไม่เกิน ~10% ของหน้าจอ",
+      "Do เขียน body ที่ 14px และดันลำดับชั้นด้วยน้ำหนัก 600/700 แทนการเพิ่มขนาด",
+      "Do ให้ line-height ของเนื้อความไทยไม่ต่ำกว่า 1.5 และทดสอบด้วยชื่อทรัพย์ที่ยาวจริง",
+      "Do คงวงแหวน focus outline: 2px solid ที่ offset 2px บนทุกอย่างที่กดได้",
+      "Do ใช้รัศมี 10px หรือ 12px สำหรับของใหม่ และ pill (20px/999px) สำหรับ chip เท่านั้น",
+      "Do ออกแบบจุดตัด 720px ให้จริง: sidebar → แถบล่าง, ตาราง → การ์ด"
+    ],
+    "donts": [
+      "Don't ทำให้ HOP ดูเหมือนเว็บอสังหาฯ ไทยทั่วไป — ไม่มีแบนเนอร์โปรโมชั่น ไม่มีกรอบรูปหนา ไม่มีสีแดง/ส้ม/ทองเพื่อเรียกความสนใจ",
+      "Don't ทำให้ดูเหมือน SaaS ฝรั่งทั่วไป — ไม่มี gradient ม่วง-ฟ้าเป็นพื้นใหญ่ ไม่มีการ์ดลอยเงาฟุ้ง ไม่มีไอคอนเส้นบางลอยกลางที่ว่าง",
+      "Don't ใช้ text-transform: uppercase กับข้อความไทย",
+      "Don't ใช้แดงหรือเขียวเพื่อจัดหมวดหมู่หรือตกแต่ง — สองสีนี้พูดได้เฉพาะเรื่องผิดพลาดกับเรื่องสำเร็จ",
+      "Don't เพิ่มรัศมีค่าใหม่เข้าระบบ (ตอนนี้มีปนกัน 12 ค่าแล้ว — นั่นคือหนี้)",
+      "Don't ใส่ display: flex บน td ของ .data-table บนจอใหญ่ — ทำตารางพังและปุ่มหลุดนอกการ์ด",
+      "Don't ย้าย token ชุด .landing ไปรวมกับชุดแอป หรือกลับกัน โดยไม่ถามเจ้าของก่อน"
+    ]
+  }
+}
