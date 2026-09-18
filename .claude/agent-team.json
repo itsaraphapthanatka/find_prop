@@ -1,0 +1,65 @@
+{
+  "project": "HOP (find_prop)",
+  "project_root": "/Users/admin/Documents/project/find_prop",
+  "docs_dir": "/Users/admin/Documents/project/find_prop/docs",
+  "report_language": "Thai",
+  "context_file": "PROJECT-CONTEXT.md",
+  "profile": "balanced",
+  "roles": [
+    "product-manager",
+    "architect",
+    "ux-designer",
+    "ui-designer",
+    "backend-dev",
+    "web-dev",
+    "mobile-dev",
+    "devops-engineer",
+    "test-engineer",
+    "api-tester",
+    "e2e-tester",
+    "web-tester",
+    "mobile-tester",
+    "code-reviewer",
+    "bug-triager",
+    "security-engineer",
+    "tech-writer"
+  ],
+  "repos": [
+    {
+      "name": "HOP web + mobile + api",
+      "path": "/Users/admin/Documents/project/find_prop",
+      "stack": "React 18 · Vite 5 · TypeScript 5.5 · Capacitor 7 (iOS+Android) · Vercel serverless (api/*.js) · Supabase Postgres + Storage · Leaflet",
+      "checks": [
+        "npx tsc -b",
+        "npm run test:roles",
+        "npm run test:seats",
+        "npm run test:auth",
+        "npm run test:draft",
+        "npm run test:import",
+        "npm run test:latlng",
+        "npm run test:referral",
+        "npm run test:upload"
+      ],
+      "run": "npm run dev   # Vite ที่ http://localhost:5173"
+    }
+  ],
+  "specifics": {
+    "product-manager": "ผลิตภัณฑ์คือ HOP/HOB — ฐานข้อมูลทรัพย์ให้เช่า/ขาย สำหรับนายหน้าไทย แทนแอป AppSheet เดิม (\"WUT Demo\"); โครงสร้างข้อมูลต้นแบบอยู่ใน docs/appsheet-analysis.md\nทรัพย์ 4 หมวด: ที่อยู่อาศัย · เชิงพาณิชย์ · เชิงอุตสาหกรรม · ที่ดิน — ฟอร์มราว 50 ฟิลด์\nเป็น SaaS หลายองค์กร (multi-org) ที่คิดเงินจริง: แพ็กเกจ/ที่นั่ง (seats) · ช่วงทดลอง (trial) · รางวัลชวนเพื่อน (referral) · ชำระเงินผ่าน PunPay\nเอกสารผลิตภัณฑ์ที่มีอยู่แล้ว ห้ามเขียนซ้ำ ให้ลิงก์ไปแทน: docs/FEATURES.md · docs/roles-spec.md · docs/seats-pricing.md · docs/hop-form-spec.md · docs/project-summary.md · docs/MOBILE.md\ndocs/COSTS.md ถูก gitignore ไว้เพราะมีโครงสร้างต้นทุน — อ้างถึงได้ แต่ห้ามคัดลอกเนื้อหาลงไฟล์ที่ commit",
+    "architect": "SPA: React 18 + Vite 5 + TypeScript 5.5 (ESM, \"type\": \"module\") — src/pages/ 18 หน้า · src/lib/ 31 โมดูล · src/components/ · src/hooks/\nฝั่งเซิร์ฟเวอร์เป็น Vercel serverless functions ใน api/*.js (JavaScript ธรรมดา ไม่ใช่ TS) + ตัวช่วยร่วมใน api/_lib/\nฐานข้อมูลคือ Supabase Postgres — **RLS คือด่านบังคับสิทธิ์จริง** (supabase/*.sql); src/lib/roles.ts เป็นแค่การซ่อน/ปิดปุ่มบน UI และคอมเมนต์ในไฟล์ระบุไว้ชัดว่า \"ไม่ใช่ด่านความปลอดภัย\" — ทุกข้อเสนอเชิงสถาปัตยกรรมต้องรักษาเส้นแบ่งนี้\nข้อจำกัดสำคัญ: supabase/ มีไฟล์ .sql กระจาย 60+ ไฟล์ และ **ไม่มีเครื่องมือ migration ที่เรียงลำดับ** (ไม่มี supabase/migrations/) — ลำดับการรันเป็นความรู้ที่ไม่ได้เขียนไว้ที่ไหน ถือเป็นหนี้ทางสถาปัตยกรรมข้อใหญ่ที่สุดของโปรเจกต์\nแอปมือถือใช้ Capacitor 7 ห่อ dist/ เดียวกัน — ไม่มีโค้ด native แยก ทุกการตัดสินใจฝั่ง web กระทบมือถือด้วยเสมอ",
+    "ux-designer": "UI เป็นภาษาไทยทั้งหมด ผู้ใช้คือนายหน้าอสังหาที่ทำงานหน้างานบนมือถือ — ออกแบบแบบ mobile-first เสมอ\nหน้าหลักที่มีผู้ใช้จริง: ListPage (ค้นหา) · FormPage (~50 ฟิลด์) · MapPage (Leaflet + marker clustering 392 หมุด) · DashboardPage · ComparePage · FollowUpPage\nฟีเจอร์เด่นที่ต้องเข้าใจก่อนออกแบบ: บันทึกด้วยเสียง (Web Speech API — ซ่อนปุ่มเองเมื่อเบราว์เซอร์ไม่รองรับ) · AI ช่วยวิเคราะห์พอร์ต/เปรียบเทียบทรัพย์\nAndroid 15 บังคับ edge-to-edge — Capacitor เว้น inset ให้อัตโนมัติแล้ว (adjustMarginsForEdgeToEdge: 'auto') อย่าออกแบบโดยสมมติว่ามีแถบระบบทับ",
+    "ui-designer": "ยังไม่มี design system เป็นไฟล์เดียว — สไตล์อยู่ที่ src/styles.css และ src/lib/propertyStyle.tsx; งานแรกที่คุ้มที่สุดคือสกัดโทเคนออกมาก่อนเพิ่มคอมโพเนนต์ใหม่\nธีมต่อองค์กรมีอยู่จริง (src/lib/branding.ts + supabase/branding.sql) — คอมโพเนนต์ใหม่ต้องรองรับสีแบรนด์ที่เปลี่ยนได้ ห้าม hard-code สี\nข้อความ UI เป็นภาษาไทย ความยาวคำต่างจากอังกฤษมาก — ตรวจ layout ด้วยข้อความไทยจริงเสมอ ไม่ใช่ lorem ipsum\nถ้าเขียน DESIGN-SYSTEM.md ให้สอดคล้องกับ DESIGN.md ของ skill impeccable ไม่ใช่สร้างแหล่งความจริงคู่ขนาน",
+    "backend-dev": "ฝั่งเซิร์ฟเวอร์ = Vercel serverless ใน api/*.js — JavaScript ESM ล้วน ไม่ผ่าน tsc; ตัวช่วยร่วมอยู่ใน api/_lib/ (seats.js, plan.js, prices.js, latlng.js, settings.js)\n**กฎเหล็กเรื่อง env**: ตัวแปรที่ขึ้นต้น VITE_ จะถูกฝังลง bundle ฝั่ง client — AI_API_KEY, SUPABASE_SERVICE_ROLE_KEY, PUNPAY_SECRET_KEY, RESEND_API_KEY, SMTP_PASS, CRON_SECRET, FCM_SERVICE_ACCOUNT **ห้าม** มี prefix VITE_ เด็ดขาด (.env.example เขียนเตือนไว้แล้ว)\napi/ai.js และ api/push-cron.js ตั้ง maxDuration: 60 ไว้ใน vercel.json — งานที่นานกว่านั้นต้องออกแบบใหม่ ไม่ใช่ขอเพิ่มเวลา\n/api/push-cron ถูกเรียกโดย Vercel cron ทุกวันเวลา 00:00 UTC และกันด้วย CRON_SECRET\nสิทธิ์จริงอยู่ที่ RLS ใน Postgres ไม่ใช่ในโค้ด — เวลาแก้ตรรกะสิทธิ์ ต้องแก้ทั้ง supabase/*.sql และ src/lib/roles.ts ให้ตรงกัน",
+    "web-dev": "React 18 + react-router-dom 6 + Vite 5; แผนที่ใช้ leaflet + react-leaflet 4 + react-leaflet-cluster (หมุดเยอะ ต้องคงการจับกลุ่มไว้)\nเป็น PWA ผ่าน vite-plugin-pwa — dev-dist/ มี service worker ที่ถูก commit ไว้ 4 ไฟล์ ระวังแก้มือ\nAuth เป็น React context ที่ src/lib/auth.tsx (Supabase session + OAuth Google + การจดเครื่องเดียว deviceSession.ts)\ntypecheck ที่ใช้จริงคือ `npx tsc -b` (มี tsconfig.app.json / tsconfig.node.json แยก) — ผ่านสะอาดอยู่ตอนนี้ ห้ามทำให้แดง\nไม่มี ESLint/Prettier ในโปรเจกต์ — ให้เขียนตามสไตล์ไฟล์ข้างเคียง อย่าเพิ่ม formatter เองโดยไม่ถาม",
+    "mobile-dev": "Capacitor 7 ห่อ dist/ ตัวเดียวกับเว็บ — ไม่มีโค้ด native แยก; appId 'com.hobproperty.app' (เปลี่ยนไม่ได้หลังเผยแพร่), appName 'HOP'\nขั้นตอนหลังแก้โค้ด: `npm run build` แล้ว `npx cap sync android` (หรือ ios)\nlive-update คุมเองที่ src/lib/appUpdate.ts — ปลั๊กอิน @capgo/capacitor-updater ถูกตั้ง autoUpdate: false ไว้ตั้งใจ (ไม่ได้ใช้ cloud ของ Capgo) อย่าเปิดกลับ\nปลั๊กอินที่ใช้จริง: camera · geolocation · push-notifications · browser · app · geolocation — ทุกตัวต้องมี fallback ฝั่งเว็บเพราะ bundle เดียวกัน\nAndroid 15 edge-to-edge จัดการด้วย adjustMarginsForEdgeToEdge: 'auto' ใน capacitor.config.ts",
+    "devops-engineer": "Deploy = Vercel; vercel.json คุม redirects/rewrites (เยอะมาก เพราะ URL เอกสารเคยเปลี่ยน) · functions maxDuration · crons · headers ของ /app-update.json และ /app-update.zip\nCI ที่มีอยู่ชิ้นเดียว: .github/workflows/android-apk.yml (build APK) — **ไม่มี CI ที่รัน typecheck หรือ selftest เลย** ถือเป็นช่องว่างที่ควรเสนอปิด\n`npm run build` = `tsc -b && vite build && node scripts/update-zip.mjs` — ขั้นสุดท้ายสร้าง app-update.zip สำหรับ live-update ของแอปมือถือ อย่าตัดทิ้ง\ncron: /api/push-cron ทุกวัน 00:00 UTC (= 07:00 เวลาไทย)\nNode บนเครื่องนี้คือ v24.9.0, npm 11.6.0",
+    "test-engineer": "ชุดทดสอบเป็น harness ที่เขียนเองทั้งหมดใน scripts/*.mjs — **ไม่มี vitest/jest**; แบบแผนคือ esbuild bundle โมดูลที่จะทดสอบ แล้ว import มา assert\nแบ่งสองกลุ่ม: (1) pure node ไม่ต้องใช้เบราว์เซอร์ — test:draft, test:import, test:latlng, test:seats, test:roles, test:docs, test:referral, test:auth, test:shortlist, test:upload · (2) playwright ต้องมี dev server — test:ui, test:edit, test:nav, test:seats-ui, test:roles-ui, test:auth-ui, test:lightbox, test:stats\nสูตรรันกลุ่ม UI: `npm run dev` (Vite ที่ http://localhost:5173) ค้างไว้ก่อน แล้วค่อยรัน; ฮาร์เนสของฟอร์มอยู่ที่ dev/form-harness.html\nสคริปต์ทุกตัว exit 1 เมื่อมีข้อไม่ผ่าน (ตรวจแล้ว) — เชื่อ exit code ได้\n**baseline ปัจจุบันแดง 2 ชุด** บน main ที่ไม่มีอะไรค้าง: test:docs ไม่ผ่าน 2/54 (ขาด rewrite /docs/costs และ /docs/presentation ใน vercel.json) · test:shortlist ไม่ผ่าน 4/201 (ข้อความบน landing) — อย่ารายงานว่าเป็นของใหม่ที่เพิ่งพัง",
+    "api-tester": "เป้าหมายคือ 16 ไฟล์ใน api/: ai · resolve-latlng · punpay-webhook · push-cron · migrate-photos · send-invite · verify-charge · create-member · backfill-latlng · create-charge · stats (+ api/_lib/)\nจุดเสี่ยงสูงสุดคือเส้นทางเงิน: create-charge → punpay-webhook → verify-charge และการนับที่นั่งใน _lib/seats.js\n/api/push-cron ต้องปฏิเสธคำขอที่ไม่มี CRON_SECRET ที่ถูกต้อง\nอย่าทดสอบด้วยคีย์จริง — ตัวแปรลับทั้งหมดอยู่ฝั่งเซิร์ฟเวอร์ (ดูรายชื่อใน .env.example และ PROJECT-CONTEXT.md) รายงานด้วยชื่อตัวแปรเท่านั้น",
+    "e2e-tester": "ต้องเปิด `npm run dev` (http://localhost:5173) ก่อนเสมอ แล้วขับด้วย playwright (มีใน devDependencies อยู่แล้ว)\nเส้นทางที่คุ้มทดสอบที่สุด: สมัคร/ล็อกอิน → สร้างองค์กร → เชิญทีม (ที่นั่ง) → เพิ่มทรัพย์ครบฟิลด์ → ดูบนแผนที่ → ทำชอร์ตลิสต์แล้วแชร์ให้ลูกค้า\nระบบมี \"จดเครื่องเดียว\" (src/lib/deviceSession.ts) — การล็อกอินซ้อนจะเตะเครื่องเก่าออก ต้องออกแบบเทสต์ให้ไม่ชนกันเอง\nมีหลายองค์กรต่อผู้ใช้ได้ (org switch) — บั๊กคลาสสิกคือข้อมูลรั่วข้ามองค์กร ให้ไล่จุดนี้เป็นพิเศษ",
+    "web-tester": "เบราว์เซอร์เป้าหมายหลักคือ Chrome (Web Speech API แม่นสุดที่นั่น) — ฟีเจอร์เสียงต้องซ่อนตัวเองเมื่อเบราว์เซอร์ไม่รองรับ ให้ตรวจทั้งสองทาง\nหน้าที่เปราะที่สุดคือ MapPage (หมุดหลายร้อยจุด + clustering) และ FormPage (~50 ฟิลด์ + อัปโหลดรูป)\nเป็น PWA — ตรวจพฤติกรรม service worker ตอนอัปเดต (ผู้ใช้ค้างเวอร์ชันเก่าเป็นบั๊กที่เกิดจริง)\nUI ภาษาไทยล้วน: ตรวจข้อความล้นกรอบด้วยข้อความจริง",
+    "mobile-tester": "ทดสอบบนแอปที่ build จริงผ่าน Capacitor ไม่ใช่แค่เว็บในมือถือ — `npm run build && npx cap sync android` ก่อน\nจุดที่ต่างจากเว็บจริง ๆ: กล้อง · พิกัด (geolocation) · push notification · live-update ผ่าน src/lib/appUpdate.ts\nAndroid 15 edge-to-edge — ตรวจว่า header/แถบล่างไม่มุดใต้แถบระบบ\niOS และ Android ใช้ bundle เดียวกัน บั๊กที่เจอบนตัวหนึ่งมักมีบนอีกตัว ให้ตรวจไขว้เสมอ",
+    "code-reviewer": "คอมเมนต์ภาษาไทยในโค้ดนี้เป็นเอกสารที่มีน้ำหนัก (อธิบาย \"ทำไม\" ไม่ใช่ \"ทำอะไร\") — การแก้ที่ลบคอมเมนต์พวกนี้ทิ้งถือว่าทำข้อมูลหาย ให้ทักท้วง\nเส้นแบ่งที่ต้องหวงที่สุด: RLS ใน supabase/*.sql คือด่านจริง ส่วน src/lib/roles.ts คือ UI เท่านั้น — PR ที่ย้ายการบังคับสิทธิ์มาไว้ฝั่ง client ต้องถูกปฏิเสธ\nตรวจทุกครั้งว่าไม่มีตัวแปรลับตัวใหม่ถูกตั้งชื่อขึ้นต้นด้วย VITE_\nเกณฑ์ผ่านขั้นต่ำ: `npx tsc -b` ต้องเขียว และชุด pure-node selftest ต้องไม่แดงเพิ่มจาก baseline (test:docs และ test:shortlist แดงอยู่แล้ว)",
+    "bug-triager": "มีระบบ activity log ในตัวอยู่แล้ว: src/lib/activityLog.ts + supabase/logs*.sql และหน้า LogsPage — ใช้เป็นหลักฐานแรกเสมอ\nถามให้ชัดก่อนเสมอว่าเกิดบน \"เว็บ\" หรือ \"แอปมือถือ\" และองค์กรไหน — bundle เดียวกันแต่ context ต่างกันมาก\nอาการที่มักเป็นเรื่องสิทธิ์/RLS มากกว่า UI: มองไม่เห็นข้อมูล · เห็นข้อมูลขององค์กรอื่น · แก้ไม่ได้ทั้งที่ปุ่มโชว์\nอาการ \"แอปไม่อัปเดต\" มักมาจาก service worker ของ PWA หรือ live-update ของ Capacitor ไม่ใช่โค้ดฟีเจอร์",
+    "security-engineer": "มีทั้งเงินและ PII จริง: ชำระเงินผ่าน PunPay (api/create-charge.js, punpay-webhook.js, verify-charge.js) และข้อมูลติดต่อเจ้าของทรัพย์ + บ้านเลขที่/เลขที่ห้อง\nโมเดลสิทธิ์ 8 ระดับ (owner · manager · associate · analyst · survey · temporary · social · trainee) — การซ่อนข้อมูลติดต่อ/บ้านเลขที่/พิกัดจากบางบทบาท **ต้องบังคับที่ RLS** ไม่ใช่ที่ UI; src/lib/roles.ts เขียนกำกับไว้เองว่าไม่ใช่ด่านความปลอดภัย\nตรวจ RLS policy ข้ามไฟล์ supabase/*.sql — มีหลายไฟล์ที่ทับซ้อนกัน (multiorg-stage1/2, visibility, logs-scope, impersonate) และไม่มีลำดับ migration กำกับ จึงมีโอกาสที่ policy จริงบน production ไม่ตรงกับที่อ่านจากไฟล์\nมีฟีเจอร์ impersonate (supabase/impersonate.sql) และ super admin (SuperAdminPage) — เป็นพื้นที่ยกระดับสิทธิ์ที่ต้องตรวจเข้มที่สุด\nความลับทั้งหมดต้องไม่มี prefix VITE_; รายงานด้วยชื่อตัวแปรเท่านั้น ห้ามพิมพ์ค่า",
+    "tech-writer": "เขียนภาษาไทย (ตัวระบุในโค้ด คำสั่ง และรายละเอียด HTTP คงเป็นอังกฤษ) ให้กลมกลืนกับ README.md และ docs/ ที่มีอยู่\nเอกสารที่มีอยู่แล้วและห้ามเขียนซ้ำ: docs/SYSTEM.html · docs/FEATURES.md · docs/GUIDE.md · docs/MOBILE.md · docs/roles-spec.md · docs/seats-pricing.md · docs/hop-form-spec.md · docs/appsheet-analysis.md · docs/project-summary.md\nเอกสารบางชิ้นถูกเสิร์ฟจริงบนเว็บผ่าน rewrite ใน vercel.json (/docs/training, /docs/system, /docs/features) — เปลี่ยนชื่อไฟล์เมื่อไรต้องแก้ vercel.json ด้วย และมี selftest (npm run test:docs) คอยตรวจเรื่องนี้อยู่\ndocs/COSTS.md และ docs/COSTS.html อยู่ใน .gitignore เพราะมีข้อมูลต้นทุน — ห้ามอ้างเนื้อหาลงไฟล์ที่ commit"
+  }
+}
