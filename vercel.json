@@ -29,7 +29,8 @@
     { "source": "/presentation", "destination": "/presentation.html" },
     { "source": "/geo",        "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/a/" },
     { "source": "/geo/:path*", "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/a/:path*" },
-    { "source": "/llms.txt",   "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/llms.txt" }
+    { "source": "/llms.txt",   "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/llms.txt" },
+    { "source": "/geo-sitemap.xml", "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/sitemap.xml" }
   ],
   "functions": {
     "api/ai.js": {
