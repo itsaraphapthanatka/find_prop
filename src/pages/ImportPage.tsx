@@ -9,7 +9,8 @@ import { LABELS } from '../labels'
 import {
   IMPORT_FIELDS, autoMapColumns, buildTemplateCsv, rowsToProperties, type ImportRow,
 } from '../lib/importProps'
-import { IconDownload, IconUpload } from '../components/icons'
+import { IconDownload, IconHouse, IconUpload } from '../components/icons'
+import { RESIDENTIAL_SAMPLE_FIELDS, RESIDENTIAL_SAMPLE_NOTES, RESIDENTIAL_SAMPLE_ROWS } from '../lib/sampleImport'
 
 const CHUNK = 50
 
@@ -148,22 +149,51 @@ export default function ImportPage() {
     await reload()
   }
 
-  function downloadTemplate() {
-    const blob = new Blob([buildTemplateCsv()], { type: 'text/csv;charset=utf-8' })
+  // ดาวน์โหลดไฟล์ที่สร้างในเครื่อง · คืน URL ทีหลัง (คืนทันทีบางเบราว์เซอร์ยกเลิกการดาวน์โหลด)
+  function saveBlob(blob: Blob, filename: string) {
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = 'hob-import-template.csv'
+    a.download = filename
     a.click()
-    URL.revokeObjectURL(a.href)
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  }
+
+  function downloadTemplate() {
+    saveBlob(new Blob([buildTemplateCsv()], { type: 'text/csv;charset=utf-8' }), 'hob-import-template.csv')
+  }
+
+  // ไฟล์ตัวอย่างบ้าน/คอนโด (.xlsx) — หัวคอลัมน์จาก LABELS จึงจับคู่อัตโนมัติได้เสมอ + แถบคำอธิบาย
+  function downloadResidentialSample() {
+    const head = RESIDENTIAL_SAMPLE_FIELDS.map((f) => LABELS[f])
+    const body = RESIDENTIAL_SAMPLE_ROWS.map((r) => RESIDENTIAL_SAMPLE_FIELDS.map((f) => r[f] ?? null))
+    const ws = XLSX.utils.aoa_to_sheet([head, ...body], { cellDates: true })
+    ws['!cols'] = head.map((h) => ({ wch: Math.max(10, Math.min(28, h.length + 4)) }))
+    const notes = XLSX.utils.aoa_to_sheet([
+      ['คำอธิบาย (แถบนี้ไม่ถูกนำเข้า — ระบบอ่านเฉพาะแถบแรก)'], [], ...RESIDENTIAL_SAMPLE_NOTES,
+    ])
+    notes['!cols'] = [{ wch: 24 }, { wch: 110 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'ทรัพย์')
+    XLSX.utils.book_append_sheet(wb, notes, 'คำอธิบาย')
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+    saveBlob(
+      new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+      'hop-sample-house-condo.xlsx',
+    )
   }
 
   return (
     <>
       <div className="view-header">
         <h1>นำเข้าข้อมูลทรัพย์</h1>
-        <button className="btn" onClick={downloadTemplate}>
-          <IconDownload size={16} /> เทมเพลต CSV
-        </button>
+        <div className="header-actions">
+          <button className="btn" onClick={downloadResidentialSample} title="ไฟล์ตัวอย่างบ้าน/คอนโด 6 รายการ พร้อมคำอธิบาย (.xlsx)">
+            <IconHouse size={16} /> ตัวอย่างบ้าน/คอนโด
+          </button>
+          <button className="btn" onClick={downloadTemplate} title="เทมเพลตทุกฟิลด์ (.csv)">
+            <IconDownload size={16} /> เทมเพลต CSV
+          </button>
+        </div>
       </div>
 
       <div className="team-wrap">
@@ -171,7 +201,7 @@ export default function ImportPage() {
           <h3>1. เลือกไฟล์ (Excel .xlsx / .xls หรือ CSV)</h3>
           <p className="ai-hint">
             แถวแรกของไฟล์ต้องเป็นหัวตาราง — ระบบจะจับคู่หัวคอลัมน์กับฟิลด์ให้อัตโนมัติ
-            (รองรับหัวตารางจากแอป AppSheet เดิม หรือดาวน์โหลดเทมเพลตด้านบนไปกรอก)
+            (รองรับหัวตารางจากแอป AppSheet เดิม หรือดาวน์โหลดเทมเพลต/ไฟล์ตัวอย่างบ้าน-คอนโดด้านบนไปกรอก)
           </p>
           <label className="photo-drop">
             {fileName
