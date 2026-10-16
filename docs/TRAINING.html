@@ -38,6 +38,8 @@
   th { background: var(--surface); white-space: nowrap; }
   .toc { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 26px; }
   .toc ol { margin: 6px 0; padding-left: 22px; columns: 2; column-gap: 40px; }
+  /* ลิงก์ในเนื้อหา — สีเริ่มต้นของเบราว์เซอร์ (น้ำเงินเข้ม) อ่านไม่ออกในโหมดมืด */
+  a { color: var(--purple); font-weight: 600; }
   .toc a { color: var(--purple); text-decoration: none; }
   .toc a:hover { text-decoration: underline; }
   .steps { counter-reset: step; list-style: none; padding-left: 0; margin: 12px 0; }
@@ -170,6 +172,11 @@
 <li>ระบบจับคู่คอลัมน์ให้อัตโนมัติ — ตรวจและปรับการจับคู่ได้ก่อนนำเข้า</li>
 <li>กดนำเข้า — แถวไหนมีปัญหาระบบจะแจ้งเป็นรายแถว แถวอื่นเข้าตามปกติ</li>
 </ol>
+<div class="tip">📥 <b>ยังไม่มีไฟล์ หรือไม่แน่ใจว่าต้องมีคอลัมน์อะไร?</b>
+ดาวน์โหลด <a href="/docs/hop-sample-house-condo.xlsx" download>ไฟล์ตัวอย่างบ้าน/คอนโด (.xlsx)</a>
+— มีคอนโด 3 + บ้าน 3 รายการ และแถบ "คำอธิบาย" บอกค่าที่ใส่ได้ในแต่ละช่อง ลบแถวตัวอย่าง (รหัส <code>TST-</code>) แล้วใส่ข้อมูลของคุณได้เลย
+· ในหน้านำเข้ามีปุ่ม "ตัวอย่างบ้าน/คอนโด" (ไฟล์เดียวกัน) และ "เทมเพลต CSV" (ครบทุกฟิลด์) ให้กดด้วย</div>
+<div class="tip">⚠️ <b>รหัสทรัพย์ห้ามซ้ำทั้งระบบ</b> (รวมองค์กรอื่น) — ตั้งตัวนำเฉพาะทีมคุณ เช่น <code>SCH-001</code></div>
 <div class="tip">💡 เหมาะกับตอนย้ายข้อมูลจากไฟล์/ระบบเดิมครั้งแรก — ลงทีเดียวหลักร้อยรายการได้</div>
 <p><b>นำข้อมูลออก:</b> เจ้าขององค์กร (Owner) ดาวน์โหลดข้อมูลทรัพย์ทั้งหมดเป็นไฟล์ Excel ได้จากหน้ารายการ — บทบาทอื่นไม่มีปุ่มนี้ เพื่อป้องกันข้อมูลของทีมรั่วออกไปกับคนที่ออกจากทีม</p>
 

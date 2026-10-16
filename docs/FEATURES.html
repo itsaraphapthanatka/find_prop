@@ -41,6 +41,8 @@
   th.nowrap, td.nowrap { white-space: nowrap; }
   .toc { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 26px; }
   .toc ol { margin: 6px 0; padding-left: 22px; columns: 2; column-gap: 40px; }
+  /* ลิงก์ในเนื้อหา — สีเริ่มต้นของเบราว์เซอร์ (น้ำเงินเข้ม) อ่านไม่ออกในโหมดมืด */
+  a { color: var(--purple); font-weight: 600; }
   .toc a { color: var(--purple); text-decoration: none; }
   .toc a:hover { text-decoration: underline; }
   .tag { display: inline-block; border-radius: 20px; padding: 1px 10px; font-size: 12px; font-weight: 700; vertical-align: middle; }
@@ -328,6 +330,9 @@
   <li>แปลงค่าให้ถูกชนิดอัตโนมัติ: วันที่ พ.ศ. · วันที่แบบ Excel · เลขมีคอมมา · ค่าใช่/ไม่ · รายการหลายค่าคั่นด้วยจุลภาค</li>
   <li><b>รหัสทรัพย์ซ้ำ</b> เลือกได้ว่า "ข้าม" หรือ "อัปเดตทับ"</li>
   <li>มี <b>เทมเพลต CSV</b> ให้ดาวน์โหลดไปกรอก (หัวคอลัมน์ตรงกับระบบ)</li>
+  <li>มี <b>ไฟล์ตัวอย่างบ้าน/คอนโด (.xlsx)</b> — คอนโด 3 + บ้าน 3 รายการ พร้อมแถบคำอธิบายค่าที่ใส่ได้
+    · <a href="/docs/hop-sample-house-condo.xlsx" download>ดาวน์โหลดไฟล์ตัวอย่าง</a> หรือกดปุ่ม "ตัวอย่างบ้าน/คอนโด" ในหน้านำเข้า</li>
+  <li>รหัสทรัพย์ห้ามซ้ำทั้งระบบ (รวมองค์กรอื่น) — แนะนำให้ตั้งตัวนำเฉพาะทีม เช่น <code>SCH-001</code></li>
 </ul>
 
 <h2 id="export">11. นำข้อมูลออก</h2>

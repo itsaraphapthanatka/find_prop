@@ -10,7 +10,7 @@ import {
   IMPORT_FIELDS, autoMapColumns, buildTemplateCsv, rowsToProperties, type ImportRow,
 } from '../lib/importProps'
 import { IconDownload, IconHouse, IconUpload } from '../components/icons'
-import { RESIDENTIAL_SAMPLE_FIELDS, RESIDENTIAL_SAMPLE_NOTES, RESIDENTIAL_SAMPLE_ROWS } from '../lib/sampleImport'
+import { buildResidentialSampleXlsx, SAMPLE_XLSX_NAME } from '../lib/sampleImport'
 
 const CHUNK = 50
 
@@ -162,23 +162,11 @@ export default function ImportPage() {
     saveBlob(new Blob([buildTemplateCsv()], { type: 'text/csv;charset=utf-8' }), 'hob-import-template.csv')
   }
 
-  // ไฟล์ตัวอย่างบ้าน/คอนโด (.xlsx) — หัวคอลัมน์จาก LABELS จึงจับคู่อัตโนมัติได้เสมอ + แถบคำอธิบาย
+  // ไฟล์ตัวอย่างบ้าน/คอนโด (.xlsx) — สร้างจากโมดูลเดียวกับไฟล์ที่คู่มือลิงก์ไป (/docs/hop-sample-house-condo.xlsx)
   function downloadResidentialSample() {
-    const head = RESIDENTIAL_SAMPLE_FIELDS.map((f) => LABELS[f])
-    const body = RESIDENTIAL_SAMPLE_ROWS.map((r) => RESIDENTIAL_SAMPLE_FIELDS.map((f) => r[f] ?? null))
-    const ws = XLSX.utils.aoa_to_sheet([head, ...body], { cellDates: true })
-    ws['!cols'] = head.map((h) => ({ wch: Math.max(10, Math.min(28, h.length + 4)) }))
-    const notes = XLSX.utils.aoa_to_sheet([
-      ['คำอธิบาย (แถบนี้ไม่ถูกนำเข้า — ระบบอ่านเฉพาะแถบแรก)'], [], ...RESIDENTIAL_SAMPLE_NOTES,
-    ])
-    notes['!cols'] = [{ wch: 24 }, { wch: 110 }]
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'ทรัพย์')
-    XLSX.utils.book_append_sheet(wb, notes, 'คำอธิบาย')
-    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
     saveBlob(
-      new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      'hop-sample-house-condo.xlsx',
+      new Blob([buildResidentialSampleXlsx()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+      SAMPLE_XLSX_NAME,
     )
   }
 

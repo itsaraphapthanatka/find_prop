@@ -1,9 +1,10 @@
 import { execSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { buildResidentialSampleXlsx, SAMPLE_XLSX_NAME } from './src/lib/sampleImport'
 
 // รหัส build = commit ที่กำลัง build (CI/Vercel มี env ให้ / เครื่อง dev ถามจาก git)
 // แอปมือถือใช้เทียบกับ /app-update.json เพื่อรู้ว่าตัวเองรันโค้ดชุดล่าสุดหรือยัง
@@ -30,6 +31,29 @@ function buildId(): string {
  */
 /** เอกสารภายใน — ห้ามขึ้น production (เทียบชื่อไฟล์แบบไม่สนตัวพิมพ์) */
 const PRIVATE_DOCS = ['investor.html']
+
+/**
+ * ไฟล์ตัวอย่างนำเข้าบ้าน/คอนโด ที่คู่มือลิงก์ไป (/docs/hop-sample-house-condo.xlsx)
+ * สร้างจากโมดูลเดียวกับปุ่มในหน้านำเข้า (src/lib/sampleImport.ts) → ไม่ต้องเก็บ .xlsx ใน git และไม่มีวันไม่ตรงกัน
+ */
+function sampleXlsxPlugin(): Plugin {
+  const url = `/docs/${SAMPLE_XLSX_NAME}`
+  const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  return {
+    name: 'hop-sample-xlsx',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split('?')[0] !== url) return next()
+        res.setHeader('Content-Type', XLSX_TYPE)
+        res.end(Buffer.from(buildResidentialSampleXlsx()))
+      })
+    },
+    closeBundle() {
+      mkdirSync('dist/docs', { recursive: true })
+      writeFileSync(join('dist/docs', SAMPLE_XLSX_NAME), Buffer.from(buildResidentialSampleXlsx()))
+    },
+  }
+}
 
 function docsPlugin(): Plugin {
   const files = () => (existsSync('docs') ? readdirSync('docs').filter((f) => f.endsWith('.html')) : [])
@@ -65,6 +89,7 @@ export default defineConfig({
   plugins: [
     react(),
     docsPlugin(),
+    sampleXlsxPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       // ลงทะเบียน SW เองใน main.tsx (ข้ามเมื่อรันในแอป Capacitor — ดูคอมเมนต์ที่นั่น)
@@ -88,7 +113,11 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         // หน้าเอกสาร static ต้องไม่ถูก SW ดักพาเข้า SPA
-        navigateFallbackDenylist: [/\/features\.html$/, /\/guide\.html$/, /\/flow\.html$/, /\/flow-internal\.html$/, /\/qa-review\.html$/],
+        // + /docs/* (คู่มือ + ไฟล์ตัวอย่าง .xlsx) /stats /presentation — แอปใช้ HashRouter ไม่มี path ของ SPA ชนแน่นอน
+        navigateFallbackDenylist: [
+          /\/features\.html$/, /\/guide\.html$/, /\/flow\.html$/, /\/flow-internal\.html$/, /\/qa-review\.html$/,
+          /^\/docs(\/|$)/, /^\/stats(\.html)?$/, /^\/presentation(\.html)?$/,
+        ],
         runtimeCaching: [
           {
             // แผนที่ OSM — ใช้ซ้ำบ่อย เก็บ cache ไว้ดู offline ได้

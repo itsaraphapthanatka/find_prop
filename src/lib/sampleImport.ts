@@ -1,9 +1,16 @@
+import * as XLSX from 'xlsx'
 import type { PropertyInput } from '../types'
+import { LABELS } from '../labels'
 
 // ไฟล์ตัวอย่างนำเข้า "บ้าน/คอนโด" (ปุ่มในหน้านำเข้า) — เทมเพลต CSV เดิมเป็นตัวอย่างโกดัง
 // ทีมที่เก็บข้อมูลที่อยู่อาศัยดาวน์โหลดไปกรอกต่อได้เลย
 // หัวคอลัมน์สร้างจาก LABELS ตอนดาวน์โหลด → ป้ายเปลี่ยนเมื่อไหร่ ไฟล์ตัวอย่างก็ยังจับคู่อัตโนมัติได้เสมอ
 // ข้อมูลสมมติล้วน (ชื่อ/เบอร์/โครงการไม่ใช่ของจริง) · รหัส TST- กันชนรหัสจริง (รหัสห้ามซ้ำทั้งระบบ)
+// ใช้ 2 ที่: ปุ่มในหน้านำเข้า (สร้างในเบราว์เซอร์) และตอน build (vite.config.ts → dist/docs/ ให้คู่มือลิงก์ไปดาวน์โหลด)
+// → ไฟล์จากทั้งสองทางเหมือนกันเสมอ ไม่ต้องเก็บไฟล์ .xlsx ไว้ใน git
+
+/** ชื่อไฟล์ตัวอย่าง — คู่มือลิงก์ไปที่ /docs/<ชื่อนี้> */
+export const SAMPLE_XLSX_NAME = 'hop-sample-house-condo.xlsx'
 
 type Cell = string | number | Date
 type SampleRow = Partial<Record<keyof PropertyInput, Cell>>
@@ -72,7 +79,7 @@ export const RESIDENTIAL_SAMPLE_ROWS: SampleRow[] = [
 
 /** แถบ "คำอธิบาย" ในไฟล์ตัวอย่าง — ตัวนำเข้าอ่านเฉพาะแถบแรก แถบนี้จึงไม่ถูกนำเข้า */
 export const RESIDENTIAL_SAMPLE_NOTES: [string, string][] = [
-  ['รหัสทรัพย์', 'จำเป็น · ห้ามซ้ำทั้งระบบ (รวมองค์กรอื่น) · ใช้ตัวนำเฉพาะทีมคุณ เช่น SCH-001 · ซ้ำกับรหัสในองค์กรตัวเอง = อัปเดตข้อมูลเดิม'],
+  ['รหัสทรัพย์', 'จำเป็น · ห้ามซ้ำทั้งระบบ (รวมองค์กรอื่น) · ใช้ตัวนำเฉพาะทีมคุณ เช่น SCH-001 · ถ้าซ้ำกับรหัสที่มีในองค์กรตัวเอง เลือกได้ตอนนำเข้าว่าจะ "ข้าม" หรือ "อัปเดตทับ"'],
   ['ประเภททรัพย์', 'บ้าน / คอนโด (ประเภทอื่น: ออฟฟิศ, โฮมออฟฟิศ, โชว์รูม, โกดัง, โรงงาน, ที่ดินเปล่า)'],
   ['ประเภทย่อย', 'บ้าน: บ้านเดี่ยว / บ้านแฝด / ทาวน์เฮาส์/ทาวน์โฮม · คอนโด: สตูดิโอ / ดูเพล็กซ์ / 1 ห้องนอน / 2 ห้องนอน'],
   ['สำหรับ (เช่า/ขาย)', 'เช่า / ขาย / เช่า/ขาย'],
@@ -83,3 +90,19 @@ export const RESIDENTIAL_SAMPLE_NOTES: [string, string][] = [
   ['คอลัมน์อื่น', 'ใช้หัวคอลัมน์ตามเทมเพลต CSV ได้ทุกช่อง · คอลัมน์ที่ระบบไม่รู้จัก จะให้เลือกจับคู่เองหรือข้าม'],
   ['ก่อนนำเข้าจริง', 'ลบแถวตัวอย่าง TST- ออก แล้วใส่ข้อมูลของคุณแทน'],
 ]
+
+/** สร้างไฟล์ตัวอย่าง .xlsx (แถบ "ทรัพย์" + แถบ "คำอธิบาย") — ใช้ได้ทั้งในเบราว์เซอร์และ Node */
+export function buildResidentialSampleXlsx(): ArrayBuffer {
+  const head = RESIDENTIAL_SAMPLE_FIELDS.map((f) => LABELS[f])
+  const body = RESIDENTIAL_SAMPLE_ROWS.map((r) => RESIDENTIAL_SAMPLE_FIELDS.map((f) => r[f] ?? null))
+  const ws = XLSX.utils.aoa_to_sheet([head, ...body], { cellDates: true })
+  ws['!cols'] = head.map((h) => ({ wch: Math.max(10, Math.min(28, h.length + 4)) }))
+  const notes = XLSX.utils.aoa_to_sheet([
+    ['คำอธิบาย (แถบนี้ไม่ถูกนำเข้า — ระบบอ่านเฉพาะแถบแรก)'], [], ...RESIDENTIAL_SAMPLE_NOTES,
+  ])
+  notes['!cols'] = [{ wch: 24 }, { wch: 110 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'ทรัพย์')
+  XLSX.utils.book_append_sheet(wb, notes, 'คำอธิบาย')
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+}
