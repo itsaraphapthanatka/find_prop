@@ -6,6 +6,7 @@
 import type { CompareResult, Property } from '../types'
 import { formatNumber } from '../labels'
 import { IconHouse, IconSparkles } from './icons'
+import { photoThumb } from '../lib/photo'
 
 /** แถวสเปกในตารางเปรียบเทียบ — แสดงเฉพาะแถวที่มีข้อมูลอย่างน้อย 1 ทรัพย์ */
 export const SPEC_ROWS: { label: string; get: (p: Property) => string | null }[] = [
@@ -84,7 +85,7 @@ export default function CompareSheet({ picked, customer, requirement, ai, dateTe
               {picked.map((p) => (
                 <th key={p.code}>
                   <div className="cmp-photo">
-                    {p.photo_url ? <img src={p.photo_url} alt={p.code} /> : <IconHouse size={30} />}
+                    {photoThumb(p.photo_url, 640) ? <img src={photoThumb(p.photo_url, 640)!} alt={p.code} /> : <IconHouse size={30} />}
                   </div>
                   <div className="cmp-code">{p.code}</div>
                 </th>

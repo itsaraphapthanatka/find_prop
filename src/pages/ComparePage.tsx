@@ -8,7 +8,7 @@ import { aiChat, extractJson, propertyDetailText } from '../lib/ai'
 import { daysLeft, priceDrift, shareShortlist, shareUrl, unshareShortlist, useShareSetting } from '../lib/share'
 import type { CompareResult, Property, Shortlist } from '../types'
 import { formatDate } from '../labels'
-import Combo from '../components/Combo'
+import PropertyPicker, { PropThumb } from '../components/PropertyPicker'
 import CompareSheet from '../components/CompareSheet'
 import VoiceButton from '../components/VoiceButton'
 import { IconClose, IconLink, IconPrint, IconSparkles, IconTrash } from '../components/icons'
@@ -21,7 +21,6 @@ export default function ComparePage() {
   const { lists, loading: listsLoading, error: listsError, reload: reloadLists } = useShortlists()
   const perm = usePerm()
   const [codes, setCodes] = useState<string[]>([])
-  const [addCode, setAddCode] = useState<string | null>(null)
   const [customer, setCustomer] = useState('')
   const [requirement, setRequirement] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
@@ -54,7 +53,6 @@ export default function ComparePage() {
   const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
 
   function addProp(code: string | null) {
-    setAddCode(null)
     if (!code || codes.includes(code) || codes.length >= MAX_PICK || !byCode.has(code)) return
     setCodes([...codes, code])
     setAi(null)
@@ -62,6 +60,11 @@ export default function ComparePage() {
   function removeProp(code: string) {
     setCodes(codes.filter((c) => c !== code))
     setAi(null)
+  }
+  // กดซ้ำที่แถวเดิม = เอาออก (ตัวเลือกแบบมีรูปเลือก/ยกเลิกได้ในที่เดียว)
+  function toggleProp(code: string) {
+    if (codes.includes(code)) removeProp(code)
+    else addProp(code)
   }
 
   // ── บันทึก/เปิดชอร์ตลิสต์ที่เก็บไว้ ─────────────────────────
@@ -292,28 +295,22 @@ ${details}
               <input type="text" value={customer} placeholder="เช่น คุณสมชาย ใจดี" onChange={(e) => setCustomer(e.target.value)} />
             </div>
           </div>
-          <div className="form-grid-2">
-            <div className="form-field">
-              <label>เลือกทรัพย์ (2–{MAX_PICK} รายการ)</label>
-              <Combo
-                value={addCode}
-                onChange={addProp}
-                options={items.filter((p) => !codes.includes(p.code)).map((p) => p.code)}
-                placeholder={codes.length >= MAX_PICK ? `ครบ ${MAX_PICK} รายการแล้ว` : '+ พิมพ์รหัสทรัพย์เพื่อเพิ่ม'}
-              />
-              {picked.length > 0 && (
-                <div className="chips" style={{ marginTop: 8 }}>
-                  {picked.map((p) => (
-                    <span key={p.code} className="chip chip-x">
-                      {p.code}
-                      <button className="chip-remove" title="เอาออก" onClick={() => removeProp(p.code)}>
-                        <IconClose size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div className="form-field">
+            <label>เลือกทรัพย์ (2–{MAX_PICK} รายการ) · เลือกแล้ว {picked.length}</label>
+            {picked.length > 0 && (
+              <div className="pp-picked">
+                {picked.map((p) => (
+                  <span key={p.code} className="pp-chip">
+                    <span className="pp-chip-img"><PropThumb photo={p.photo_url} alt={p.code} /></span>
+                    <span className="pp-chip-txt"><b>{p.code}</b><small>{[p.property_type, p.district].filter(Boolean).join(' · ')}</small></span>
+                    <button type="button" className="chip-remove" title="เอาออก" onClick={() => removeProp(p.code)}>
+                      <IconClose size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <PropertyPicker items={items} picked={codes} max={MAX_PICK} onToggle={toggleProp} />
           </div>
           <div className="form-field">
             <label>requirement ของลูกค้า (ให้ AI วิเคราะห์ความเหมาะสม — ไม่บังคับ)</label>
