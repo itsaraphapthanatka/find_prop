@@ -135,10 +135,9 @@ async function checkout(req, res, stripe, a, body) {
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer,
-    // ระบุบัตรตรงๆ: ตัดเงินอัตโนมัติสกุลบาทใช้ได้แค่บัตร (PromptPay ทำ subscription ไม่ได้) — ไม่ระบุแล้วพึ่งการตั้งค่า
-    // payment methods ใน Dashboard โหมด Live เคยเจอ "No valid payment method types" (2026-10-16)
-    // · Apple Pay / Google Pay ยังขึ้นได้ (นับเป็นบัตร) ถ้าเปิดไว้ใน Dashboard
-    payment_method_types: ['card'],
+    // ⚠️ ห้ามใส่ payment_method_types — API รุ่นนี้ยกเลิกแล้ว (Stripe ตอบ error ทุกครั้ง)
+    // ช่องทางจ่ายเปิด/ปิดที่ Dashboard → Settings → Payment methods (แยก Test/Live) · subscription สกุลบาทใช้ได้แค่บัตร
+    // ไม่ได้เปิด Cards ในโหมด Live = "No valid payment method types for this Checkout Session" (เจอจริง 2026-10-16)
     line_items: [{ price: priceId, quantity: qty }],
     subscription_data: { metadata: { org_id: a.orgId, kind } },
     metadata: { org_id: a.orgId, kind },
