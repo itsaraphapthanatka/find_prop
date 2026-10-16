@@ -4,13 +4,14 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { logActivity } from '../lib/activityLog'
 import { useProperties } from '../hooks/useProperties'
-import type { PropertyInput } from '../types'
 import { LABELS } from '../labels'
 import {
   IMPORT_FIELDS, autoMapColumns, buildTemplateCsv, rowsToProperties, type ImportRow,
+  LATLNG_COMBINED, LATLNG_COMBINED_LABEL, type ImportTarget,
 } from '../lib/importProps'
 import { IconDownload, IconHouse, IconUpload } from '../components/icons'
 import { buildResidentialSampleXlsx, SAMPLE_XLSX_NAME } from '../lib/sampleImport'
+import { resolveMapUrl } from '../lib/resolveLatLng'
 
 const CHUNK = 50
 
@@ -33,11 +34,13 @@ export default function ImportPage() {
   const [sheetName, setSheetName] = useState<string | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
   const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([])
-  const [mapping, setMapping] = useState<Record<string, keyof PropertyInput | ''>>({})
+  const [mapping, setMapping] = useState<Record<string, ImportTarget>>({})
   const [parseError, setParseError] = useState<string | null>(null)
   const [dupMode, setDupMode] = useState<'skip' | 'update'>('skip')
   const [busy, setBusy] = useState(false)
   const [processed, setProcessed] = useState(0)
+  // ขั้นดึงพิกัดจากลิงก์ย่อ Google Maps ก่อนบันทึก (null = ไม่ได้อยู่ในขั้นนี้)
+  const [geoProg, setGeoProg] = useState<{ done: number; total: number } | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
 
   const existingByCode = useMemo(() => new Map(items.map((p) => [p.code, p])), [items])
@@ -79,6 +82,13 @@ export default function ImportPage() {
   const fresh = withCode.filter((r) => !existingByCode.has(r.code!))
   const total = fresh.length + (dupMode === 'update' ? dups.length : 0)
 
+  // ── พิกัด: กี่แถวมีแล้ว · กี่แถวต้องกางลิงก์ย่อ Google Maps ตอนนำเข้า (แกะเองที่ browser ไม่ได้) ──
+  const toImport = useMemo(() => [...fresh, ...(dupMode === 'update' ? dups : [])], [fresh, dups, dupMode])
+  const hasCoord = (r: ImportRow) => r.input.lat != null && r.input.lng != null
+  const SHORT_LINK = /^https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i
+  const needResolve = toImport.filter((r) => !hasCoord(r) && SHORT_LINK.test(String(r.input.map_url ?? '').trim()))
+  const withCoord = toImport.filter(hasCoord).length
+
   const sample = (h: string): string => {
     for (const row of rawRows) {
       const v = row[h]
@@ -93,6 +103,23 @@ export default function ImportPage() {
   async function runImport() {
     setBusy(true)
     setProcessed(0)
+
+    // 1) กางลิงก์ย่อ Google Maps → พิกัด ก่อนบันทึก (ทีละ 4 ลิงก์ · ลิงก์ไหนไม่ได้ก็ข้าม ไม่ล้มการนำเข้า)
+    //    เขียนพิกัดลง input ของแถวโดยตรง (แถวชุดนี้ใช้ครั้งเดียวสำหรับการนำเข้ารอบนี้)
+    if (needResolve.length > 0) {
+      let n = 0
+      setGeoProg({ done: 0, total: needResolve.length })
+      const queue = [...needResolve]
+      await Promise.all(Array.from({ length: Math.min(4, queue.length) }, async () => {
+        for (let r = queue.shift(); r; r = queue.shift()) {
+          const c = await resolveMapUrl(String(r.input.map_url))
+          if (c) { r.input.lat = c.lat; r.input.lng = c.lng }
+          setGeoProg({ done: ++n, total: needResolve.length })
+        }
+      }))
+      setGeoProg(null)
+    }
+
     const errors: RowError[] = []
     let inserted = 0
     let updated = 0
@@ -234,9 +261,15 @@ export default function ImportPage() {
                             className="plan-select"
                             value={mapping[h] ?? ''}
                             onChange={(e) =>
-                              setMapping({ ...mapping, [h]: e.target.value as keyof PropertyInput | '' })}
+                              setMapping({ ...mapping, [h]: e.target.value as ImportTarget })}
                           >
                             <option value="">— ไม่นำเข้า —</option>
+                            <option
+                              value={LATLNG_COMBINED}
+                              disabled={Object.entries(mapping).some(([k, v]) => v === LATLNG_COMBINED && k !== h)}
+                            >
+                              📍 {LATLNG_COMBINED_LABEL}
+                            </option>
                             {IMPORT_FIELDS.map((f) => (
                               <option
                                 key={f}
@@ -260,6 +293,12 @@ export default function ImportPage() {
               <div className="imp-stats">
                 <span className="tag alt">เพิ่มใหม่ {fresh.length.toLocaleString('th-TH')} แถว</span>
                 {dups.length > 0 && <span className="tag">รหัสซ้ำกับในระบบ {dups.length.toLocaleString('th-TH')} แถว</span>}
+                {toImport.length > 0 && (
+                  <span className={`tag${withCoord + needResolve.length > 0 ? ' alt' : ''}`} style={{ whiteSpace: 'normal' }}>
+                    📍 มีพิกัด {withCoord.toLocaleString('th-TH')}/{toImport.length.toLocaleString('th-TH')} แถว
+                    {needResolve.length > 0 && ` · จะดึงจากลิงก์ Google Maps อีก ${needResolve.length.toLocaleString('th-TH')} แถว`}
+                  </span>
+                )}
                 {noCode.length > 0 && <span className="tag warn">ไม่มีรหัส (ข้าม) {noCode.length.toLocaleString('th-TH')} แถว</span>}
               </div>
               {dups.length > 0 && (
@@ -285,7 +324,9 @@ export default function ImportPage() {
                   onClick={() => void runImport()}
                 >
                   <IconUpload size={16} />
-                  {busy
+                  {busy && geoProg
+                    ? `กำลังดึงพิกัดจากลิงก์… ${geoProg.done.toLocaleString('th-TH')}/${geoProg.total.toLocaleString('th-TH')}`
+                    : busy
                     ? `กำลังนำเข้า… ${processed.toLocaleString('th-TH')}/${total.toLocaleString('th-TH')}`
                     : `นำเข้า ${total.toLocaleString('th-TH')} แถว`}
                 </button>

@@ -1,5 +1,6 @@
 import type { Property, PropertyInput } from '../types'
 import { LABELS } from '../labels'
+import { parseLatLng, roundLatLng } from './latlng'
 
 /**
  * ฟิลด์ที่นำเข้าได้ เรียงตามลำดับใน LABELS
@@ -91,6 +92,7 @@ const ALIASES: Record<string, keyof PropertyInput> = {
   'ค่าเช่า': 'rent_per_month', 'ค่าเช่า/เดือน': 'rent_per_month', 'ราคาเช่า': 'rent_per_month',
   'ราคา': 'sale_price',
   'latitude': 'lat', 'longitude': 'lng', 'long': 'lng',
+  'lon': 'lng', 'ลองติจูด': 'lng', 'ละติจูต': 'lat', // สะกดผิดที่เจอบ่อยในไฟล์ลูกค้า
   'พิกัด lat': 'lat', 'พิกัด lng': 'lng',
   'ลิงก์แผนที่': 'map_url', 'google maps': 'map_url', 'map': 'map_url',
   'หมายเหตุ': 'notes',
@@ -101,12 +103,26 @@ const ALIASES: Record<string, keyof PropertyInput> = {
 }
 
 /** ปรับหัวคอลัมน์ให้เทียบกันได้ (ตัดช่องว่าง/ขีดล่าง/ตัวพิมพ์) */
+/**
+ * ปลายทางพิเศษ "พิกัดรวมช่องเดียว" — หลายไฟล์เก็บพิกัดคอลัมน์เดียว เช่น "13.7055, 100.6012"
+ * (ก๊อปจาก Google Maps / ชนิด LatLong ของ AppSheet) → แยกเป็น lat + lng ให้ตอนนำเข้า
+ */
+export const LATLNG_COMBINED = '__latlng' as const
+export type ImportTarget = keyof PropertyInput | '' | typeof LATLNG_COMBINED
+export const LATLNG_COMBINED_LABEL = 'พิกัดรวมช่องเดียว (ละติจูด, ลองจิจูด)'
+
+// หัวคอลัมน์ที่หมายถึงพิกัดรวม (เทียบหลัง normalizeHeader: ตัวเล็ก ไม่มีช่องว่าง/ขีดล่าง)
+const COMBINED_HEADERS = new Set([
+  'พิกัด', 'พิกัด(ละติจูด,ลองจิจูด)', 'ละติจูด,ลองจิจูด', 'พิกัดgps', 'gps', 'latlong', 'latlng',
+  'lat,long', 'lat,lng', 'lat/long', 'lat/lng', 'latitude,longitude', 'coordinates', 'coordinate', 'coords',
+])
+
 export function normalizeHeader(h: string): string {
   return h.trim().toLowerCase().replace(/[\s_]+/g, '')
 }
 
 /** จับคู่หัวคอลัมน์ในไฟล์ → ฟิลด์ของระบบอัตโนมัติ ('' = ไม่นำเข้า) */
-export function autoMapColumns(headers: string[]): Record<string, keyof PropertyInput | ''> {
+export function autoMapColumns(headers: string[]): Record<string, ImportTarget> {
   const byLabel = new Map<string, keyof PropertyInput>()
   for (const f of IMPORT_FIELDS) {
     byLabel.set(normalizeHeader(LABELS[f]), f)
@@ -117,8 +133,14 @@ export function autoMapColumns(headers: string[]): Record<string, keyof Property
   for (const [alias, f] of Object.entries(ALIASES)) byLabel.set(normalizeHeader(alias), f)
 
   const used = new Set<keyof PropertyInput>()
-  const mapping: Record<string, keyof PropertyInput | ''> = {}
+  const mapping: Record<string, ImportTarget> = {}
+  let combinedUsed = false
   for (const h of headers) {
+    if (!combinedUsed && COMBINED_HEADERS.has(normalizeHeader(h))) {
+      mapping[h] = LATLNG_COMBINED
+      combinedUsed = true
+      continue
+    }
     const f = byLabel.get(normalizeHeader(h))
     if (f && !used.has(f)) {
       mapping[h] = f
@@ -193,17 +215,52 @@ export interface ImportRow {
 /** แปลงแถวจากไฟล์ → ข้อมูลทรัพย์ตาม mapping ที่ผู้ใช้ยืนยัน */
 export function rowsToProperties(
   rows: Record<string, unknown>[],
-  mapping: Record<string, keyof PropertyInput | ''>,
+  mapping: Record<string, ImportTarget>,
 ): ImportRow[] {
-  const cols = Object.entries(mapping).filter(([, f]) => f !== '') as [string, keyof PropertyInput][]
+  const cols = Object.entries(mapping)
+    .filter(([, f]) => f !== '' && f !== LATLNG_COMBINED) as [string, keyof PropertyInput][]
+  const combinedCol = Object.entries(mapping).find(([, f]) => f === LATLNG_COMBINED)?.[0]
   return rows.map((row, i) => {
     const input: Partial<PropertyInput> = {}
     for (const [header, field] of cols) {
       const v = convertValue(field, row[header])
       if (v !== null) (input as Record<string, unknown>)[field] = v
     }
+    fillLatLng(input, combinedCol ? row[combinedCol] : null)
     return { rowNo: i + 2, input, code: (input.code as string | undefined)?.trim() || null }
   })
+}
+
+const validLat = (n: unknown): n is number => typeof n === 'number' && isFinite(n) && n >= -90 && n <= 90
+const validLng = (n: unknown): n is number => typeof n === 'number' && isFinite(n) && n >= -180 && n <= 180
+
+/**
+ * เติม/ซ่อมพิกัดของแถว (ไม่แตะแถวที่มีพิกัดถูกต้องอยู่แล้ว)
+ *  1) lat/lng กรอกสลับช่อง (เช่น lat = 100.6, lng = 13.7) → สลับกลับ
+ *  2) ไม่มี lat/lng → แกะจากคอลัมน์พิกัดรวม ("13.7, 100.6" หรือลิงก์ที่มีพิกัด)
+ *  3) ยังไม่มี → แกะจากลิงก์ Google Maps ที่มีพิกัดในตัว (ลิงก์ย่อต้องกางที่เซิร์ฟเวอร์ — ทำในหน้านำเข้า)
+ */
+function fillLatLng(input: Partial<PropertyInput>, combinedRaw: unknown) {
+  if (!validLat(input.lat) && validLat(input.lng) && validLng(input.lat)) {
+    const t = input.lat
+    input.lat = input.lng
+    input.lng = t
+  }
+  if (validLat(input.lat) && validLng(input.lng)) return
+  const fromText = (raw: unknown) => {
+    if (raw === null || raw === undefined) return null
+    const s = String(raw).trim()
+    return s ? parseLatLng(s) : null
+  }
+  const p = fromText(combinedRaw) ?? fromText(input.map_url)
+  if (p) {
+    const r = roundLatLng(p)
+    input.lat = r.lat
+    input.lng = r.lng
+  } else {
+    // ค่าไม่ถูกต้อง (เช่น lat = 137055 จากการใช้จุลภาคแทนจุดทศนิยม) → ไม่บันทึกพิกัดเพี้ยนลงแผนที่
+    if (!validLat(input.lat) || !validLng(input.lng)) { delete input.lat; delete input.lng }
+  }
 }
 
 /** สร้างไฟล์เทมเพลต CSV หัวคอลัมน์ภาษาไทย + แถวตัวอย่าง (มี BOM ให้ Excel อ่านไทยถูก) */
