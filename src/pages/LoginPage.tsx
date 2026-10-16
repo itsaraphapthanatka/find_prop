@@ -187,9 +187,9 @@ export default function LoginPage() {
             <br />เข้าระบบด้วย Google อยู่? ไม่ต้องตั้งรหัสผ่าน — กด "เข้าสู่ระบบด้วย Google" ที่หน้าเข้าสู่ระบบได้เลย
           </p>
         ) : mode === 'login' ? (
-          <p className="auth-note">ยังไม่มีบัญชี? กด “สมัครสมาชิก” ด้านบน — สมัครเสร็จตั้งชื่อองค์กรของคุณได้เลย</p>
+          <p className="auth-note">ยังไม่มีบัญชี? กด “สมัครสมาชิก” ด้านบน — ใช้คนเดียวหรือเป็นทีมก็ได้</p>
         ) : (
-          <p className="auth-note">สมัครแล้วคุณจะได้ตั้งชื่อองค์กรของตัวเอง และเป็นแอดมินเพิ่มลูกทีมได้</p>
+          <p className="auth-note">สมัครแล้วเลือกได้ว่าใช้งานคนเดียว หรือสร้างทีมแล้วเชิญลูกทีมเพิ่ม</p>
         )}
         {/* ในแอป/PWA ไม่มีหน้า landing ให้กลับ · โหมดลืมรหัสผ่านมีลิงก์กลับของตัวเองแล้ว */}
         {!isInstalledApp && mode !== 'forgot' && <p className="auth-note"><a href="#/">← กลับหน้าแรก</a></p>}
@@ -274,19 +274,37 @@ export function ResetPasswordScreen() {
   )
 }
 
+// รูปแบบการใช้งานตอนสมัคร — ทั้งสองแบบสร้าง "องค์กร" ในระบบเหมือนกัน (create_organization)
+// ต่างกันแค่ถ้อยคำ + ค่าเริ่มต้นของชื่อ: นายหน้าอิสระถามว่า "ฉันไม่ใช่บริษัท ทำไมต้องตั้งชื่อองค์กร"
+// (ฟีดแบ็กจากการประชุมทีมขาย) → แบบคนเดียวใช้ชื่อคนเป็นชื่อที่แสดงให้เลย และเพิ่มลูกทีมภายหลังได้เหมือนเดิม
+type AccountKind = 'individual' | 'company'
+
 export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOut: () => void }) {
-  const { refreshProfile } = useAuth()
-  const [name, setName] = useState('')
+  const { refreshProfile, profile, session } = useAuth()
+  // ชื่อจริงจากโปรไฟล์/Google (ถ้ามี) → ใช้เป็นชื่อเริ่มต้นของแบบคนเดียว
+  const meta = (session?.user.user_metadata ?? {}) as { full_name?: string; name?: string }
+  const personal = (profile?.full_name || meta.full_name || meta.name || '').trim()
+  const [kind, setKind] = useState<AccountKind>('individual')
+  const [myName, setMyName] = useState(personal)
+  const [teamName, setTeamName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // โปรไฟล์โหลดตามมาทีหลัง → เติมชื่อให้ ถ้าผู้ใช้ยังไม่ได้พิมพ์เอง
+  useEffect(() => {
+    if (personal) setMyName((cur) => cur || personal)
+  }, [personal])
+
+  const name = (kind === 'individual' ? myName : teamName).trim()
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (!name) return
     setBusy(true)
     setError(null)
-    const { error } = await supabase.rpc('create_organization', { org_name: name.trim() })
+    const { error } = await supabase.rpc('create_organization', { org_name: name })
     if (error) {
-      setError(`สร้างองค์กรไม่สำเร็จ: ${error.message}`)
+      setError(`${kind === 'individual' ? 'เริ่มใช้งาน' : 'สร้างทีม'}ไม่สำเร็จ: ${error.message}`)
       setBusy(false)
       return
     }
@@ -306,27 +324,51 @@ export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOu
       <form className="auth-card" onSubmit={handleCreate}>
         <Brand />
         <p className="sub" style={{ marginTop: 14 }}>
-          บัญชี <b>{email}</b> ยังไม่ได้อยู่ในองค์กรใด
-          <br />
-          ตั้งชื่อองค์กรของคุณเพื่อเริ่มใช้งาน — คุณจะเป็นแอดมินขององค์กรนี้
-          และเพิ่มลูกทีมได้จากเมนู "ทีม"
+          บัญชี <b>{email}</b> พร้อมแล้ว — เลือกรูปแบบการใช้งาน
         </p>
-        {error && <div className="auth-error">{error}</div>}
-        <div className="form-field">
-          <label>ชื่อองค์กร <span className="req">*</span></label>
-          <input
-            type="text"
-            required
-            placeholder="เช่น JKP Property"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+        <div className="acct-choice" role="radiogroup" aria-label="รูปแบบการใช้งาน">
+          <button
+            type="button" role="radio" aria-checked={kind === 'individual'}
+            className={`acct-opt${kind === 'individual' ? ' on' : ''}`} onClick={() => setKind('individual')}
+          >
+            <span className="acct-ico">👤</span>
+            <b>ใช้คนเดียว</b>
+            <small>นายหน้าอิสระ / เจ้าของทรัพย์</small>
+          </button>
+          <button
+            type="button" role="radio" aria-checked={kind === 'company'}
+            className={`acct-opt${kind === 'company' ? ' on' : ''}`} onClick={() => setKind('company')}
+          >
+            <span className="acct-ico">👥</span>
+            <b>ทีม / บริษัท</b>
+            <small>มีลูกทีมหลายคน</small>
+          </button>
         </div>
-        <button className="btn primary auth-submit" type="submit" disabled={busy}>
-          {busy ? 'กำลังสร้าง…' : 'สร้างองค์กร'}
+        {error && <div className="auth-error">{error}</div>}
+        {kind === 'individual' ? (
+          <div className="form-field">
+            <label>ชื่อที่แสดง <span className="req">*</span></label>
+            <input
+              type="text" required placeholder="เช่น สมชาย ใจดี หรือ สมชาย นายหน้าบางนา"
+              value={myName} onChange={(e) => setMyName(e.target.value)}
+            />
+            <p className="field-hint">ใช้ชื่อคุณหรือชื่อแบรนด์นายหน้าก็ได้ · ถ้าภายหลังมีลูกทีม เชิญเพิ่มได้จากเมนู "ทีม"</p>
+          </div>
+        ) : (
+          <div className="form-field">
+            <label>ชื่อทีม / บริษัท <span className="req">*</span></label>
+            <input
+              type="text" required placeholder="เช่น JKP Property"
+              value={teamName} onChange={(e) => setTeamName(e.target.value)}
+            />
+            <p className="field-hint">คุณจะเป็นเจ้าของ (Owner) · เชิญลูกทีมได้จากเมนู "ทีม"</p>
+          </div>
+        )}
+        <button className="btn primary auth-submit" type="submit" disabled={busy || !name}>
+          {busy ? 'กำลังเตรียมระบบ…' : kind === 'individual' ? 'เริ่มใช้งาน' : 'สร้างทีม'}
         </button>
         <p className="auth-note">
-          ถ้าทีมของคุณมีองค์กรอยู่แล้ว ให้แอดมินเป็นคนเพิ่มบัญชีคุณแทน{' '}
+          ทีมของคุณมีในระบบอยู่แล้ว? ให้หัวหน้าทีมส่งลิงก์เชิญมาแทน{' '}
           <a href="#" onClick={(e) => { e.preventDefault(); onSignOut() }}>ออกจากระบบ</a>
         </p>
       </form>

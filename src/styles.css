@@ -1921,3 +1921,16 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   }
   .pp-row.on .pp-act-short { background: var(--purple); color: #fff; }
 }
+
+/* ── สมัครใหม่: เลือกใช้งานคนเดียว / ทีม-บริษัท ── */
+.acct-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 16px; }
+.acct-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; cursor: pointer;
+  padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; font-family: inherit;
+  color: var(--ink); transition: border-color .15s, background .15s;
+}
+.acct-opt:hover { border-color: var(--purple); }
+.acct-opt.on { border-color: var(--purple); background: var(--purple-tint); box-shadow: 0 0 0 3px rgba(113, 50, 245, .12); }
+.acct-opt b { font-size: 15px; white-space: nowrap; }
+.acct-opt small { font-size: 12.5px; color: var(--muted); }
+.acct-ico { font-size: 22px; line-height: 1; margin-bottom: 4px; }
