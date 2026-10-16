@@ -1,3 +1,5 @@
+-- ⚠️ ฟังก์ชัน set_contract_alert_days ในไฟล์นี้เช็คบทบาท 'admin' แบบเก่า (ใช้ไม่ได้แล้วหลัง roles.sql)
+--    → ถูกแทนด้วย supabase/contract-alert-owner-fix.sql · ถ้ารันไฟล์นี้ซ้ำ ต้องรันไฟล์ fix ตามทุกครั้ง
 -- แจ้งเตือนสัญญาเช่าใกล้หมด: ให้แอดมินแต่ละองค์กรตั้งเกณฑ์เองได้ — รันซ้ำได้ (idempotent)
 -- organizations.contract_alert_days = เกณฑ์ขององค์กร (เช่น {90,60,30}) · null = ใช้ค่ามาตรฐานระบบ
 -- (ค่ามาตรฐานยังอยู่ที่ app_settings 'contract_alert' — super admin แก้จากหน้า Super Admin)
