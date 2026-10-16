@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPlanPrices, DEFAULT_PRICES, TIERS, type PlanPrices, type Tier } from '../lib/payments'
 import { fetchTrialSetting, DEFAULT_TRIAL, trialActive, trialLabel, fetchReferralSetting, DEFAULT_REFERRAL, fetchContactSetting, DEFAULT_CONTACT } from '../lib/plan'
+import { DEFAULT_TESTIMONIALS, fetchPublicStats, fetchTestimonials, isPublishable, roughCount, type PublicStats } from '../lib/testimonials'
 import BrandLogo from '../components/BrandLogo'
 import {
   IconBell,
@@ -222,6 +223,13 @@ function DashboardMock() {
   )
 }
 
+/** ตัวอักษรย่อในวงกลมรูปโปรไฟล์ — ตัด "คุณ" นำหน้า · สระหน้า (เ แ โ ใ ไ) เอาพยัญชนะตามมาด้วย */
+function nameInitial(name: string): string {
+  const n = name.trim().replace(/^คุณ\s*/, '')
+  if (!n) return '•'
+  return /^[เแโใไ]/.test(n) ? n.slice(0, 2) : n.slice(0, 1).toUpperCase()
+}
+
 export default function LandingPage() {
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
@@ -236,13 +244,21 @@ export default function LandingPage() {
   const [refSet, setRefSet] = useState(DEFAULT_REFERRAL)
   // ช่องทางติดต่อจริง (LINE OA / โทร / อีเมล) — super admin ตั้งเอง
   const [contact, setContact] = useState(DEFAULT_CONTACT)
+  // รีวิวลูกค้าจริง (super admin ใส่เอง) + ตัวเลขการใช้งานจริง — ไม่มีอะไรให้โชว์ = ซ่อนทั้งส่วน
+  const [reviews, setReviews] = useState(DEFAULT_TESTIMONIALS)
+  const [stats, setStats] = useState<PublicStats | null>(null)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
     void fetchTrialSetting().then(setTrialSet)
     void fetchReferralSetting().then(setRefSet)
     void fetchContactSetting().then(setContact)
+    void fetchTestimonials().then((t) => {
+      setReviews(t)
+      if (t.showStats) void fetchPublicStats().then(setStats)
+    })
   }, [])
   const trialOn = trialActive(trialSet)
+  const publishedReviews = reviews.items.filter(isPublishable)
   const trialTxt = trialLabel(trialSet) || 'สมัครใช้งานฟรี'
   // แทน {trial} ในข้อความจาก FEATURES/STEPS/PLANS
   const tt = (s: string) => s.replace('{trial}', trialTxt)
@@ -363,6 +379,42 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* เสียงจากผู้ใช้จริง — รีวิวเฉพาะที่ลูกค้าอนุญาตแล้ว + ตัวเลขจากระบบจริง (ไม่รวมบัญชีทดสอบ) */}
+      {(publishedReviews.length > 0 || (reviews.showStats && stats && stats.properties_total > 0)) && (
+        <section className="ld-section" id="reviews">
+          <span className="ld-kicker">เสียงจากผู้ใช้จริง</span>
+          <h2>ทีมนายหน้าที่ใช้ HOP อยู่จริง</h2>
+          {reviews.showStats && stats && stats.properties_total > 0 && (
+            <>
+              <div className="ld-stats">
+                <div><b>{roughCount(stats.properties_total)}</b><span>ทรัพย์ในระบบ</span></div>
+                <div><b>{roughCount(stats.orgs_total)}</b><span>ทีมที่ใช้งาน</span></div>
+                <div><b>{roughCount(stats.users_total)}</b><span>ผู้ใช้งาน</span></div>
+              </div>
+              <p className="ld-stats-note">ตัวเลขจากระบบจริง ไม่รวมบัญชีทดสอบ · นายหน้าที่ใช้คนเดียวนับเป็น 1 ทีม · อัปเดตอัตโนมัติ</p>
+            </>
+          )}
+          {publishedReviews.length > 0 && (
+            <div className="ld-grid why ld-reviews">
+              {publishedReviews.map((t) => (
+                <figure key={t.id} className="ld-card ld-review">
+                  {t.rating && (
+                    <div className="ld-stars" aria-label={`${t.rating} จาก 5 ดาว`}>
+                      {'★'.repeat(t.rating)}<span>{'★'.repeat(5 - t.rating)}</span>
+                    </div>
+                  )}
+                  <blockquote>“{t.quote.trim()}”</blockquote>
+                  <figcaption>
+                    <span className="ld-avatar" aria-hidden>{nameInitial(t.name)}</span>
+                    <span><b>{t.name.trim()}</b>{t.role.trim() && <small>{t.role.trim()}</small>}</span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="ld-section" id="pricing">
         <span className="ld-kicker">แพ็กเกจ</span>

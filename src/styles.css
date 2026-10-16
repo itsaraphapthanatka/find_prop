@@ -1950,3 +1950,36 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   margin: 10px 0 4px; padding: 10px 14px; border-radius: 10px; font-size: 13.5px;
   background: #ecfdf3; border: 1px solid #a7f3c8; color: #127a3f;
 }
+
+/* ── landing: เสียงจากผู้ใช้จริง (ตัวเลขจริง + รีวิวที่ลูกค้าอนุญาต) ── */
+.ld-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 760px; margin: 6px auto 8px;
+}
+.ld-stats > div {
+  background: #fff; border: 1px solid var(--ld-hair); border-radius: 16px; padding: 18px 12px; text-align: center;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.ld-stats b { font-size: clamp(26px, 4vw, 36px); letter-spacing: -0.02em; color: #7132f5; line-height: 1.1; }
+.ld-stats span { font-size: 13.5px; color: var(--ld-dim); white-space: nowrap; }
+.ld-stats-note { text-align: center; font-size: 12.5px; color: var(--ld-dim); margin: 0 0 30px; }
+.ld-reviews { margin-top: 4px; }
+.ld-review { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.ld-review blockquote { margin: 0; font-size: 15px; line-height: 1.7; color: var(--ld-ink); flex: 1; }
+.ld-stars { color: #f59e0b; letter-spacing: 2px; font-size: 15px; }
+.ld-stars span { color: #e5e1d8; }
+.ld-review figcaption { display: flex; align-items: center; gap: 10px; }
+.ld-review figcaption b { display: block; font-size: 14.5px; }
+.ld-review figcaption small { display: block; font-size: 12.5px; color: var(--ld-dim); }
+.ld-avatar {
+  flex: 0 0 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #7132f5, #3ecfc4); color: #fff; font-weight: 700; font-size: 16px;
+}
+@media (max-width: 520px) { .ld-stats { gap: 8px; } .ld-stats > div { padding: 14px 4px; } .ld-stats span { font-size: 12px; } }
+
+/* ── Super Admin: จัดการรีวิวลูกค้า ── */
+.tm-list { display: flex; flex-direction: column; gap: 12px; }
+.tm-item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fff; }
+.tm-item.live { border-color: #a7f3c8; box-shadow: inset 3px 0 0 #16a34a; }
+.tm-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tm-flags { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 14px; }
+.tm-flags label { display: inline-flex; align-items: center; gap: 6px; }

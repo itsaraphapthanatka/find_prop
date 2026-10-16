@@ -11,6 +11,7 @@ import {
   fetchPaymentTestEnabled, fetchSeatSetting, TIERS, type SeatSetting, type Tier,
 } from '../lib/payments'
 import { FEATURES_DOC, SYSTEM_DOC, TRAINING_DOC } from '../lib/docs'
+import TestimonialsAdmin from '../components/TestimonialsAdmin'
 
 // จัดกลุ่มรีวิวของผู้รีวิวคนหนึ่งตาม "หัวข้อ" (flow) — คงลำดับที่พบครั้งแรก
 function groupByFlow(rows: ReviewRow[]): [string, ReviewRow[]][] {
@@ -1107,6 +1108,8 @@ export default function SuperAdminPage() {
             </div>
           </div>
         </section>
+
+        <TestimonialsAdmin />
 
         <section className="form-card">
           <h3>ช่องทางติดต่อ / LINE OA (แสดงบนหน้า landing)</h3>
