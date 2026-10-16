@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import MarkerClusterGroup from 'react-leaflet-cluster'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
@@ -14,34 +13,10 @@ import { IconClose, IconLocate, IconPin } from '../components/icons'
 import { getPosition } from '../lib/native'
 import { DealTag, PROPERTY_STYLE as PIN_STYLE, TYPE_FALLBACK as PIN_FALLBACK } from '../lib/propertyStyle'
 import { photoThumb } from '../lib/photo'
+import PropertyDots, { type GeoProperty } from '../components/PropertyDots'
 
 // PIN_STYLE / PIN_FALLBACK (สี + glyph ต่อประเภท) ย้ายไปใช้ร่วมกันที่ src/lib/propertyStyle
 // (import ด้านบน) — ปุ่มเลือกประเภทในฟอร์มใช้ชุดเดียวกัน สี/ไอคอนจึงตรงกับหมุดเสมอ
-
-const pinSvg = (color: string, glyph: string) => `
-<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
-  <path d="M17 1.5C9 1.5 2.5 8 2.5 15.8 2.5 23.2 10 33.2 17 42.5 24 33.2 31.5 23.2 31.5 15.8 31.5 8 25 1.5 17 1.5Z" fill="${color}" stroke="#ffffff" stroke-width="2.2"/>
-  <g transform="translate(9 7.5) scale(0.667)" fill="#ffffff">${glyph}</g>
-</svg>`
-
-// สร้างไอคอนครั้งเดียวต่อประเภทแล้วใช้ซ้ำ — หมุดหลักร้อยตัวไม่ต้องสร้าง DOM string ใหม่ทุก render
-const pinCache = new Map<string, L.DivIcon>()
-function pinFor(type: string | null | undefined): L.DivIcon {
-  const key = type && PIN_STYLE[type] ? type : ''
-  let icon = pinCache.get(key)
-  if (!icon) {
-    const { color, glyph } = PIN_STYLE[key] ?? PIN_FALLBACK
-    icon = L.divIcon({
-      className: 'type-pin',
-      html: pinSvg(color, glyph),
-      iconSize: [34, 44],
-      iconAnchor: [17, 42],
-      popupAnchor: [0, -38],
-    })
-    pinCache.set(key, icon)
-  }
-  return icon
-}
 
 // หมุดชั่วคราว (สีม่วงตาม design system) สำหรับตำแหน่งทรัพย์ใหม่
 const draftIcon = L.divIcon({
@@ -103,9 +78,11 @@ export default function MapPage() {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ label: string; lat: number; lng: number }[]>([])
   const [searching, setSearching] = useState(false)
-  // ref ไปยัง cluster group + หมุดแต่ละอัน — ใช้ตอนเลือกทรัพย์จากผลค้นหา (ซูมโชว์หมุด + เปิด popup)
-  const clusterRef = useRef<{ zoomToShowLayer: (l: L.Layer, cb: () => void) => void } | null>(null)
-  const markerRefs = useRef(new Map<string, L.Marker>())
+  // ทรัพย์ที่เปิด popup อยู่ (popup เดียวใช้ร่วมกันทุกจุด — ไม่สร้าง popup ทีละหลายร้อยอัน)
+  const [active, setActive] = useState<GeoProperty | null>(null)
+  // canvas ใบเดียวของทั้งแผนที่ (จุดทรัพย์ + วงไฮไลต์ + วงความแม่นยำ) · tolerance = ขยายพื้นที่กดให้แตะง่ายบนมือถือ
+  const canvasRenderer = useMemo(() => L.canvas({ padding: 0.5, tolerance: 8 }), [])
+  const openDot = useCallback((p: GeoProperty) => setActive(p), [])
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const focusId = params.get('focus')
@@ -236,20 +213,25 @@ export default function MapPage() {
     setQ('')
   }
 
-  // เลือก "ทรัพย์" จากผลค้นหา → เอาตัวกรองประเภทออก (เผื่อถูกซ่อน) → ซูมจนหมุดโผล่จากกลุ่ม + เปิด popup
-  function pickProperty(p: Property & { lat: number; lng: number }) {
+  // เลือก "ทรัพย์" จากผลค้นหา → เอาตัวกรองประเภทออก (เผื่อถูกซ่อน) → บินไปที่จุด แล้วเปิด popup เมื่อบินถึง
+  function pickProperty(p: GeoProperty) {
     setFType(null)
     setQ('')
     setResults([])
     setPicking(false)
-    // รอให้ marker ถูก render (หลังเคลียร์ filter) ก่อนค่อยเรียกเปิด popup
-    setTimeout(() => {
-      const marker = markerRefs.current.get(p.id)
-      const cg = clusterRef.current
-      if (cg && marker) cg.zoomToShowLayer(marker, () => marker.openPopup())
-      else map?.flyTo([p.lat, p.lng], 17, { duration: 0.8 })
-    }, 0)
+    setActive(null)
+    if (!map) return
+    // อยู่ที่จุดนั้นอยู่แล้ว (ไม่มีการเลื่อน = moveend อาจไม่เกิด) → เปิด popup ทันที
+    if (map.getZoom() >= 16 && map.getCenter().distanceTo([p.lat, p.lng]) < 5) { setActive(p); return }
+    map.once('moveend', () => setActive(p))
+    map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 16), { duration: 0.8 })
   }
+
+  // เปิดหน้าแผนที่ด้วย ?focus=<id> (มาจากปุ่มแผนที่ในหน้ารายการ) → เปิด popup ของทรัพย์นั้นเลย
+  const focusOpened = useRef(false)
+  useEffect(() => {
+    if (focused && !focusOpened.current) { focusOpened.current = true; setActive(focused) }
+  }, [focused])
 
   return (
     <div className={`map-page ${picking ? 'picking' : ''}`}>
@@ -380,6 +362,8 @@ export default function MapPage() {
         )}
         {!loading && (
           <MapContainer
+            preferCanvas
+            renderer={canvasRenderer}
             ref={setMap}
             center={focused ? [focused.lat, focused.lng] : [13.6, 100.7]}
             zoom={focused ? 15 : 10}
@@ -420,42 +404,38 @@ export default function MapPage() {
                 setPicking(false)
               }}
             />
-            {/* จับหมุดที่อยู่ใกล้กันเป็นกลุ่ม (cluster) — เรนเดอร์หมุดหลายร้อยตัวพร้อมกันทำให้แผนที่หน่วงมาก
-                cluster จะโชว์เป็นตัวเลขรวมตอนซูมออก แล้วแตกเป็นหมุดเดี่ยวตอนซูมเข้า · chunkedLoading = ทยอยเพิ่มไม่ให้ค้าง */}
-            <MarkerClusterGroup
-              ref={(cg: L.Layer | null) => { clusterRef.current = (cg as unknown as { zoomToShowLayer: (l: L.Layer, cb: () => void) => void }) ?? null }}
-              chunkedLoading
-              maxClusterRadius={60}
-              disableClusteringAtZoom={16}
-            >
-              {withCoords.map((p) => {
-                const thumb = photoThumb(p.photo_url, 240)
-                return (
-                  <Marker
-                    key={p.id}
-                    ref={(m) => { if (m) markerRefs.current.set(p.id, m) }}
-                    position={[p.lat, p.lng]}
-                    icon={pinFor(p.property_type)}
-                  >
-                    <Popup>
-                      <div className="map-popup">
-                        {thumb && <img className="map-popup-img" src={thumb} alt={p.code} loading="lazy" />}
-                        <div className="title">{p.code} <DealTag status={p.deal_status} /></div>
-                        {isSuper && p.org_name && <div className="hint">องค์กร: {p.org_name}</div>}
-                        <div>{[p.property_type, p.listing_type].filter(Boolean).join(' · ')}</div>
-                        <div>{[p.district, p.province].filter(Boolean).join(', ')}</div>
-                        {p.rent_per_month != null && (
-                          <div>ค่าเช่า {formatNumber(p.rent_per_month)} บ./เดือน</div>
-                        )}
-                        <button className="btn sm" style={{ marginTop: 6 }} onClick={() => setSelected(p)}>
-                          ดูรายละเอียด
-                        </button>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              })}
-            </MarkerClusterGroup>
+            <PropertyDots items={withCoords} onPick={openDot} />
+            {active && (
+              <>
+                {/* วงไฮไลต์จุดที่เลือก */}
+                <CircleMarker
+                  center={[active.lat, active.lng]} radius={14} interactive={false}
+                  pathOptions={{ color: '#7132f5', weight: 3, fillOpacity: 0 }}
+                />
+                <Popup
+                  key={active.id}
+                  position={[active.lat, active.lng]}
+                  offset={[0, -12]}
+                  eventHandlers={{ remove: () => setActive((cur) => (cur?.id === active.id ? null : cur)) }}
+                >
+                  <div className="map-popup">
+                    {photoThumb(active.photo_url, 240) && (
+                      <img className="map-popup-img" src={photoThumb(active.photo_url, 240)!} alt={active.code} />
+                    )}
+                    <div className="title">{active.code} <DealTag status={active.deal_status} /></div>
+                    {isSuper && active.org_name && <div className="hint">องค์กร: {active.org_name}</div>}
+                    <div>{[active.property_type, active.listing_type].filter(Boolean).join(' · ')}</div>
+                    <div>{[active.district, active.province].filter(Boolean).join(', ')}</div>
+                    {active.rent_per_month != null && (
+                      <div>ค่าเช่า {formatNumber(active.rent_per_month)} บ./เดือน</div>
+                    )}
+                    <button className="btn sm" style={{ marginTop: 6 }} onClick={() => setSelected(active)}>
+                      ดูรายละเอียด
+                    </button>
+                  </div>
+                </Popup>
+              </>
+            )}
             {me && (
               <>
                 <Circle
