@@ -258,8 +258,8 @@
 <table>
 <tr><th>แพ็กเกจ</th><th>ทรัพย์</th><th>ที่นั่งทีม (บัญชี)</th><th>ราคา/เดือน</th><th>ฟีเจอร์</th></tr>
 <tr><td><b>Free</b></td><td>5</td><td>1 (เจ้าของคนเดียว)</td><td>0</td><td>พื้นฐาน (ลง/ค้นหา/รายละเอียดทรัพย์)</td></tr>
-<tr><td><b>Basic</b> <span class="tag free">คีย์ใน DB = 'starter'</span></td><td>100 / 250 / 500 ตามระดับ</td><td>3 / 5 / 10</td><td>590 / 790 / 990</td><td>พื้นฐาน + ทีม + นำเข้า Excel</td></tr>
-<tr><td><b>Pro</b></td><td>100 / 250 / 500 ตามระดับ</td><td>5 / 10 / 20</td><td>1,190 / 1,390 / 1,590</td><td>ทุกอย่าง + Dashboard + แผนเยี่ยมชม + นัดติดตาม</td></tr>
+<tr><td><b>Basic</b> <span class="tag free">คีย์ใน DB = 'starter'</span></td><td>100 / 250 / 500 ตามระดับ</td><td>3 / 5 / 10</td><td>590 / 790 / 990</td><td>พื้นฐาน + ทีม</td></tr>
+<tr><td><b>Pro</b></td><td>100 / 250 / 500 ตามระดับ</td><td>5 / 10 / 20</td><td>1,190 / 1,390 / 1,590</td><td>ทุกอย่าง + นำเข้า Excel + Dashboard + แผนเยี่ยมชม + นัดติดตาม + AI</td></tr>
 <tr><td><b>Enterprise</b></td><td>&gt;500</td><td>ไม่จำกัด</td><td>คุยกับเซลล์</td><td>ทุกอย่าง</td></tr>
 </table>
 
@@ -315,7 +315,7 @@
 <tr><td>Dashboard สรุปภาพรวม</td><td><span class="tag pro">Pro</span></td><td>สถิติทรัพย์ตามประเภท/สถานะ/จังหวัด — จิ้มกราฟแล้วเด้งไปหน้ารายการพร้อมตัวกรอง</td></tr>
 <tr><td>แผนเยี่ยมชม (รูทเยี่ยมชม)</td><td><span class="tag pro">Pro</span></td><td>จัดชุดทรัพย์ที่จะพาลูกค้าไปดูเป็นรูท เรียงลำดับจุดแวะ แสดงชื่อเจ้าของ+ปุ่มโทร/SMS/เปิด Google Maps ต่อจุด (ตาราง <code>visit_plans</code>)</td></tr>
 <tr><td>นัดติดตาม (Follow-ups)</td><td><span class="tag pro">Pro</span></td><td>ตั้งนัดต่อทรัพย์ (โทรกลับ พาดูของ ต่อรอง) + บันทึกผล + แจ้งเตือนเมื่อถึงนัด (ตาราง <code>follow_ups</code>)</td></tr>
-<tr><td>นำเข้า Excel/CSV</td><td><span class="tag pro">Basic/Pro</span></td><td>อ่านไฟล์ จับคู่คอลัมน์ → insert ทีละก้อน แถวที่พังไม่ล้มทั้งไฟล์</td></tr>
+<tr><td>นำเข้า Excel/CSV</td><td><span class="tag pro">Pro ขึ้นไป</span></td><td>อ่านไฟล์ จับคู่คอลัมน์ → insert ทีละก้อน แถวที่พังไม่ล้มทั้งไฟล์</td></tr>
 <tr><td>เปรียบเทียบทรัพย์</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>เลือกหลายรายการวางเทียบข้างกัน</td></tr>
 <tr><td>ผู้ช่วย AI</td><td><span class="tag free">ทุกแพ็กเกจ</span></td><td>ช่วยเขียนคำอธิบายประกาศ ฯลฯ — เรียกผ่าน <code>api/ai.js</code> เท่านั้น (คีย์ LLM อยู่ฝั่งเซิร์ฟเวอร์)</td></tr>
 <tr><td>นำข้อมูลออก Excel</td><td><span class="tag free">owner</span></td><td>ดาวน์โหลดทรัพย์ทั้งหมดจากหน้ารายการ — เฉพาะเจ้าขององค์กร (<code>can_export()</code> คุมฝั่ง DB)</td></tr>
