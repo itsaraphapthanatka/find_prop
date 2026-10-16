@@ -25,7 +25,7 @@ export function supa() {
   return { url, anonKey, svc: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
 }
 
-const ORG_COLS = 'id,name,plan,plan_tier,stripe_customer_id,stripe_subscription_id,stripe_seat_subscription_id'
+const ORG_COLS = 'id,name,plan,plan_tier,stripe_customer_id,stripe_subscription_id,stripe_seat_subscription_id,sub_cancel_at_period_end'
 
 /**
  * ยืนยันผู้เรียก = Owner ที่ active ขององค์กร (super ที่สวมสิทธิ์องค์กรนั้นก็ได้)
@@ -72,12 +72,17 @@ export async function requireOrgOwner(req) {
   }
 }
 
-/** แก้คอลัมน์ขององค์กรด้วย service role (ผ่าน guard เพราะเป็น service_role) — filter เพิ่มได้ เช่น '&stripe_subscription_id=eq.sub_x' */
+/**
+ * แก้คอลัมน์ขององค์กรด้วย service role (ผ่าน guard เพราะเป็น service_role) — filter เพิ่มได้ เช่น '&stripe_subscription_id=eq.sub_x'
+ * คืนจำนวนแถวที่ตรง filter จริง (PATCH ที่ไม่ตรงแถวไหนเลยก็ตอบ 2xx — ต้องนับเองถึงจะรู้ว่าแก้ได้จริง)
+ */
 export async function patchOrg(s, orgId, patch, extraFilter = '') {
-  const r = await fetch(`${s.url}/rest/v1/organizations?id=eq.${orgId}${extraFilter}`, {
+  const r = await fetch(`${s.url}/rest/v1/organizations?id=eq.${orgId}${extraFilter}&select=id`, {
     method: 'PATCH',
-    headers: { ...s.svc, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    headers: { ...s.svc, 'Content-Type': 'application/json', Prefer: 'return=representation' },
     body: JSON.stringify(patch),
   })
   if (!r.ok) throw new Error(`อัปเดตองค์กรไม่สำเร็จ (${r.status})`)
+  const rows = await r.json().catch(() => null)
+  return Array.isArray(rows) ? rows.length : 0
 }

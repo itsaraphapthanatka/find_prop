@@ -4,12 +4,13 @@
 //                · มีอยู่แล้ว = เปลี่ยนแพ็กเกจ/จำนวนที่นั่งในที่เดิม คิดส่วนต่างตามวันที่เหลือ)
 //   'confirm'  → กลับจากหน้า Checkout แล้วยืนยันทันที (ไม่ต้องรอ webhook)
 //   'portal'   → เปิด Stripe Customer Portal (เปลี่ยนบัตร / ดูใบเสร็จ / ยกเลิกต่ออายุ)
+//   'sync'     → ดึงสถานะ subscription จริงจาก Stripe มาเขียนลงองค์กร (เปิดหน้าอัปเกรดทุกครั้ง)
 //
 // ความปลอดภัย: เฉพาะ Owner ขององค์กร · ยอดเงินคำนวณฝั่งเซิร์ฟเวอร์ · ให้สิทธิ์เฉพาะใบแจ้งหนี้ที่ "paid" จริง
 
 import { cors, requireOrgOwner, patchOrg } from './_lib/auth.js'
 import {
-  stripeClient, appUrl, ensurePrice, ensureCustomer, findLiveSubscription, applyInvoice,
+  stripeClient, appUrl, ensurePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe,
 } from './_lib/stripe.js'
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
@@ -30,7 +31,8 @@ export default async function handler(req, res) {
     if (body.action === 'checkout') return await checkout(req, res, stripe, a, body)
     if (body.action === 'confirm') return await confirm(res, stripe, a, body)
     if (body.action === 'portal') return await portal(req, res, stripe, a, body)
-    return res.status(400).json({ error: 'action ไม่ถูกต้อง (checkout | confirm | portal)' })
+    if (body.action === 'sync') return res.status(200).json(await syncFromStripe(stripe, a))
+    return res.status(400).json({ error: 'action ไม่ถูกต้อง (checkout | confirm | portal | sync)' })
   } catch (e) {
     // ข้อความจาก Stripe (เช่น บัตรถูกปฏิเสธ / ยังไม่ได้ตั้งค่า Customer Portal) ส่งกลับให้เห็น — ไม่มีข้อมูลลับ
     const msg = e?.raw?.message || e?.message || 'ไม่ทราบสาเหตุ'

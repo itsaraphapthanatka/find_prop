@@ -81,12 +81,54 @@ export async function ensureCustomer(stripe, auth) {
   return c.id
 }
 
+const LIVE_STATUSES = ['active', 'trialing', 'past_due', 'unpaid']
+const pickLive = (subs, kind) => subs.find((sub) =>
+  LIVE_STATUSES.includes(sub.status) && (sub.metadata?.kind || 'plan') === kind) || null
+/** ตั้งยกเลิกปลายรอบไว้ไหม (API ใหม่: portal อาจตั้ง cancel_at แทน cancel_at_period_end) */
+const cancelScheduled = (sub) => Boolean(sub?.cancel_at_period_end || sub?.cancel_at)
+
 /** subscription ที่ยังใช้งานของลูกค้า แยกตามชนิด ('plan' | 'seats') — ไม่มี = null */
 export async function findLiveSubscription(stripe, customerId, kind) {
   const list = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 20 })
-  return list.data.find((sub) =>
-    ['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)
-    && (sub.metadata?.kind || 'plan') === kind) || null
+  return pickLive(list.data, kind)
+}
+
+/**
+ * ดึงสถานะจริงจาก Stripe มาเขียนทับในองค์กร (เปิดหน้าอัปเกรดทุกครั้ง) — ไม่พึ่ง webhook อย่างเดียว
+ * กันกรณี webhook ไม่ได้ติ๊ก event / มาช้ากว่าหน้า / portal ตั้งให้ยกเลิกทันที
+ * แตะเฉพาะคอลัมน์ stripe_* + ธงยกเลิก — ไม่แตะแพ็กเกจ/วันหมดอายุ (สิทธิ์ที่จ่ายแล้วยังอยู่ถึงวันหมดอายุ)
+ */
+export async function syncFromStripe(stripe, auth) {
+  const { org, orgId, s } = auth
+  if (!org.stripe_customer_id) return { changed: false, customer: null }
+  let subs
+  try {
+    subs = (await stripe.subscriptions.list({ customer: org.stripe_customer_id, status: 'all', limit: 20 })).data
+  } catch (e) {
+    // ลูกค้าไม่มีในโหมดนี้ (เช่น สลับคีย์ test → live) → ล้างรหัสเก่าทิ้ง ครั้งหน้ากดซื้อจะสร้างลูกค้าใหม่ให้
+    if (e?.code !== 'resource_missing') throw e
+    await patchOrg(s, orgId, {
+      stripe_customer_id: null, stripe_subscription_id: null,
+      stripe_seat_subscription_id: null, sub_cancel_at_period_end: false,
+    })
+    return { changed: true, customer: 'missing' }
+  }
+  const plan = pickLive(subs, 'plan')
+  const seats = pickLive(subs, 'seats')
+  const next = {
+    stripe_subscription_id: plan?.id ?? null,
+    sub_cancel_at_period_end: plan ? cancelScheduled(plan) : false,
+    stripe_seat_subscription_id: seats?.id ?? null,
+  }
+  const changed = next.stripe_subscription_id !== (org.stripe_subscription_id ?? null)
+    || next.sub_cancel_at_period_end !== Boolean(org.sub_cancel_at_period_end)
+    || next.stripe_seat_subscription_id !== (org.stripe_seat_subscription_id ?? null)
+  if (changed) await patchOrg(s, orgId, next)
+  return {
+    changed,
+    plan: plan ? { status: plan.status, cancel: cancelScheduled(plan) } : null,
+    seats: seats ? { status: seats.status, cancel: cancelScheduled(seats) } : null,
+  }
 }
 
 const idOf = (x) => (typeof x === 'string' ? x : x?.id) || null
@@ -183,12 +225,14 @@ export async function syncSubscription(s, sub) {
   const ended = ['canceled', 'incomplete_expired'].includes(sub.status)
   const col = kind === 'seats' ? 'stripe_seat_subscription_id' : 'stripe_subscription_id'
   const only = `&${col}=eq.${encodeURIComponent(sub.id)}` // แตะเฉพาะถ้าเป็น subscription ตัวเดียวกับที่องค์กรผูกอยู่
+  let matched = null
   if (ended) {
-    await patchOrg(s, orgId, kind === 'seats'
+    matched = await patchOrg(s, orgId, kind === 'seats'
       ? { stripe_seat_subscription_id: null }
       : { stripe_subscription_id: null, sub_cancel_at_period_end: false }, only)
   } else if (kind === 'plan') {
-    await patchOrg(s, orgId, { sub_cancel_at_period_end: Boolean(sub.cancel_at_period_end || sub.cancel_at) }, only)
+    matched = await patchOrg(s, orgId, { sub_cancel_at_period_end: cancelScheduled(sub) }, only)
   }
-  return { ok: true }
+  // matched โชว์ในหน้า Event deliveries ของ Stripe — 0 = องค์กรไม่ได้ผูก subscription ตัวนี้ (ไว้ไล่ปัญหา)
+  return { ok: true, kind, status: sub.status, cancel: cancelScheduled(sub), matched }
 }

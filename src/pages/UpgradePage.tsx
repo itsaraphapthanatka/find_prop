@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
-  startCheckout, startSeatCheckout, confirmCheckout, openBillingPortal, fetchPlanPrices, fetchSeatSetting,
+  startCheckout, startSeatCheckout, confirmCheckout, openBillingPortal, syncBilling, fetchPlanPrices, fetchSeatSetting,
   DEFAULT_PRICES, DEFAULT_SEAT_SETTING, MAX_SEAT_QTY, TIERS,
   type CheckoutResult, type PlanKey, type PlanPrices, type SeatSetting, type Tier,
 } from '../lib/payments'
@@ -120,6 +120,19 @@ export default function UpgradePage() {
   // (ตัวแรกสุดอาจยังไม่มี session → รีเฟรชแล้วเงียบ หน้าโชว์แพ็กเกจเก่า)
   const refresh = useRef(refreshProfile)
   refresh.current = refreshProfile
+
+  // เปิดหน้านี้ทุกครั้ง (รวมกลับจากหน้าจัดการการชำระเงิน) → ดึงสถานะจริงจาก Stripe มาเทียบ
+  // ไม่พึ่ง webhook อย่างเดียว: webhook อาจมาช้ากว่าหน้า/ไม่ได้ติ๊ก event/portal ตั้งให้ยกเลิกทันที
+  // ข้ามตอนกลับจาก Checkout (confirmLoop ทำหน้าที่นั้นอยู่แล้ว)
+  const backFromCheckout = useRef(new URLSearchParams(window.location.search).has('stripe'))
+  const syncedFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (!isAdmin || !org?.id || !org.stripe_customer_id || backFromCheckout.current || syncedFor.current === org.id) return
+    syncedFor.current = org.id
+    void syncBilling()
+      .then((r) => { if (r.changed) void refresh.current() })
+      .catch(() => { /* ซิงก์ไม่สำเร็จ = ใช้ข้อมูลเดิมไปก่อน (webhook ยังอัปเดตให้อยู่) */ })
+  }, [isAdmin, org?.id, org?.stripe_customer_id])
 
   /** ยืนยันกับเซิร์ฟเวอร์ (ซึ่งถาม Stripe) ว่าจ่ายแล้ว → ให้สิทธิ์ทันที · ลองซ้ำเผื่อใบแจ้งหนี้ยังประมวลผลไม่เสร็จ */
   async function confirmLoop(sessionId: string) {
@@ -323,6 +336,11 @@ export default function UpgradePage() {
                 <> · {org.sub_cancel_at_period_end
                   ? <b style={{ color: 'var(--danger, #c0392b)' }}>ยกเลิกการต่ออายุแล้ว — ใช้ได้ถึง {fmtDate(org.sub_expires_at)}</b>
                   : <>ต่ออายุอัตโนมัติ (ตัดบัตรทุกรอบ)</>}</>
+              )}
+              {/* เคยจ่ายด้วยบัตรแต่ไม่มี subscription แล้ว (ยกเลิกทันที/ตัดบัตรไม่ผ่านจนหมดรอบ) → ใช้ได้ถึงวันที่จ่ายไว้ */}
+              {!hasPlanSub && org?.stripe_customer_id && (org?.plan === 'starter' || org?.plan === 'pro')
+                && org?.sub_expires_at && org.sub_expires_at >= new Date().toISOString().slice(0, 10) && (
+                <> · <b style={{ color: 'var(--danger, #c0392b)' }}>ไม่ต่ออายุอัตโนมัติ — ใช้ได้ถึง {fmtDate(org.sub_expires_at)}</b></>
               )}
             </p>
             {org?.stripe_customer_id && (

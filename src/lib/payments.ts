@@ -171,6 +171,11 @@ export function confirmCheckout(sessionId: string): Promise<ConfirmResult> {
   return authedPost<ConfirmResult>('stripe', { action: 'confirm', session_id: sessionId })
 }
 
+/** ดึงสถานะ subscription จริงจาก Stripe มาอัปเดตองค์กร — changed = ข้อมูลในระบบเปลี่ยน (ควรโหลดองค์กรใหม่) */
+export function syncBilling(): Promise<{ changed: boolean }> {
+  return authedPost<{ changed: boolean }>('stripe', { action: 'sync' })
+}
+
 /** ลิงก์ Stripe Customer Portal — เปลี่ยนบัตร / ดูใบเสร็จ / ยกเลิกการต่ออายุ */
 export function openBillingPortal(native = false): Promise<{ url: string }> {
   return authedPost<{ url: string }>('stripe', { action: 'portal', native })
