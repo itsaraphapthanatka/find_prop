@@ -6,7 +6,7 @@ import { logActivity } from '../lib/activityLog'
 import { useProperties } from '../hooks/useProperties'
 import { LABELS } from '../labels'
 import {
-  IMPORT_FIELDS, autoMapColumns, buildTemplateCsv, rowsToProperties, type ImportRow,
+  IMPORT_FIELDS, applyCoordFixes, autoMapColumns, buildTemplateCsv, rowsToProperties, type ImportRow,
   LATLNG_COMBINED, LATLNG_COMBINED_LABEL, type ImportTarget,
 } from '../lib/importProps'
 import { IconDownload, IconHouse, IconUpload } from '../components/icons'
@@ -41,6 +41,8 @@ export default function ImportPage() {
   const [processed, setProcessed] = useState(0)
   // ขั้นดึงพิกัดจากลิงก์ย่อ Google Maps ก่อนบันทึก (null = ไม่ได้อยู่ในขั้นนี้)
   const [geoProg, setGeoProg] = useState<{ done: number; total: number } | null>(null)
+  // ปุ่ม "แก้ให้อัตโนมัติ": ใช้พิกัดที่เดาได้ (จุลภาค → จุดทศนิยม) แทนค่าในไฟล์ · เลือกไฟล์ใหม่ = ปิดเอง
+  const [fixCoords, setFixCoords] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
 
   const existingByCode = useMemo(() => new Map(items.map((p) => [p.code, p])), [items])
@@ -62,6 +64,7 @@ export default function ImportPage() {
       setHeaders(heads)
       setRawRows(rows)
       setMapping(autoMapColumns(heads))
+      setFixCoords(false)
     } catch (err) {
       setFileName(null)
       setHeaders([])
@@ -71,9 +74,10 @@ export default function ImportPage() {
   }
 
   // ── สรุปผลการตรวจก่อนนำเข้า ──
-  const prepared: ImportRow[] = useMemo(
-    () => (rawRows.length ? rowsToProperties(rawRows, mapping) : []),
-    [rawRows, mapping],
+  const prepared: ImportRow[] = useMemo(() => {
+    const rows = rawRows.length ? rowsToProperties(rawRows, mapping) : []
+    return fixCoords ? applyCoordFixes(rows) : rows
+  }, [rawRows, mapping, fixCoords],
   )
   const codeMapped = Object.values(mapping).includes('code')
   const noCode = prepared.filter((r) => !r.code)
@@ -90,6 +94,9 @@ export default function ImportPage() {
   const withCoord = toImport.filter(hasCoord).length
   // ช่องพิกัดมีค่าแต่อ่านไม่ได้ (เช่น 13,7055) — ไม่นับแถวที่ยังจะได้พิกัดจากลิงก์ย่อ
   const coordIssues = toImport.filter((r) => r.coordIssue && !needResolve.includes(r))
+  const fixable = coordIssues.filter((r) => r.coordIssue!.fix)
+  const coordFixedCount = toImport.filter((r) => r.coordFixed).length
+  const fmtLL = (p: { lat: number; lng: number }) => `${p.lat}, ${p.lng}`
 
   const sample = (h: string): string => {
     for (const row of rawRows) {
@@ -314,17 +321,28 @@ export default function ImportPage() {
                     {coordIssues.slice(0, 8).map((r) => (
                       <li key={r.rowNo}>
                         แถว {r.rowNo}{r.code ? ` (${r.code})` : ''}: <code>{r.coordIssue!.raw}</code>
-                        {r.coordIssue!.suggestion
-                          ? <> → น่าจะเป็น <code>{r.coordIssue!.suggestion}</code> (ใช้จุลภาคแทนจุดทศนิยม)</>
+                        {r.coordIssue!.fix
+                          ? <> → น่าจะเป็น <code>{fmtLL(r.coordIssue!.fix)}</code> (ใช้จุลภาคแทนจุดทศนิยม)</>
                           : ' — ไม่ใช่รูปแบบพิกัด'}
                       </li>
                     ))}
                     {coordIssues.length > 8 && <li>และอีก {(coordIssues.length - 8).toLocaleString('th-TH')} แถว</li>}
                   </ul>
+                  {fixable.length > 0 && (
+                    <button type="button" className="btn sm primary imp-fix-btn" onClick={() => setFixCoords(true)}>
+                      🔧 แก้ให้อัตโนมัติ {fixable.length.toLocaleString('th-TH')} แถว (เปลี่ยนจุลภาคเป็นจุดทศนิยม)
+                    </button>
+                  )}
                   <div className="imp-warn-hint">
                     วิธีแก้: ใช้จุด (.) เป็นทศนิยม เช่น <code>13.7055</code> · พิกัดช่องเดียวใส่ <code>13.7055, 100.6012</code>
                     — แก้ในไฟล์แล้วเลือกไฟล์ใหม่ หรือกดนำเข้าต่อ แล้วค่อยเติมพิกัดในหน้าแก้ไขทรัพย์ทีหลังก็ได้
                   </div>
+                </div>
+              )}
+              {coordFixedCount > 0 && (
+                <div className="imp-fixed">
+                  ✓ แก้จุลภาคเป็นจุดทศนิยมให้แล้ว {coordFixedCount.toLocaleString('th-TH')} แถว — พิกัดจะถูกนำเข้าด้วย
+                  {' '}<button type="button" className="link-btn" onClick={() => setFixCoords(false)}>ยกเลิกการแก้</button>
                 </div>
               )}
               {dups.length > 0 && (

@@ -212,11 +212,20 @@ export interface ImportRow {
   code: string | null
   /** ช่องพิกัดในไฟล์มีค่า แต่อ่านเป็นพิกัดไม่ได้ → แถวนี้จะนำเข้าโดยไม่มีพิกัด (เตือนก่อนนำเข้า) */
   coordIssue?: CoordIssue
+  /** ผู้ใช้กด "แก้ให้อัตโนมัติ" แล้ว — พิกัดของแถวนี้มาจาก CoordIssue.fix */
+  coordFixed?: boolean
 }
 
 export interface CoordIssue {
-  raw: string                // ค่าตามที่อยู่ในไฟล์
-  suggestion: string | null  // ค่าที่น่าจะถูก (เช่น ใช้จุลภาคแทนจุดทศนิยม) — null = เดาไม่ได้
+  raw: string           // ค่าตามที่อยู่ในไฟล์
+  fix: LatLng | null    // พิกัดที่น่าจะถูก (เช่น ใช้จุลภาคแทนจุดทศนิยม) — null = เดาไม่ได้
+}
+
+/** ใช้พิกัดที่ระบบเดาให้กับแถวที่แก้ได้ (ปุ่ม "แก้ให้อัตโนมัติ" ในหน้านำเข้า) — แถวอื่นคืนตามเดิม */
+export function applyCoordFixes(rows: ImportRow[]): ImportRow[] {
+  return rows.map((r) => (r.coordIssue?.fix
+    ? { ...r, input: { ...r.input, lat: r.coordIssue.fix.lat, lng: r.coordIssue.fix.lng }, coordIssue: undefined, coordFixed: true }
+    : r))
 }
 
 /** แปลงแถวจากไฟล์ → ข้อมูลทรัพย์ตาม mapping ที่ผู้ใช้ยืนยัน */
@@ -248,7 +257,7 @@ export function rowsToProperties(
     if ((rLat || rLng || rComb) && (input.lat == null || input.lng == null)) {
       out.coordIssue = {
         raw: rComb || [rLat || '(ว่าง)', rLng || '(ว่าง)'].join(' , '),
-        suggestion: commaDecimalFix(rLat, rLng, rComb),
+        fix: commaDecimalFix(rLat, rLng, rComb),
       }
     }
     return out
@@ -259,7 +268,7 @@ export function rowsToProperties(
  * เดาค่าที่ถูกเมื่อใช้ "จุลภาคแทนจุดทศนิยม" (13,7055 → 13.7055 — เครื่องที่ตั้งภาษาแบบยุโรป)
  * แทนเฉพาะจุลภาคที่มีตัวเลขติดทั้งสองฝั่ง จึงไม่กระทบตัวคั่นระหว่างสองค่าแบบ "13.7, 100.6"
  */
-function commaDecimalFix(rLat: string, rLng: string, rComb: string): string | null {
+function commaDecimalFix(rLat: string, rLng: string, rComb: string): LatLng | null {
   const fix = (s: string) => s.replace(/(\d),(\d)/g, '$1.$2')
   let p: LatLng | null = null
   if (rComb) {
@@ -268,7 +277,7 @@ function commaDecimalFix(rLat: string, rLng: string, rComb: string): string | nu
     const lat = Number(fix(rLat)), lng = Number(fix(rLng))
     if (validLat(lat) && validLng(lng)) p = { lat, lng }
   }
-  return p ? `${p.lat}, ${p.lng}` : null
+  return p ? roundLatLng(p) : null
 }
 
 const validLat = (n: unknown): n is number => typeof n === 'number' && isFinite(n) && n >= -90 && n <= 90
