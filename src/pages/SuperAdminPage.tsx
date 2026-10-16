@@ -37,6 +37,8 @@ interface OrgOverview {
   property_count: number
   /** องค์กรภายใน/ทดสอบ — ไม่นับในหน้ายอดสมัครสาธารณะ /stats (ต้องรัน supabase/public-stats.sql) */
   internal?: boolean | null
+  /** ใช้คนเดียว / ทีม-บริษัท (supabase/account-type.sql) · null = สมัครก่อนมีตัวเลือก */
+  account_type?: string | null
 }
 
 // องค์กรกำลังอยู่ในช่วงทดลองใช้ (ยังไม่ได้จ่ายจริง)
@@ -542,7 +544,13 @@ export default function SuperAdminPage() {
     setLoading(true)
     const { data, error } = await supabase.rpc('super_org_overview')
     if (error) setError(error.message)
-    else setOrgs((data ?? []) as OrgOverview[])
+    else {
+      const list = (data ?? []) as OrgOverview[]
+      // ประเภทบัญชีไม่อยู่ใน overview — ดึงแยก (ยังไม่รัน account-type.sql = error → แค่ไม่โชว์)
+      const { data: kinds } = await supabase.from('organizations').select('id, account_type')
+      const kindById = new Map(((kinds ?? []) as { id: string; account_type: string | null }[]).map((k) => [k.id, k.account_type]))
+      setOrgs(list.map((o) => ({ ...o, account_type: kindById.get(o.id) ?? null })))
+    }
     setLoading(false)
   }
 
@@ -1200,6 +1208,13 @@ export default function SuperAdminPage() {
             <div className="empty-state">ยังไม่มีองค์กรในระบบ</div>
           )}
           {!loading && orgs.length > 0 && (
+            <p className="stop-sub" style={{ margin: '4px 0 10px' }}>
+              ประเภทบัญชี: 👤 ใช้คนเดียว <b>{orgs.filter((o) => o.account_type === 'individual').length}</b>
+              {' · '}👥 ทีม/บริษัท <b>{orgs.filter((o) => o.account_type === 'company').length}</b>
+              {' · '}ไม่ระบุ {orgs.filter((o) => !o.account_type).length} (สมัครก่อนมีตัวเลือก)
+            </p>
+          )}
+          {!loading && orgs.length > 0 && (
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
@@ -1227,6 +1242,9 @@ export default function SuperAdminPage() {
                         >
                           {o.name}
                         </button>
+                        {o.account_type && (
+                          <span className="tag">{o.account_type === 'individual' ? '👤 คนเดียว' : '👥 ทีม'}</span>
+                        )}
                         {profile?.impersonate_org_id === o.id && (
                           <span className="tag org">กำลังใช้สิทธิ์</span>
                         )}

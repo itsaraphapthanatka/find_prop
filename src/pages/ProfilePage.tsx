@@ -3,7 +3,7 @@ import { ROLE_INFO, roleName, rolePerm, type Role } from '../lib/roles'
 import { TRAINING_DOC } from '../lib/docs'
 import { startTour } from '../lib/tour'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../lib/auth'
+import { useAuth, type AccountKind } from '../lib/auth'
 import { API_BASE } from '../lib/native'
 import { usePlanAccess, fetchReferralSetting, DEFAULT_REFERRAL, fetchContractAlertSetting, DEFAULT_CONTRACT_ALERT, onTrial, seatLimit, activeExtraSeats } from '../lib/plan'
 import { reviewFabHidden, showReviewFab, useReviewMode } from '../lib/review'
@@ -93,6 +93,16 @@ export default function ProfilePage() {
   const [alertDefault, setAlertDefault] = useState(DEFAULT_CONTRACT_ALERT.days.join(', '))
   const [alertSaving, setAlertSaving] = useState(false)
   const [alertMsg, setAlertMsg] = useState<string | null>(null)
+
+  // ── ชื่อ + รูปแบบบัญชีขององค์กร (เฉพาะ Owner) — supabase/account-type.sql ──
+  const [orgName, setOrgName] = useState(org?.name ?? '')
+  const [orgKind, setOrgKind] = useState<AccountKind | null>(org?.account_type ?? null)
+  const [orgSaving, setOrgSaving] = useState(false)
+  const [orgMsg, setOrgMsg] = useState<string | null>(null)
+  useEffect(() => {
+    setOrgName(org?.name ?? '')
+    setOrgKind(org?.account_type ?? null)
+  }, [org?.id, org?.name, org?.account_type])
   useEffect(() => {
     setAlertDays((org?.contract_alert_days ?? []).join(', '))
   }, [org?.id, org?.contract_alert_days])
@@ -121,6 +131,23 @@ export default function ProfilePage() {
     }
     await refreshProfile()
     setAlertMsg('บันทึกแล้ว ✓ มีผลรอบแจ้งเตือน 07:00 ถัดไป')
+  }
+
+  async function saveOrgProfile() {
+    const trimmed = orgName.trim()
+    if (!trimmed) { setOrgMsg('กรุณากรอกชื่อ'); return }
+    setOrgSaving(true)
+    setOrgMsg(null)
+    const { error } = await supabase.rpc('update_org_profile', { p_name: trimmed, p_account_type: orgKind })
+    setOrgSaving(false)
+    if (error) {
+      setOrgMsg(error.code === 'PGRST202' || error.message.includes('update_org_profile')
+        ? 'ยังไม่ได้ติดตั้งฟีเจอร์นี้ — ให้ผู้ดูแลระบบรัน supabase/account-type.sql ก่อน'
+        : `บันทึกไม่สำเร็จ: ${error.message}`)
+      return
+    }
+    await refreshProfile()
+    setOrgMsg('บันทึกแล้ว ✓')
   }
 
   if (!profile) return null
@@ -353,6 +380,42 @@ export default function ProfilePage() {
                 : ''}
           </p>
         </section>
+
+        {/* ── ชื่อและรูปแบบบัญชี (เฉพาะ Owner) ── */}
+        {isOrgAdmin && org && (
+          <section className="form-card">
+            <h3>{orgKind === 'individual' ? 'ชื่อที่แสดงและรูปแบบบัญชี' : 'ชื่อและรูปแบบองค์กร'}</h3>
+            <div className="acct-choice" role="radiogroup" aria-label="รูปแบบบัญชี">
+              <button
+                type="button" role="radio" aria-checked={orgKind === 'individual'}
+                className={`acct-opt${orgKind === 'individual' ? ' on' : ''}`} onClick={() => setOrgKind('individual')}
+              >
+                <span className="acct-ico">👤</span><b>ใช้คนเดียว</b><small>นายหน้าอิสระ / เจ้าของทรัพย์</small>
+              </button>
+              <button
+                type="button" role="radio" aria-checked={orgKind === 'company'}
+                className={`acct-opt${orgKind === 'company' ? ' on' : ''}`} onClick={() => setOrgKind('company')}
+              >
+                <span className="acct-ico">👥</span><b>ทีม / บริษัท</b><small>มีลูกทีมหลายคน</small>
+              </button>
+            </div>
+            <div className="form-field">
+              <label>{orgKind === 'individual' ? 'ชื่อที่แสดง' : 'ชื่อทีม / บริษัท'}</label>
+              <input type="text" maxLength={120} value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+              <p className="field-hint">ชื่อนี้แสดงที่แถบด้านบนให้ทุกคนในองค์กรเห็น</p>
+            </div>
+            <div className="form-actions-row">
+              <button
+                className="btn primary" disabled={orgSaving
+                  || (orgName.trim() === (org.name ?? '').trim() && orgKind === (org.account_type ?? null))}
+                onClick={() => void saveOrgProfile()}
+              >
+                {orgSaving ? 'กำลังบันทึก…' : 'บันทึก'}
+              </button>
+              {orgMsg && <span className="stop-sub">{orgMsg}</span>}
+            </div>
+          </section>
+        )}
 
         {/* ── แจ้งเตือนสัญญาเช่าใกล้หมด (เฉพาะแอดมินองค์กร) ── */}
         {isOrgAdmin && org && (

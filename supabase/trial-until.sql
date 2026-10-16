@@ -1,3 +1,5 @@
+-- ⚠️ create_organization ถูกแทนด้วย supabase/account-type.sql (รับประเภทบัญชีเพิ่ม) — ห้ามรันส่วน create_organization
+--    ในไฟล์นี้ซ้ำ ไม่งั้นได้ฟังก์ชัน 1 พารามิเตอร์กลับมาชนตัวใหม่ ("function is not unique") → สมัครพัง
 -- HOP · เพิ่ม "วันสิ้นสุดตายตัว" ให้ช่วงทดลองใช้ฟรี (until)
 -- อัปเดตฟังก์ชัน create_organization ให้รองรับ app_settings.trial.until
 -- รันใน Supabase → SQL Editor → Run (idempotent · รันซ้ำได้ · ไม่กระทบองค์กรที่มีอยู่แล้ว)

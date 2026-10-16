@@ -1934,3 +1934,4 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .acct-opt b { font-size: 15px; white-space: nowrap; }
 .acct-opt small { font-size: 12.5px; color: var(--muted); }
 .acct-ico { font-size: 22px; line-height: 1; margin-bottom: 4px; }
+.form-actions-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

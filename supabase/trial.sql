@@ -1,3 +1,5 @@
+-- ⚠️ create_organization ถูกแทนด้วย supabase/account-type.sql (รับประเภทบัญชีเพิ่ม) — ห้ามรันส่วน create_organization
+--    ในไฟล์นี้ซ้ำ ไม่งั้นได้ฟังก์ชัน 1 พารามิเตอร์กลับมาชนตัวใหม่ ("function is not unique") → สมัครพัง
 -- HOP · ระบบทดลองใช้ฟรี — super admin กำหนดจำนวนวัน + แพ็กเกจที่ให้ทดลอง ได้จากหน้า Super Admin
 -- รันใน Supabase SQL Editor (idempotent · รันซ้ำไม่พัง)
 -- ------------------------------------------------------------------

@@ -24,9 +24,14 @@ export interface Profile {
   created_at?: string
 }
 
+/** ประเภทบัญชีตอนสมัคร — ใช้คนเดียว (นายหน้าอิสระ) หรือ ทีม/บริษัท (supabase/account-type.sql) */
+export type AccountKind = 'individual' | 'company'
+
 export interface Organization {
   id: string
   name: string
+  /** null = องค์กรที่สมัครก่อนมีตัวเลือกนี้ / ยังไม่ได้รัน account-type.sql */
+  account_type?: AccountKind | null
   plan?: string
   /** ระดับโควตาทรัพย์ของแพ็กเกจ (100/250/500) — null = ลูกค้าเดิม/ทดลอง ตีความเป็น 500 */
   plan_tier?: number | null

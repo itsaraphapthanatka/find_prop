@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useAuth } from '../lib/auth'
+import { useAuth, type AccountKind } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { rememberMe, setRememberMe } from '../lib/authStorage'
 import { API_BASE, isInstalledApp } from '../lib/native'
@@ -277,8 +277,6 @@ export function ResetPasswordScreen() {
 // รูปแบบการใช้งานตอนสมัคร — ทั้งสองแบบสร้าง "องค์กร" ในระบบเหมือนกัน (create_organization)
 // ต่างกันแค่ถ้อยคำ + ค่าเริ่มต้นของชื่อ: นายหน้าอิสระถามว่า "ฉันไม่ใช่บริษัท ทำไมต้องตั้งชื่อองค์กร"
 // (ฟีดแบ็กจากการประชุมทีมขาย) → แบบคนเดียวใช้ชื่อคนเป็นชื่อที่แสดงให้เลย และเพิ่มลูกทีมภายหลังได้เหมือนเดิม
-type AccountKind = 'individual' | 'company'
-
 export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOut: () => void }) {
   const { refreshProfile, profile, session } = useAuth()
   // ชื่อจริงจากโปรไฟล์/Google (ถ้ามี) → ใช้เป็นชื่อเริ่มต้นของแบบคนเดียว
@@ -302,7 +300,11 @@ export function CreateOrgScreen({ email, onSignOut }: { email?: string; onSignOu
     if (!name) return
     setBusy(true)
     setError(null)
-    const { error } = await supabase.rpc('create_organization', { org_name: name })
+    let { error } = await supabase.rpc('create_organization', { org_name: name, p_account_type: kind })
+    // ฐานข้อมูลยังไม่ได้รัน supabase/account-type.sql (ฟังก์ชันรับแค่ชื่อ) → เรียกแบบเดิม สมัครต่อได้ไม่สะดุด
+    if (error && (error.code === 'PGRST202' || /p_account_type|could not find the function/i.test(error.message))) {
+      ({ error } = await supabase.rpc('create_organization', { org_name: name }))
+    }
     if (error) {
       setError(`${kind === 'individual' ? 'เริ่มใช้งาน' : 'สร้างทีม'}ไม่สำเร็จ: ${error.message}`)
       setBusy(false)
