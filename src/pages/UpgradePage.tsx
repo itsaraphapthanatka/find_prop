@@ -7,6 +7,7 @@ import {
   type PlanKey, type PlanPrices, type SeatSetting, type Tier,
 } from '../lib/payments'
 import { rolePerm } from '../lib/roles'
+import { isNativeApp } from '../lib/native'
 import {
   onTrial, fetchContactSetting, DEFAULT_CONTACT,
   seatLimit, baseSeats, effectivePlan, activeExtraSeats,
@@ -117,18 +118,60 @@ export default function UpgradePage() {
     }
   }
 
+  // ── เปิดหน้าชำระเงิน PunPay ──
+  // เดิมเรียก window.open "หลัง" รอเซิร์ฟเวอร์สร้างรายการ → Safari/iPhone บล็อก popup เงียบๆ และในแอปมือถือ
+  // window.open ไม่เปิดอะไรเลย (ผู้ใช้กดแล้วเห็นว่าเงียบ) → เปิดหน้าต่างรอไว้ทันทีตอนกด แล้วค่อยใส่ลิงก์ทีหลัง
+  // · แอปมือถือใช้ in-app browser (@capacitor/browser) แทน
+  function preOpenCheckout(): Window | null {
+    if (isNativeApp) return null
+    const w = window.open('', '_blank')
+    if (w) {
+      try {
+        w.document.title = 'กำลังเปิดหน้าชำระเงิน…'
+        w.document.body.innerHTML = '<p style="font-family:sans-serif;padding:28px;color:#555">กำลังเปิดหน้าชำระเงิน PunPay…</p>'
+      } catch { /* ข้าม */ }
+    }
+    return w
+  }
+  /** คืน true ถ้าเปิดหน้าชำระเงินได้ · false = เบราว์เซอร์บล็อก (ให้ผู้ใช้กดปุ่ม "เปิดหน้าชำระเงิน" เอง) */
+  async function openCheckout(url: string, w: Window | null): Promise<boolean> {
+    if (isNativeApp) {
+      const { Browser } = await import('@capacitor/browser')
+      await Browser.open({ url })
+      return true
+    }
+    if (w && !w.closed) {
+      w.location.href = url
+      try { w.opener = null } catch { /* ข้าม */ }
+      return true
+    }
+    return false
+  }
+  const OPENED = 'เปิดหน้าชำระเงินแล้ว — สแกน PromptPay แล้วอัปโหลดสลิป จากนั้นระบบจะตรวจสอบให้อัตโนมัติ'
+  const BLOCKED = 'เบราว์เซอร์บล็อกหน้าต่างใหม่ — กดปุ่ม "เปิดหน้าชำระเงิน" ด้านล่างเพื่อจ่าย (ระบบรอตรวจสอบให้อยู่แล้ว)'
+
+  // error ขึ้นด้านบนของหน้า แต่ปุ่มอาจอยู่ล่างสุด (เช่น การ์ดทดสอบ) → เลื่อนให้เห็นทุกครั้ง ไม่ให้ดูเหมือนกดแล้วเงียบ
+  const errRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (err) errRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [err])
+
   async function pay(plan: PlanKey) {
     setErr(null)
     setBusy(plan)
+    const w = preOpenCheckout() // ต้องเรียกทันทีในจังหวะกด (ก่อน await) ไม่งั้นโดนบล็อก
     try {
       const c = await createCharge(plan, tier, cycle)
       setCharge({ charge_id: c.charge_id, checkout_url: c.checkout_url, plan })
       try { localStorage.setItem('hop_charge', c.charge_id) } catch { /* ข้าม */ }
-      window.open(c.checkout_url, '_blank', 'noopener')
-      setStatus('เปิดหน้าชำระเงินแล้ว — สแกน PromptPay แล้วอัปโหลดสลิป จากนั้นระบบจะตรวจสอบให้อัตโนมัติ')
+      setStatus((await openCheckout(c.checkout_url, w)) ? OPENED : BLOCKED)
       startPoll(c.charge_id)
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'สร้างรายการไม่สำเร็จ')
+      try { w?.close() } catch { /* ข้าม */ }
+      const msg = e instanceof Error ? e.message : 'สร้างรายการไม่สำเร็จ'
+      setErr(msg)
+      // super ปิดสวิตช์ระหว่างที่หน้านี้เปิดค้าง → ซ่อนการ์ดทดสอบ
+      if (plan === 'test' && msg.includes('ถูกปิด')) setTestOn(false)
     } finally {
       setBusy(null)
     }
@@ -138,14 +181,15 @@ export default function UpgradePage() {
   async function paySeats() {
     setErr(null)
     setBusy('seats')
+    const w = preOpenCheckout()
     try {
       const c = await createSeatCharge(seatQty, cycle)
       setCharge({ charge_id: c.charge_id, checkout_url: c.checkout_url, plan: 'seats' })
       try { localStorage.setItem('hop_charge', c.charge_id) } catch { /* ข้าม */ }
-      window.open(c.checkout_url, '_blank', 'noopener')
-      setStatus('เปิดหน้าชำระเงินแล้ว — สแกน PromptPay แล้วอัปโหลดสลิป จากนั้นระบบจะตรวจสอบให้อัตโนมัติ')
+      setStatus((await openCheckout(c.checkout_url, w)) ? OPENED : BLOCKED)
       startPoll(c.charge_id)
     } catch (e) {
+      try { w?.close() } catch { /* ข้าม */ }
       setErr(e instanceof Error ? e.message : 'สร้างรายการไม่สำเร็จ')
     } finally {
       setBusy(null)
@@ -213,9 +257,11 @@ export default function UpgradePage() {
             <h3>{charge.checkout_url ? 'รอการชำระเงิน' : 'กำลังตรวจสอบรายการค้าง'}</h3>
             <p className="plan-line" style={{ minHeight: '1.4em' }}>{status}</p>
             <div className="org-row" style={{ flexWrap: 'wrap' }}>
-              {charge.checkout_url && (
-                <a className="btn primary" href={charge.checkout_url} target="_blank" rel="noreferrer">เปิดหน้าชำระเงินอีกครั้ง</a>
-              )}
+              {charge.checkout_url && (isNativeApp ? (
+                <button className="btn primary" onClick={() => void openCheckout(charge.checkout_url!, null)}>เปิดหน้าชำระเงิน</button>
+              ) : (
+                <a className="btn primary" href={charge.checkout_url} target="_blank" rel="noreferrer">เปิดหน้าชำระเงิน</a>
+              ))}
               <button className="btn" onClick={() => void checkOnce(charge.charge_id)}>ตรวจสอบอีกครั้ง</button>
               <button className="btn sm" onClick={reset}>ยกเลิก</button>
             </div>
@@ -249,7 +295,7 @@ export default function UpgradePage() {
                 </button>
               ))}
             </div>
-            {err && <div className="auth-error">{err}</div>}
+            {err && <div className="auth-error" ref={errRef}>{err}</div>}
             {/* ระดับ = โควตาทรัพย์ในระบบ — ราคาทั้งสองแพ็กเปลี่ยนตามระดับที่เลือก */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>จำนวนทรัพย์ในระบบ</div>

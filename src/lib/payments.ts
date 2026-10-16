@@ -22,11 +22,24 @@ async function authedPost<T>(path: string, body: unknown): Promise<T> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new Error('ต้องเข้าสู่ระบบก่อน')
-  const res = await fetch(`${API_BASE}/api/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  })
+  // ตัดที่ 25 วินาที — ถ้าเซิร์ฟเวอร์/PunPay ช้าผิดปกติ ให้ผู้ใช้เห็นข้อความแทนปุ่มค้างเงียบๆ
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 25000)
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    })
+  } catch (e) {
+    throw new Error(e instanceof DOMException && e.name === 'AbortError'
+      ? 'ระบบชำระเงินตอบช้าผิดปกติ — ลองใหม่อีกครั้งในอีกสักครู่'
+      : 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองใหม่')
+  } finally {
+    clearTimeout(timer)
+  }
   const json = await res.json().catch(() => null)
   if (!res.ok) {
     // แนบ detail จากเซิร์ฟเวอร์ด้วย (เช่น ข้อความ error จริงจากฐานข้อมูล) — ช่วยไล่ปัญหาการจ่ายเงิน
