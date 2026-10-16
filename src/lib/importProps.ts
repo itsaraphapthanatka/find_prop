@@ -1,6 +1,6 @@
 import type { Property, PropertyInput } from '../types'
 import { LABELS } from '../labels'
-import { parseLatLng, roundLatLng } from './latlng'
+import { parseLatLng, roundLatLng, type LatLng } from './latlng'
 
 /**
  * ฟิลด์ที่นำเข้าได้ เรียงตามลำดับใน LABELS
@@ -210,6 +210,13 @@ export interface ImportRow {
   rowNo: number                       // เลขแถวในไฟล์ (เริ่ม 2 = ถัดจากหัวตาราง)
   input: Partial<PropertyInput>
   code: string | null
+  /** ช่องพิกัดในไฟล์มีค่า แต่อ่านเป็นพิกัดไม่ได้ → แถวนี้จะนำเข้าโดยไม่มีพิกัด (เตือนก่อนนำเข้า) */
+  coordIssue?: CoordIssue
+}
+
+export interface CoordIssue {
+  raw: string                // ค่าตามที่อยู่ในไฟล์
+  suggestion: string | null  // ค่าที่น่าจะถูก (เช่น ใช้จุลภาคแทนจุดทศนิยม) — null = เดาไม่ได้
 }
 
 /** แปลงแถวจากไฟล์ → ข้อมูลทรัพย์ตาม mapping ที่ผู้ใช้ยืนยัน */
@@ -220,6 +227,8 @@ export function rowsToProperties(
   const cols = Object.entries(mapping)
     .filter(([, f]) => f !== '' && f !== LATLNG_COMBINED) as [string, keyof PropertyInput][]
   const combinedCol = Object.entries(mapping).find(([, f]) => f === LATLNG_COMBINED)?.[0]
+  const latCol = cols.find(([, f]) => f === 'lat')?.[0]
+  const lngCol = cols.find(([, f]) => f === 'lng')?.[0]
   return rows.map((row, i) => {
     const input: Partial<PropertyInput> = {}
     for (const [header, field] of cols) {
@@ -227,8 +236,39 @@ export function rowsToProperties(
       if (v !== null) (input as Record<string, unknown>)[field] = v
     }
     fillLatLng(input, combinedCol ? row[combinedCol] : null)
-    return { rowNo: i + 2, input, code: (input.code as string | undefined)?.trim() || null }
+    const out: ImportRow = { rowNo: i + 2, input, code: (input.code as string | undefined)?.trim() || null }
+
+    // ช่องพิกัดมีค่า แต่สุดท้ายไม่ได้พิกัด → บันทึกปัญหาไว้เตือนผู้ใช้ก่อนกดนำเข้า
+    const rawOf = (col?: string) => {
+      if (!col) return ''
+      const v = row[col]
+      return v === null || v === undefined ? '' : String(v).trim()
+    }
+    const rLat = rawOf(latCol), rLng = rawOf(lngCol), rComb = rawOf(combinedCol)
+    if ((rLat || rLng || rComb) && (input.lat == null || input.lng == null)) {
+      out.coordIssue = {
+        raw: rComb || [rLat || '(ว่าง)', rLng || '(ว่าง)'].join(' , '),
+        suggestion: commaDecimalFix(rLat, rLng, rComb),
+      }
+    }
+    return out
   })
+}
+
+/**
+ * เดาค่าที่ถูกเมื่อใช้ "จุลภาคแทนจุดทศนิยม" (13,7055 → 13.7055 — เครื่องที่ตั้งภาษาแบบยุโรป)
+ * แทนเฉพาะจุลภาคที่มีตัวเลขติดทั้งสองฝั่ง จึงไม่กระทบตัวคั่นระหว่างสองค่าแบบ "13.7, 100.6"
+ */
+function commaDecimalFix(rLat: string, rLng: string, rComb: string): string | null {
+  const fix = (s: string) => s.replace(/(\d),(\d)/g, '$1.$2')
+  let p: LatLng | null = null
+  if (rComb) {
+    p = parseLatLng(fix(rComb))
+  } else if (rLat && rLng && (/\d,\d/.test(rLat) || /\d,\d/.test(rLng))) {
+    const lat = Number(fix(rLat)), lng = Number(fix(rLng))
+    if (validLat(lat) && validLng(lng)) p = { lat, lng }
+  }
+  return p ? `${p.lat}, ${p.lng}` : null
 }
 
 const validLat = (n: unknown): n is number => typeof n === 'number' && isFinite(n) && n >= -90 && n <= 90

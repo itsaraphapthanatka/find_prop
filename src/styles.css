@@ -1935,3 +1935,13 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .acct-opt small { font-size: 12.5px; color: var(--muted); }
 .acct-ico { font-size: 22px; line-height: 1; margin-bottom: 4px; }
 .form-actions-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* ── หน้านำเข้า: กล่องเตือนพิกัดอ่านไม่ได้ ── */
+.imp-warn {
+  margin: 10px 0 4px; padding: 12px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.55;
+  background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
+}
+.imp-warn ul { margin: 6px 0 6px; padding-left: 18px; }
+.imp-warn li { margin: 2px 0; }
+.imp-warn code { background: #ffedd5; padding: 0 5px; border-radius: 4px; font-size: 12.5px; }
+.imp-warn-hint { font-size: 12.5px; color: #9a3412; opacity: .9; }

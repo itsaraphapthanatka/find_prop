@@ -88,6 +88,8 @@ export default function ImportPage() {
   const SHORT_LINK = /^https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i
   const needResolve = toImport.filter((r) => !hasCoord(r) && SHORT_LINK.test(String(r.input.map_url ?? '').trim()))
   const withCoord = toImport.filter(hasCoord).length
+  // ช่องพิกัดมีค่าแต่อ่านไม่ได้ (เช่น 13,7055) — ไม่นับแถวที่ยังจะได้พิกัดจากลิงก์ย่อ
+  const coordIssues = toImport.filter((r) => r.coordIssue && !needResolve.includes(r))
 
   const sample = (h: string): string => {
     for (const row of rawRows) {
@@ -101,6 +103,10 @@ export default function ImportPage() {
   }
 
   async function runImport() {
+    if (coordIssues.length > 0 && !window.confirm(
+      `พิกัดอ่านไม่ได้ ${coordIssues.length.toLocaleString('th-TH')} แถว — แถวเหล่านี้จะถูกนำเข้าโดย "ไม่มีพิกัด"\n`
+      + '(ดูรายการในกล่องเตือนบนหน้าจอ · แก้ในไฟล์แล้วเลือกไฟล์ใหม่ได้)\n\nนำเข้าต่อเลยไหม?',
+    )) return
     setBusy(true)
     setProcessed(0)
 
@@ -301,6 +307,26 @@ export default function ImportPage() {
                 )}
                 {noCode.length > 0 && <span className="tag warn">ไม่มีรหัส (ข้าม) {noCode.length.toLocaleString('th-TH')} แถว</span>}
               </div>
+              {coordIssues.length > 0 && (
+                <div className="imp-warn">
+                  <b>⚠️ พิกัดอ่านไม่ได้ {coordIssues.length.toLocaleString('th-TH')} แถว</b> — แถวเหล่านี้จะนำเข้าโดย <b>ไม่มีพิกัด</b> (ข้อมูลอื่นเข้าตามปกติ)
+                  <ul>
+                    {coordIssues.slice(0, 8).map((r) => (
+                      <li key={r.rowNo}>
+                        แถว {r.rowNo}{r.code ? ` (${r.code})` : ''}: <code>{r.coordIssue!.raw}</code>
+                        {r.coordIssue!.suggestion
+                          ? <> → น่าจะเป็น <code>{r.coordIssue!.suggestion}</code> (ใช้จุลภาคแทนจุดทศนิยม)</>
+                          : ' — ไม่ใช่รูปแบบพิกัด'}
+                      </li>
+                    ))}
+                    {coordIssues.length > 8 && <li>และอีก {(coordIssues.length - 8).toLocaleString('th-TH')} แถว</li>}
+                  </ul>
+                  <div className="imp-warn-hint">
+                    วิธีแก้: ใช้จุด (.) เป็นทศนิยม เช่น <code>13.7055</code> · พิกัดช่องเดียวใส่ <code>13.7055, 100.6012</code>
+                    — แก้ในไฟล์แล้วเลือกไฟล์ใหม่ หรือกดนำเข้าต่อ แล้วค่อยเติมพิกัดในหน้าแก้ไขทรัพย์ทีหลังก็ได้
+                  </div>
+                </div>
+              )}
               {dups.length > 0 && (
                 <div className="form-field" style={{ marginTop: 12 }}>
                   <label>เจอรหัสที่มีอยู่แล้วในระบบ ให้ทำอย่างไร</label>
