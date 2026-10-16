@@ -19,3 +19,9 @@ export async function fetchSetting(supaUrl, apiKey, key) {
     return null
   }
 }
+
+/** เปิดให้จ่ายด้วย PromptPay (แบบใบแจ้งหนี้ทุกรอบ) ไหม — super เปิด-ปิดจากหน้า Super Admin · ไม่มีค่า/อ่านพลาด = ปิด */
+export async function promptpayEnabled(supaUrl, apiKey) {
+  const v = await fetchSetting(supaUrl, apiKey, 'promptpay')
+  return Boolean(v && typeof v === 'object' && v.enabled === true)
+}

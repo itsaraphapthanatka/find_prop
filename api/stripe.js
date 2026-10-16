@@ -1,8 +1,9 @@
 // Vercel Serverless Function — ชำระเงินผ่าน Stripe (subscription ตัดบัตรอัตโนมัติทุกรอบ)
 // รวมไว้ endpoint เดียว (ประหยัดโควตาจำนวน function ของ Vercel) แยกงานด้วย body.action:
-//   'checkout' → สมัครแพ็กเกจ/ที่นั่งเพิ่ม (ยังไม่มี subscription = เปิดหน้า Stripe Checkout
+//   'checkout' → สมัครแพ็กเกจ/ที่นั่งเพิ่ม · method 'card' (ตัดบัตรอัตโนมัติ) | 'promptpay' (ใบแจ้งหนี้ทุกรอบ — super เปิดสวิตช์ก่อน)
+//                (บัตร + ยังไม่มี subscription = เปิดหน้า Stripe Checkout
 //                · มีอยู่แล้ว = เปลี่ยนแพ็กเกจ/จำนวนที่นั่งในที่เดิม คิดส่วนต่างตามวันที่เหลือ)
-//   'confirm'  → กลับจากหน้า Checkout แล้วยืนยันทันที (ไม่ต้องรอ webhook)
+//   'confirm'  → กลับจากหน้า Checkout (session_id) หรือหน้าใบแจ้งหนี้ PromptPay (invoice_id) แล้วยืนยันทันที
 //   'portal'   → เปิด Stripe Customer Portal (เปลี่ยนบัตร / ดูใบเสร็จ / ยกเลิกต่ออายุ)
 //   'sync'     → ดึงสถานะ subscription จริงจาก Stripe มาเขียนลงองค์กร (เปิดหน้าอัปเกรดทุกครั้ง)
 //   'open-invoice' → ลิงก์จ่ายใบแจ้งหนี้ที่ค้าง (ตัดบัตรรอบใหม่ไม่ผ่าน)
@@ -12,9 +13,11 @@
 import { cors, requireOrgOwner, patchOrg } from './_lib/auth.js'
 import {
   stripeClient, appUrl, ensurePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
+  finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription,
 } from './_lib/stripe.js'
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
+import { promptpayEnabled } from './_lib/settings.js'
 
 const idOf = (x) => (typeof x === 'string' ? x : x?.id) || null
 
@@ -52,9 +55,14 @@ export default async function handler(req, res) {
 // ── สมัคร / เปลี่ยนแพ็กเกจ / ที่นั่งเพิ่ม ──
 async function checkout(req, res, stripe, a, body) {
   const kind = body.kind === 'seats' ? 'seats' : 'plan'
+  const method = body.method === 'promptpay' ? 'promptpay' : 'card'
   const cycle = body.cycle
   if (!['monthly', 'yearly'].includes(cycle)) {
     return res.status(400).json({ error: 'รอบชำระไม่ถูกต้อง (cycle: monthly|yearly)' })
+  }
+  // PromptPay ปิดไว้จนกว่า super จะเปิดสวิตช์ (app_settings 'promptpay') — หน้าเว็บซ่อนปุ่มอยู่แล้ว ที่นี่บังคับซ้ำ
+  if (method === 'promptpay' && !(await promptpayEnabled(a.s.url, a.s.anonKey))) {
+    return res.status(400).json({ error: 'ยังไม่เปิดให้ชำระด้วย PromptPay — ใช้บัตรเครดิต/เดบิตไปก่อน' })
   }
 
   let plan = null
@@ -82,12 +90,23 @@ async function checkout(req, res, stripe, a, body) {
 
   const priceId = await ensurePrice(stripe, { kind, plan, tier, cycle, amount })
   const customer = await ensureCustomer(stripe, a)
-  const live = await findLiveSubscription(stripe, customer, kind)
+  let live = await findLiveSubscription(stripe, customer, kind)
+  // เคยกดจ่าย PromptPay แต่ไม่ได้สแกนจ่ายเลย → ทิ้งของค้าง เริ่มใหม่ (จะเลือกบัตรหรือ PromptPay รอบนี้ก็ได้)
+  if (live && await discardIfNeverPaid(stripe, live)) live = null
+  const invoiceSub = live?.collection_method === 'send_invoice' // ลูกค้า PromptPay ที่จ่ายแล้วอย่างน้อย 1 รอบ
 
   // ── มี subscription อยู่แล้ว → เปลี่ยนในที่เดิม (ไม่สร้างซ้อน = ไม่โดนตัดเงินสองทาง) ──
   if (live) {
     if (['past_due', 'unpaid'].includes(live.status)) {
-      return res.status(409).json({ error: 'มีบิลค้างชำระ — กด "จัดการการชำระเงิน" เพื่ออัปเดตบัตรก่อน แล้วค่อยเปลี่ยนแพ็กเกจ' })
+      return res.status(409).json({
+        error: invoiceSub
+          ? 'มีใบแจ้งหนี้ค้างชำระ — กด "ชำระเงินตอนนี้" ด้านบนเพื่อสแกนจ่ายก่อน แล้วค่อยเปลี่ยนแพ็กเกจ'
+          : 'มีบิลค้างชำระ — กด "จัดการการชำระเงิน" เพื่ออัปเดตบัตรก่อน แล้วค่อยเปลี่ยนแพ็กเกจ',
+      })
+    }
+    // วิธีจ่ายของ subscription เปลี่ยนกลางทางไม่ได้ (บัตร ↔ PromptPay) — ต้องยกเลิกต่ออายุแล้วสมัครใหม่หลังหมดรอบ
+    if (method === 'promptpay' && !invoiceSub) {
+      return res.status(409).json({ error: 'องค์กรนี้ตัดบัตรอัตโนมัติอยู่ — เปลี่ยนแพ็กเกจด้วยปุ่มปกติ (ตัดบัตรส่วนต่าง)' })
     }
     const item = live.items.data[0]
     const scheduledCancel = Boolean(live.cancel_at_period_end || live.cancel_at)
@@ -103,6 +122,29 @@ async function checkout(req, res, stripe, a, body) {
       await stripe.subscriptions.update(live.id, live.cancel_at_period_end ? { cancel_at_period_end: false } : { cancel_at: '' })
       if (kind === 'plan') await patchOrg(a.s, a.orgId, { sub_cancel_at_period_end: false })
       if (same) return res.status(200).json({ updated: true, resumed: true, kind })
+    }
+
+    // ลูกค้า PromptPay: Stripe ตัดเงินเองไม่ได้ → ออกใบแจ้งหนี้ส่วนต่างให้สแกนจ่าย (pending_if_incomplete ใช้กับแบบนี้ไม่ได้)
+    // แพ็กเกจในระบบเราเปลี่ยนตอนจ่ายใบนี้แล้วเท่านั้น (invoice.paid → applyInvoice อ่านแพ็กเกจจากบรรทัดยอดบวก)
+    if (invoiceSub) {
+      const changed = await stripe.subscriptions.update(live.id, {
+        items: [{ id: item.id, price: priceId, quantity: qty }],
+        proration_behavior: 'always_invoice',
+        expand: ['latest_invoice'],
+      })
+      const inv = await finalizeIfDraft(stripe, changed.latest_invoice)
+      if (inv?.status === 'paid') { // ลดแพ็กเกจ/ยอด 0 = จ่ายจบในตัว
+        const r = await applyInvoice(stripe, a.s, inv, a.orgId)
+        return res.status(200).json({ updated: true, kind, applied: r.applied, expires: r.expires ?? null, qty })
+      }
+      return res.status(200).json({
+        updated: false,
+        pending: true,
+        kind,
+        url: inv?.hosted_invoice_url || null,
+        invoice: inv?.id || null,
+        error: 'สแกน PromptPay ชำระส่วนต่างในหน้าใบแจ้งหนี้ — จ่ายแล้วระบบเปลี่ยนแพ็กเกจให้อัตโนมัติ',
+      })
     }
 
     // pending_if_incomplete: ถ้าตัดส่วนต่างไม่ผ่าน (บัตรถูกปฏิเสธ/ธนาคารขอยืนยันตัวตน) → ยังไม่เปลี่ยนแพ็กเกจ
@@ -128,6 +170,13 @@ async function checkout(req, res, stripe, a, body) {
     return res.status(200).json({ updated: true, kind, applied: r.applied, expires: r.expires ?? null, qty })
   }
 
+  // ── ยังไม่มี subscription + เลือก PromptPay → ออกใบแจ้งหนี้ใบแรก แล้วพาไปหน้าสแกนจ่ายของ Stripe ──
+  // (Checkout แบบ subscription ไม่รองรับ PromptPay — ต้องเป็น subscription แบบส่งใบแจ้งหนี้)
+  if (method === 'promptpay') {
+    const inv = await startInvoiceSubscription(stripe, { customer, priceId, qty, orgId: a.orgId, kind })
+    return res.status(200).json({ url: inv.hosted_invoice_url, invoice: inv.id, kind, method })
+  }
+
   // ── ยังไม่มี subscription → หน้า Stripe Checkout ──
   // แอปมือถือ: เปิดใน in-app browser → จบแล้วไปหน้าบอกให้ปิดกลับแอป (แอปยืนยันเองตอนปิด browser)
   const base = appUrl(req)
@@ -151,8 +200,9 @@ async function checkout(req, res, stripe, a, body) {
   return res.status(200).json({ url: session.url, id: session.id, kind })
 }
 
-// ── กลับจากหน้า Checkout → ยืนยัน + ให้สิทธิ์ทันที ──
+// ── กลับจากหน้า Checkout / หน้าใบแจ้งหนี้ PromptPay → ยืนยัน + ให้สิทธิ์ทันที ──
 async function confirm(res, stripe, a, body) {
+  if (body.invoice_id) return confirmInvoice(res, stripe, a, String(body.invoice_id))
   const id = String(body.session_id || '')
   if (!/^cs_[A-Za-z0-9_]+$/.test(id)) return res.status(400).json({ error: 'session_id ไม่ถูกต้อง' })
   const session = await stripe.checkout.sessions.retrieve(id)
@@ -168,6 +218,19 @@ async function confirm(res, stripe, a, body) {
   }
   if (!invoiceId) return res.status(200).json({ paid: false, status: 'no-invoice', kind })
   const invoice = await stripe.invoices.retrieve(invoiceId)
+  const r = await applyInvoice(stripe, a.s, invoice, a.orgId)
+  return res.status(200).json({ paid: r.paid, applied: r.applied, expires: r.expires ?? null, kind, qty: r.qty ?? null })
+}
+
+/** ใบแจ้งหนี้ PromptPay: ต้องเป็นของ subscription ขององค์กรนี้ · ยังไม่จ่าย = บอกสถานะ (open/void) */
+async function confirmInvoice(res, stripe, a, id) {
+  if (!/^in_[A-Za-z0-9_]+$/.test(id)) return res.status(400).json({ error: 'invoice_id ไม่ถูกต้อง' })
+  const invoice = await stripe.invoices.retrieve(id)
+  const subId = idOf(invoice.parent?.subscription_details?.subscription) || idOf(invoice.subscription)
+  const sub = subId ? await stripe.subscriptions.retrieve(subId) : null
+  if (sub?.metadata?.org_id !== a.orgId) return res.status(403).json({ error: 'รายการนี้ไม่ใช่ขององค์กรคุณ' })
+  const kind = sub.metadata?.kind || 'plan'
+  if (invoice.status !== 'paid') return res.status(200).json({ paid: false, status: invoice.status, kind })
   const r = await applyInvoice(stripe, a.s, invoice, a.orgId)
   return res.status(200).json({ paid: r.paid, applied: r.applied, expires: r.expires ?? null, kind, qty: r.qty ?? null })
 }

@@ -8,7 +8,7 @@ import { fetchTrialSetting, fetchReferralSetting, fetchContractAlertSetting, fet
 import { fetchShareSetting } from '../lib/share'
 import { BRANDING_BUCKET, fetchBrandingSetting, setLogoCache } from '../lib/branding'
 import {
-  fetchSeatSetting, TIERS, type SeatSetting, type Tier,
+  fetchPromptPayEnabled, fetchSeatSetting, TIERS, type SeatSetting, type Tier,
 } from '../lib/payments'
 import { FEATURES_DOC, SYSTEM_DOC, TRAINING_DOC } from '../lib/docs'
 import TestimonialsAdmin from '../components/TestimonialsAdmin'
@@ -158,6 +158,35 @@ export default function SuperAdminPage() {
           : `บันทึกไม่สำเร็จ: ${error.message}`,
       )
     }
+  }
+
+  // ── ช่องทาง PromptPay (app_settings key 'promptpay') — ใบแจ้งหนี้ทุกรอบ สแกนจ่ายเอง · ปิดไว้เป็นค่าเริ่มต้น ──
+  const [promptpay, setPromptpay] = useState<boolean | null>(null) // null = ยังโหลดไม่เสร็จ
+  const [promptpayBusy, setPromptpayBusy] = useState(false)
+  useEffect(() => { void fetchPromptPayEnabled().then(setPromptpay) }, [])
+
+  async function togglePromptpay() {
+    if (promptpay === null) return
+    const next = !promptpay
+    if (next && !confirm(
+      'เปิดให้ลูกค้าจ่ายด้วย PromptPay?\n\n'
+      + 'เช็คใน Stripe Dashboard (โหมด Live) ก่อน:\n'
+      + '• Settings → Payment methods → PromptPay เปิดอยู่\n'
+      + '• Settings → Billing → อีเมลแจ้งลูกค้า: ส่งใบแจ้งหนี้ที่ออกแล้ว (finalized invoices) ทางอีเมล\n'
+      + '• Billing → Subscriptions and emails: ใบแจ้งหนี้เกินกำหนดไม่จ่าย → ยกเลิก subscription',
+    )) return
+    setPromptpayBusy(true)
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'promptpay',
+      value: { enabled: next },
+      updated_at: new Date().toISOString(),
+    })
+    // อ่านกลับจากฐานข้อมูลเสมอ — สวิตช์ตัวเก่า (ทดสอบ ฿1) เคยกดแล้วไม่บันทึกโดยไม่มี error
+    const saved = await fetchPromptPayEnabled()
+    setPromptpayBusy(false)
+    setPromptpay(saved)
+    if (error) alert(`สลับไม่สำเร็จ: ${error.message}`)
+    else if (saved !== next) alert('บันทึกไม่สำเร็จ — ค่าในฐานข้อมูลยังเป็นแบบเดิม ลองใหม่อีกครั้ง')
   }
 
   // ── ที่นั่งทีม (app_settings key 'seats') — ราคาที่นั่งเพิ่ม + ที่นั่งขั้นต่ำที่แถมมากับแพ็กเกจ ──
@@ -829,6 +858,27 @@ export default function SuperAdminPage() {
             </div>
             )
           })()}
+        </section>
+
+        <section className="form-card">
+          <h3>ชำระด้วย PromptPay (ใบแจ้งหนี้ทุกรอบ)</h3>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>
+            เปิดแล้วหน้าอัปเกรดจะมีปุ่ม "หรือจ่ายด้วย PromptPay" (เฉพาะสมัครใหม่) — Stripe ตัด PromptPay อัตโนมัติไม่ได้
+            จึงส่งใบแจ้งหนี้ทางอีเมลทุกรอบ ลูกค้าสแกน QR จ่ายภายใน 7 วัน · ค่าธรรมเนียม ~1.65% (บัตร 3.65% + ฿10) ·
+            ปิดสวิตช์ = ซ่อนปุ่มสมัครใหม่ ลูกค้า PromptPay เดิมยังจ่ายใบแจ้งหนี้ได้ตามปกติ
+          </p>
+          <div className="org-row" style={{ alignItems: 'center' }}>
+            <button
+              className={`btn ${promptpay ? 'danger' : 'primary'}`}
+              disabled={promptpayBusy || promptpay === null}
+              onClick={() => void togglePromptpay()}
+            >
+              {promptpayBusy ? 'กำลังสลับ…' : promptpay ? 'ปิด PromptPay' : 'เปิด PromptPay'}
+            </button>
+            <span className={`status-pill ${promptpay ? 'on' : ''}`}>
+              {promptpay === null ? 'กำลังโหลด…' : promptpay ? 'เปิดอยู่' : 'ปิดอยู่'}
+            </span>
+          </div>
         </section>
 
         <section className="form-card">

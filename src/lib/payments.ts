@@ -7,6 +7,8 @@ export interface CheckoutResult {
   url?: string | null
   /** Checkout Session id — แอปมือถือเก็บไว้ยืนยันตอนปิดหน้าจ่ายเงิน */
   id?: string
+  /** เลขใบแจ้งหนี้ (PromptPay) — เก็บไว้ยืนยันตอนกลับมาจากหน้าสแกนจ่าย */
+  invoice?: string | null
   /** เปลี่ยนแพ็กเกจ/จำนวนที่นั่งใน subscription เดิมสำเร็จแล้ว (ตัดบัตรส่วนต่างแล้ว) */
   updated?: boolean
   /** กลับมาต่ออายุอัตโนมัติ (เคยกดยกเลิกไว้) */
@@ -153,27 +155,50 @@ export async function fetchPlanPrices(): Promise<PlanPrices> {
 }
 
 export type Cycle = 'monthly' | 'yearly'
+/** วิธีจ่าย: card = ตัดบัตรอัตโนมัติทุกรอบ · promptpay = ใบแจ้งหนี้ทุกรอบ สแกน QR จ่ายเอง (super ต้องเปิดสวิตช์ก่อน) */
+export type PayMethod = 'card' | 'promptpay'
+
+/** สวิตช์เปิดให้จ่ายด้วย PromptPay (app_settings 'promptpay') — ไม่มีค่า/อ่านพลาด = ปิด */
+export async function fetchPromptPayEnabled(): Promise<boolean> {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'promptpay').maybeSingle()
+    let v: unknown = data?.value ?? null
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v) } catch { return false }
+    }
+    return Boolean(v && typeof v === 'object' && (v as { enabled?: boolean }).enabled === true)
+  } catch {
+    return false
+  }
+}
 
 // ── Stripe (subscription ตัดบัตรอัตโนมัติทุกรอบ) — ยอดเงินคำนวณฝั่งเซิร์ฟเวอร์เสมอ (api/stripe.js) ──
 
 /** สมัคร/เปลี่ยนแพ็กเกจ — ยังไม่มี subscription = คืน url หน้า Stripe Checkout · มีแล้ว = เปลี่ยนในที่เดิม */
-export function startCheckout(plan: PlanKey, tier: Tier, cycle: Cycle, native = false): Promise<CheckoutResult> {
-  return authedPost<CheckoutResult>('stripe', { action: 'checkout', kind: 'plan', plan, tier, cycle, native })
+export function startCheckout(
+  plan: PlanKey, tier: Tier, cycle: Cycle, native = false, method: PayMethod = 'card',
+): Promise<CheckoutResult> {
+  return authedPost<CheckoutResult>('stripe', { action: 'checkout', kind: 'plan', plan, tier, cycle, native, method })
 }
 
 /** ที่นั่งเพิ่ม — qty = จำนวนที่นั่งเพิ่ม "ทั้งหมด" ที่ต้องการ (subscription แยกจากแพ็กเกจ ปรับจำนวนได้) */
-export function startSeatCheckout(qty: number, cycle: Cycle, native = false): Promise<CheckoutResult> {
-  return authedPost<CheckoutResult>('stripe', { action: 'checkout', kind: 'seats', qty, cycle, native })
+export function startSeatCheckout(
+  qty: number, cycle: Cycle, native = false, method: PayMethod = 'card',
+): Promise<CheckoutResult> {
+  return authedPost<CheckoutResult>('stripe', { action: 'checkout', kind: 'seats', qty, cycle, native, method })
 }
 
-/** กลับจากหน้า Stripe Checkout → ให้เซิร์ฟเวอร์ยืนยันกับ Stripe + ให้สิทธิ์ทันที (ไม่ต้องรอ webhook) */
-export function confirmCheckout(sessionId: string): Promise<ConfirmResult> {
-  return authedPost<ConfirmResult>('stripe', { action: 'confirm', session_id: sessionId })
+/** กลับจากหน้า Stripe Checkout (cs_…) หรือหน้าใบแจ้งหนี้ PromptPay (in_…) → ยืนยันกับ Stripe + ให้สิทธิ์ทันที */
+export function confirmCheckout(id: string): Promise<ConfirmResult> {
+  return authedPost<ConfirmResult>('stripe', id.startsWith('in_')
+    ? { action: 'confirm', invoice_id: id }
+    : { action: 'confirm', session_id: id })
 }
 
 /** ดึงสถานะ subscription จริงจาก Stripe มาอัปเดตองค์กร — changed = ข้อมูลในระบบเปลี่ยน (ควรโหลดองค์กรใหม่) */
-export function syncBilling(): Promise<{ changed: boolean }> {
-  return authedPost<{ changed: boolean }>('stripe', { action: 'sync' })
+export interface SubInfo { status: string; cancel: boolean; method: PayMethod }
+export function syncBilling(): Promise<{ changed: boolean; plan?: SubInfo | null; seats?: SubInfo | null }> {
+  return authedPost('stripe', { action: 'sync' })
 }
 
 /** ลิงก์จ่ายใบแจ้งหนี้ที่ค้าง (ตัดบัตรรอบใหม่ไม่ผ่าน) — null = ไม่มีใบค้าง */

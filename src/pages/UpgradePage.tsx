@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
   startCheckout, startSeatCheckout, confirmCheckout, openBillingPortal, openUnpaidInvoice, syncBilling, fetchPlanPrices, fetchSeatSetting,
+  fetchPromptPayEnabled,
   DEFAULT_PRICES, DEFAULT_SEAT_SETTING, MAX_SEAT_QTY, TIERS,
-  type CheckoutResult, type PlanKey, type PlanPrices, type SeatSetting, type Tier,
+  type CheckoutResult, type PayMethod, type PlanKey, type PlanPrices, type SeatSetting, type Tier,
 } from '../lib/payments'
 import { rolePerm } from '../lib/roles'
 import { isNativeApp } from '../lib/native'
@@ -31,7 +32,8 @@ const PLANS = [
   },
 ]
 
-// แอปมือถือ: Checkout เปิดใน in-app browser → เก็บ session ไว้ยืนยันตอนผู้ใช้ปิดหน้าจ่ายเงินกลับมา
+// รายการที่รอยืนยัน: Checkout session (cs_… — แอปมือถือ) หรือใบแจ้งหนี้ PromptPay (in_… — ทั้งเว็บและแอป
+// เพราะหน้าใบแจ้งหนี้ของ Stripe ไม่มีลิงก์พากลับ) → ยืนยันตอนผู้ใช้กลับมาที่หน้านี้
 const PENDING_KEY = 'hop_stripe_session'
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
@@ -50,7 +52,10 @@ export default function UpgradePage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [confirming, setConfirming] = useState(false)
-  const [done, setDone] = useState<{ kind: 'plan' | 'seats'; expires: string | null } | null>(null)
+  // promptpay = จ่ายแบบใบแจ้งหนี้ (ไม่ตัดอัตโนมัติ) → ข้อความหน้าสำเร็จต่างจากบัตร
+  const [done, setDone] = useState<{ kind: 'plan' | 'seats'; expires: string | null; promptpay?: boolean } | null>(null)
+  // วิธีจ่ายของ subscription ปัจจุบัน (รู้จากการซิงก์ตอนเปิดหน้า) — ไว้เลือกข้อความ "ตัดบัตรทุกรอบ" / "ใบแจ้งหนี้ทุกรอบ"
+  const [subMethod, setSubMethod] = useState<{ plan?: PayMethod; seats?: PayMethod }>({})
   const [err, setErr] = useState<string | null>(null)
   // ตัดบัตรส่วนต่างไม่ผ่าน/ธนาคารขอยืนยันตัวตน → ลิงก์หน้าใบแจ้งหนี้ของ Stripe ให้กดจ่ายเอง
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null)
@@ -81,11 +86,14 @@ export default function UpgradePage() {
     setSeatQty(Math.min(MAX_SEAT_QTY, Math.max(1, short >= 1 ? now + short : now)))
   }, [org])
 
+  // PromptPay (ใบแจ้งหนี้ทุกรอบ) — ซ่อนจนกว่า super จะเปิดสวิตช์ (เซิร์ฟเวอร์บังคับซ้ำ)
+  const [promptpayOn, setPromptpayOn] = useState(false)
   // ช่องทางติดต่อทีมขาย (LINE OA) — super admin ตั้งจากหน้า Super Admin
   const [contact, setContact] = useState(DEFAULT_CONTACT)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
     void fetchContactSetting().then(setContact)
+    void fetchPromptPayEnabled().then(setPromptpayOn)
     void fetchSeatSetting().then(setSeatCfg)
     try { localStorage.removeItem('hop_charge') } catch { /* รายการค้างของระบบเก่า (PunPay) */ }
   }, [])
@@ -130,7 +138,10 @@ export default function UpgradePage() {
     if (!isAdmin || !org?.id || !org.stripe_customer_id || backFromCheckout.current || syncedFor.current === org.id) return
     syncedFor.current = org.id
     void syncBilling()
-      .then((r) => { if (r.changed) void refresh.current() })
+      .then((r) => {
+        setSubMethod({ plan: r.plan?.method, seats: r.seats?.method })
+        if (r.changed) void refresh.current()
+      })
       .catch(() => { /* ซิงก์ไม่สำเร็จ = ใช้ข้อมูลเดิมไปก่อน (webhook ยังอัปเดตให้อยู่) */ })
   }, [isAdmin, org?.id, org?.stripe_customer_id])
 
@@ -144,13 +155,16 @@ export default function UpgradePage() {
         if (r.paid) {
           try { localStorage.removeItem(PENDING_KEY) } catch { /* ข้าม */ }
           await refresh.current()
-          setDone({ kind: r.kind ?? 'plan', expires: r.expires ?? null })
+          setDone({ kind: r.kind ?? 'plan', expires: r.expires ?? null, promptpay: sessionId.startsWith('in_') })
           return
         }
-        // ยังไม่ได้จ่าย (ปิดหน้าจ่ายเงินไปก่อน) / หน้าจ่ายเงินหมดอายุ → เลิกรอ
-        if (r.status === 'open' || r.status === 'expired') {
+        // ยังไม่ได้จ่าย (ปิดหน้าจ่ายเงินไปก่อน) / หน้าจ่ายเงินหมดอายุ / ใบแจ้งหนี้ถูกยกเลิก → เลิกรอ
+        // (จ่ายทีหลัง webhook ก็อัปเกรดให้เอง)
+        if (['open', 'expired', 'void', 'uncollectible'].includes(r.status ?? '')) {
           try { localStorage.removeItem(PENDING_KEY) } catch { /* ข้าม */ }
-          setNotice('ยังไม่ได้ชำระเงิน — กดเลือกแพ็กเกจใหม่ได้ทุกเมื่อ')
+          setNotice(sessionId.startsWith('in_')
+            ? 'ยังไม่ได้สแกนจ่ายใบแจ้งหนี้ — จ่ายภายหลังได้จากลิงก์ในอีเมล ระบบจะอัปเกรดให้อัตโนมัติ'
+            : 'ยังไม่ได้ชำระเงิน — กดเลือกแพ็กเกจใหม่ได้ทุกเมื่อ')
           return
         }
         await sleep(3000)
@@ -176,10 +190,25 @@ export default function UpgradePage() {
       else if (back === 'cancel') setNotice('ยกเลิกการชำระเงินแล้ว — ยังไม่มีการตัดบัตร')
       return
     }
-    if (!isNativeApp) return
     let saved: string | null = null
     try { saved = localStorage.getItem(PENDING_KEY) } catch { saved = null }
-    if (saved) void confirmLoop(saved)
+    if (saved && (isNativeApp || saved.startsWith('in_'))) void confirmLoop(saved)
+    if (!isNativeApp) {
+      // เว็บ: กลับจากหน้าใบแจ้งหนี้ PromptPay ด้วยปุ่มย้อนกลับ (หน้าถูกคืนจากแคช ไม่ mount ใหม่) หรือสลับแท็บกลับมา
+      const recheck = (e?: Event) => {
+        if (e?.type === 'visibilitychange' && document.visibilityState !== 'visible') return
+        if (e?.type === 'pageshow' && !(e as PageTransitionEvent).persisted) return
+        let id: string | null = null
+        try { id = localStorage.getItem(PENDING_KEY) } catch { id = null }
+        if (id?.startsWith('in_')) void confirmLoop(id)
+      }
+      window.addEventListener('pageshow', recheck)
+      document.addEventListener('visibilitychange', recheck)
+      return () => {
+        window.removeEventListener('pageshow', recheck)
+        document.removeEventListener('visibilitychange', recheck)
+      }
+    }
     let off: (() => void) | undefined
     void import('@capacitor/browser').then(async ({ Browser }) => {
       const h = await Browser.addListener('browserFinished', () => {
@@ -207,6 +236,8 @@ export default function UpgradePage() {
   /** ผลจากเซิร์ฟเวอร์ → ไปหน้าจ่ายเงิน / แสดงผลสำเร็จ / ให้จ่ายผ่านหน้าใบแจ้งหนี้ */
   async function handleResult(r: CheckoutResult) {
     if (r.pending) {
+      // ใบส่วนต่าง PromptPay → จำไว้ ยืนยันตอนกลับมาจากหน้าสแกนจ่าย
+      if (r.invoice) { try { localStorage.setItem(PENDING_KEY, r.invoice) } catch { /* ข้าม */ } }
       setInvoiceUrl(r.url ?? null)
       setErr(r.error ?? 'ตัดบัตรส่วนต่างไม่สำเร็จ')
       return
@@ -218,10 +249,11 @@ export default function UpgradePage() {
       return
     }
     if (r.url) {
-      if (isNativeApp && r.id) {
-        try { localStorage.setItem(PENDING_KEY, r.id) } catch { /* ข้าม */ }
+      const pendingId = r.invoice ?? (isNativeApp ? r.id : null)
+      if (pendingId) {
+        try { localStorage.setItem(PENDING_KEY, pendingId) } catch { /* ข้าม */ }
       }
-      setNotice('กำลังไปหน้าชำระเงินของ Stripe…')
+      setNotice(r.invoice ? 'กำลังไปหน้าสแกนจ่าย PromptPay ของ Stripe…' : 'กำลังไปหน้าชำระเงินของ Stripe…')
       await goTo(r.url)
     }
   }
@@ -229,19 +261,22 @@ export default function UpgradePage() {
   const planLabel = (p: PlanKey, t: number) => `${p === 'pro' ? 'Pro' : 'Basic'} ≤${t} ทรัพย์`
   const cycleLabel = (c: 'monthly' | 'yearly') => (c === 'yearly' ? 'รายปี' : 'รายเดือน')
 
-  async function pay(plan: PlanKey, resume = false) {
-    // มี subscription แล้ว = เปลี่ยนในที่เดิม ตัดบัตรส่วนต่างทันที → ถามก่อน (ต่ออายุเฉยๆ ไม่มีการตัดเงินตอนนี้)
+  // ข้อความยืนยันก่อนเปลี่ยนในที่เดิม — ไม่รู้ว่าองค์กรจ่ายด้วยบัตรหรือ PromptPay จึงบอกทั้งสองแบบ
+  const PRORATE_NOTE = 'ระบบจะคิดส่วนต่างตามวันที่เหลือของรอบนี้ — จ่ายด้วยบัตร: ตัดบัตรที่ผูกไว้ทันที · '
+    + 'จ่ายด้วย PromptPay: ออกใบแจ้งหนี้ส่วนต่างให้สแกนจ่าย'
+
+  async function pay(plan: PlanKey, resume = false, method: PayMethod = 'card') {
+    // มี subscription แล้ว = เปลี่ยนในที่เดิม คิดส่วนต่างทันที → ถามก่อน (ต่ออายุเฉยๆ ไม่มีการเก็บเงินตอนนี้)
     if (hasPlanSub && !resume && !window.confirm(
-      `เปลี่ยนเป็น ${planLabel(plan, tier)} (${cycleLabel(cycle)})?\n\n`
-      + 'ระบบจะคิดส่วนต่างตามวันที่เหลือของรอบนี้ และตัดบัตรที่ผูกไว้ทันที '
+      `เปลี่ยนเป็น ${planLabel(plan, tier)} (${cycleLabel(cycle)})?\n\n${PRORATE_NOTE} `
       + '(ลดแพ็กเกจ = ส่วนที่เหลือเป็นเครดิตหักรอบถัดไป)',
     )) return
     setErr(null)
     setInvoiceUrl(null)
     setNotice('')
-    setBusy(plan)
+    setBusy(method === 'promptpay' ? `${plan}:pp` : plan)
     try {
-      await handleResult(await startCheckout(plan, tier, cycle, isNativeApp))
+      await handleResult(await startCheckout(plan, tier, cycle, isNativeApp, method))
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'เริ่มการชำระเงินไม่สำเร็จ')
     } finally {
@@ -250,16 +285,16 @@ export default function UpgradePage() {
   }
 
   /** ที่นั่งเพิ่ม — subscription แยกจากแพ็กเกจ (ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุของแพ็กเกจ) */
-  async function paySeats() {
+  async function paySeats(method: PayMethod = 'card') {
     if (hasSeatSub && !window.confirm(
-      `ปรับที่นั่งเพิ่มเป็นทั้งหมด ${seatQty} ที่นั่ง (${cycleLabel(cycle)})?\n\nระบบจะคิดส่วนต่างตามวันที่เหลือของรอบนี้ และตัดบัตรที่ผูกไว้ทันที`,
+      `ปรับที่นั่งเพิ่มเป็นทั้งหมด ${seatQty} ที่นั่ง (${cycleLabel(cycle)})?\n\n${PRORATE_NOTE}`,
     )) return
     setErr(null)
     setInvoiceUrl(null)
     setNotice('')
-    setBusy('seats')
+    setBusy(method === 'promptpay' ? 'seats:pp' : 'seats')
     try {
-      await handleResult(await startSeatCheckout(seatQty, cycle, isNativeApp))
+      await handleResult(await startSeatCheckout(seatQty, cycle, isNativeApp, method))
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'เริ่มการชำระเงินไม่สำเร็จ')
     } finally {
@@ -318,12 +353,16 @@ export default function UpgradePage() {
             <p className="plan-line">
               {done.kind === 'seats' ? (
                 <>องค์กร <b>{org?.name}</b> ตอนนี้ใช้ได้ <b>{seatLimit(org) ?? 'ไม่จำกัด'}</b> ที่นั่ง
-                  {done.expires ? ` · ต่ออายุอัตโนมัติ (รอบนี้ถึง ${fmtDate(done.expires)})` : ''}</>
+                  {done.expires ? ` · ใช้ได้ถึง ${fmtDate(done.expires)}` : ''}</>
               ) : (
                 <>องค์กร <b>{org?.name}</b> เป็นแพ็กเกจ{' '}
                   <b>{org?.plan === 'pro' ? 'Pro' : 'Basic'}{org?.plan_tier ? ` ≤${org.plan_tier} ทรัพย์` : ''}</b> แล้ว
-                  {done.expires ? ` · ต่ออายุอัตโนมัติ (รอบนี้ถึง ${fmtDate(done.expires)})` : ''}</>
+                  {done.expires ? ` · ใช้ได้ถึง ${fmtDate(done.expires)}` : ''}</>
               )}
+              <br />
+              {done.promptpay
+                ? 'รอบถัดไประบบส่งใบแจ้งหนี้ PromptPay ทางอีเมล — สแกนจ่ายภายใน 7 วันเพื่อใช้งานต่อ'
+                : 'รอบถัดไประบบตัดบัตรให้อัตโนมัติ — ยกเลิกได้ทุกเมื่อ'}
             </p>
             <div className="org-row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
               {done.kind === 'seats' && <button className="btn" onClick={() => navigate('/team')}>ไปเชิญลูกทีม</button>}
@@ -349,7 +388,9 @@ export default function UpgradePage() {
               {hasPlanSub && org?.sub_expires_at && (
                 <> · {org.sub_cancel_at_period_end
                   ? <b style={{ color: 'var(--danger, #c0392b)' }}>ยกเลิกการต่ออายุแล้ว — ใช้ได้ถึง {fmtDate(org.sub_expires_at)}</b>
-                  : <>ต่ออายุอัตโนมัติ (ตัดบัตรทุกรอบ)</>}</>
+                  : subMethod.plan === 'promptpay' ? <>ส่งใบแจ้งหนี้ PromptPay ทางอีเมลทุกรอบ</>
+                    : subMethod.plan === 'card' ? <>ต่ออายุอัตโนมัติ (ตัดบัตรทุกรอบ)</>
+                      : <>ต่ออายุทุกรอบ</>}</>
               )}
               {/* เคยจ่ายด้วยบัตรแต่ไม่มี subscription แล้ว (ยกเลิกทันที/ตัดบัตรไม่ผ่านจนหมดรอบ) → ใช้ได้ถึงวันที่จ่ายไว้ */}
               {!hasPlanSub && org?.stripe_customer_id && (org?.plan === 'starter' || org?.plan === 'pro')
@@ -359,8 +400,9 @@ export default function UpgradePage() {
             </p>
             {org?.billing_past_due && (
               <div className="auth-error" role="alert" style={{ marginBottom: 12 }}>
-                <b>ตัดบัตร{org.billing_past_due === 'seats' ? 'ค่าที่นั่งเพิ่ม' : 'ค่าแพ็กเกจ'}รอบใหม่ไม่สำเร็จ</b> — Stripe จะลองตัดซ้ำให้อัตโนมัติ
-                แต่ถ้าบัตรหมดอายุ/วงเงินไม่พอ ให้ชำระด้วยบัตรใบใหม่
+                <b>{org.billing_past_due === 'seats' ? 'ค่าที่นั่งเพิ่ม' : 'ค่าแพ็กเกจ'}รอบใหม่ยังชำระไม่สำเร็จ</b> —
+                จ่ายด้วยบัตร: Stripe จะลองตัดซ้ำให้ ถ้าบัตรหมดอายุ/วงเงินไม่พอให้ชำระด้วยบัตรใบใหม่ ·
+                จ่ายด้วย PromptPay: กด "ชำระเงินตอนนี้" แล้วสแกน QR
                 {(() => {
                   const until = org.billing_past_due === 'seats' ? org.extra_seats_expires_at : org.sub_expires_at
                   return until ? <> ภายใน <b>{fmtDate(until)}</b>{org.billing_past_due === 'seats' ? ' ไม่งั้นที่นั่งเพิ่มจะหมดอายุ' : ' ไม่งั้นองค์กรจะถูกล็อก'}</> : null
@@ -455,6 +497,15 @@ export default function UpgradePage() {
                       </button>
                     )
                   })()}
+                  {/* PromptPay = ใบแจ้งหนี้ทุกรอบ (Stripe ตัดอัตโนมัติไม่ได้) — เฉพาะสมัครใหม่ · super เปิดสวิตช์แล้วเท่านั้น */}
+                  {promptpayOn && !hasPlanSub && (
+                    <button
+                      className="btn" style={{ width: '100%', marginTop: 8 }}
+                      disabled={busy !== null} onClick={() => void pay(p.key, false, 'promptpay')}
+                    >
+                      {busy === `${p.key}:pp` ? 'กำลังออกใบแจ้งหนี้…' : 'หรือจ่ายด้วย PromptPay (ใบแจ้งหนี้ทุกรอบ)'}
+                    </button>
+                  )}
                 </section>
               ))}
             </div>
@@ -469,7 +520,7 @@ export default function UpgradePage() {
               )}
               <p className="plan-line">
                 แพ็กเกจปัจจุบันให้ <b>{baseSeats(effectivePlan(org), org?.plan_tier, seatCfg.base) ?? 'ไม่จำกัด'}</b> ที่นั่ง
-                {activeExtraSeats(org) > 0 && <> + ซื้อเพิ่มไว้ <b>{activeExtraSeats(org)}</b> ที่นั่ง{hasSeatSub ? ' (ต่ออายุอัตโนมัติ)' : ''}</>}
+                {activeExtraSeats(org) > 0 && <> + ซื้อเพิ่มไว้ <b>{activeExtraSeats(org)}</b> ที่นั่ง{hasSeatSub ? (subMethod.seats === 'promptpay' ? ' (ใบแจ้งหนี้ทุกรอบ)' : ' (ต่ออายุทุกรอบ)') : ''}</>}
                 {' '}· 1 ที่นั่ง = 1 บัญชี
               </p>
               <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -492,6 +543,11 @@ export default function UpgradePage() {
                 <button className="btn primary" disabled={busy !== null} onClick={() => void paySeats()}>
                   {busy === 'seats' ? 'กำลังดำเนินการ…' : hasSeatSub ? 'ปรับจำนวนที่นั่ง' : 'ซื้อที่นั่ง · ชำระด้วยบัตร'}
                 </button>
+                {promptpayOn && !hasSeatSub && (
+                  <button className="btn" disabled={busy !== null} onClick={() => void paySeats('promptpay')}>
+                    {busy === 'seats:pp' ? 'กำลังออกใบแจ้งหนี้…' : 'หรือจ่ายด้วย PromptPay'}
+                  </button>
+                )}
               </div>
               <p className="plan-line" style={{ marginTop: 10 }}>
                 ตัดบัตรอัตโนมัติทุกรอบตามจำนวนที่นั่ง · เลิกใช้ที่นั่งเพิ่ม = ยกเลิกในหน้า "จัดการการชำระเงิน"
@@ -510,6 +566,7 @@ export default function UpgradePage() {
             <p className="plan-line" style={{ marginTop: 16 }}>
               ชำระด้วยบัตรเครดิต/เดบิตผ่าน Stripe (มาตรฐานความปลอดภัยระดับธนาคาร — HOP ไม่เห็นเลขบัตร) ·
               ตัดบัตรอัตโนมัติทุกรอบ ยกเลิกได้ทุกเมื่อ ใช้ได้ถึงสิ้นรอบที่จ่ายแล้ว · จ่ายรายปีถูกกว่า
+              {promptpayOn && <> · เลือกจ่ายด้วย <b>PromptPay</b> ได้: ระบบส่งใบแจ้งหนี้ทางอีเมลทุกรอบ สแกน QR จ่ายภายใน 7 วัน (ไม่ตัดเงินอัตโนมัติ)</>}
             </p>
           </>
         )}

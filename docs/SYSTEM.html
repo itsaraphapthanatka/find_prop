@@ -299,6 +299,8 @@
 <li>webhook ตรวจลายเซ็น <code>Stripe-Signature</code> ด้วย <code>STRIPE_WEBHOOK_SECRET</code> ก่อนเชื่อผล · events: checkout.session.completed, invoice.paid, customer.subscription.updated, customer.subscription.deleted</li>
 <li>คอลัมน์ <code>stripe_*</code> / <code>sub_cancel_at_period_end</code> บนองค์กรแก้ได้เฉพาะ service role/super (trigger <code>guard_org_stripe</code>)</li>
 <li>แอปมือถือ: เปิด Checkout ใน in-app browser → จบที่ <code>/pay-done.html</code> → ปิดหน้ากลับแอป แอปยืนยันเอง</li>
+<li><b>PromptPay (ปิดไว้เป็นค่าเริ่มต้น):</b> super เปิดที่หน้า Super Admin (app_settings <code>promptpay</code>) — Checkout แบบ subscription ไม่รองรับ PromptPay จึงใช้ subscription แบบ <code>collection_method: send_invoice</code> (<code>days_until_due</code> 7) ออกใบแจ้งหนี้ใบแรกทันทีแล้วพาไปหน้าสแกนจ่าย · สิทธิ์ขยายเพิ่ม 7 วันตามกำหนดจ่าย · สมัครค้างไว้แต่ไม่เคยจ่าย = ยกเลิกทิ้งอัตโนมัติตอนกดสมัครครั้งถัดไป · เปลี่ยนแพ็กเกจ = ออกใบส่วนต่างให้สแกนจ่าย · เปลี่ยนวิธีจ่ายบัตร ↔ PromptPay กลางทางไม่ได้</li>
+<li><b>แถบเตือนชำระไม่สำเร็จ:</b> คอลัมน์ <code>billing_past_due</code> ('plan' | 'seats') — webhook อ่านสถานะ subscription ปัจจุบันจาก Stripe ทุกครั้ง (past_due/unpaid = เตือน) · แสดงเฉพาะ Owner ทุกหน้า + ปุ่ม "ชำระเงินตอนนี้" (action <code>open-invoice</code>)</li>
 <li>ทดสอบ: ใช้คีย์โหมดทดสอบ (<code>sk_test_…</code>) + บัตร 4242 4242 4242 4242 แล้วค่อยเปลี่ยนเป็นคีย์จริง</li>
 </ul>
 

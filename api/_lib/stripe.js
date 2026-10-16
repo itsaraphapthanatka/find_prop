@@ -29,6 +29,11 @@ export function appUrl(req) {
 }
 
 const CYCLE_INTERVAL = { monthly: 'month', yearly: 'year' }
+
+// ── PromptPay = subscription แบบ "ส่งใบแจ้งหนี้" (collection_method send_invoice) ──
+// Stripe ตัด PromptPay อัตโนมัติไม่ได้ (ลูกค้าต้องสแกน QR เอง) → ทุกรอบ Stripe ออกใบแจ้งหนี้ ส่งอีเมล ให้จ่ายภายใน N วัน
+// สิทธิ์ขยายเพิ่ม N วัน (+3 เดิม) เพื่อไม่ให้ล็อกองค์กรก่อนครบกำหนดจ่าย
+export const PROMPTPAY_DUE_DAYS = 7
 const CYCLE_TH = { monthly: 'รายเดือน', yearly: 'รายปี' }
 
 /**
@@ -89,7 +94,9 @@ const pickLive = (subs, kind) => subs.find((sub) =>
   LIVE_STATUSES.includes(sub.status) && (sub.metadata?.kind || 'plan') === kind) || null
 /** ตั้งยกเลิกปลายรอบไว้ไหม (API ใหม่: portal อาจตั้ง cancel_at แทน cancel_at_period_end) */
 const cancelScheduled = (sub) => Boolean(sub?.cancel_at_period_end || sub?.cancel_at)
-const PAST_DUE = ['past_due', 'unpaid'] // ตัดบัตรรอบใหม่ไม่ผ่าน (Stripe กำลังลองตัดซ้ำ)
+const PAST_DUE = ['past_due', 'unpaid'] // ตัดบัตรรอบใหม่ไม่ผ่าน (Stripe กำลังลองตัดซ้ำ) / ใบแจ้งหนี้เกินกำหนด
+/** 'promptpay' = ส่งใบแจ้งหนี้ทุกรอบ · 'card' = ตัดบัตรอัตโนมัติ (หน้าเว็บใช้เลือกข้อความให้ตรง) */
+const payMethodOf = (sub) => (sub?.collection_method === 'send_invoice' ? 'promptpay' : 'card')
 
 /** สถานะที่ต้องเขียนลงองค์กร จากรายการ subscription ทั้งหมดของลูกค้า (แหล่งความจริง = Stripe) */
 function billingState(subs) {
@@ -143,9 +150,44 @@ export async function syncFromStripe(stripe, auth) {
   return {
     changed,
     pastDue: next.billing_past_due,
-    plan: plan ? { status: plan.status, cancel: cancelScheduled(plan) } : null,
-    seats: seats ? { status: seats.status, cancel: cancelScheduled(seats) } : null,
+    plan: plan ? { status: plan.status, cancel: cancelScheduled(plan), method: payMethodOf(plan) } : null,
+    seats: seats ? { status: seats.status, cancel: cancelScheduled(seats), method: payMethodOf(seats) } : null,
   }
+}
+
+/** ใบแจ้งหนี้ร่าง → ออกจริงทันที (ไม่รอ Stripe ออกเองราว 1 ชม.) เพื่อให้มีลิงก์หน้าจ่ายให้ลูกค้าตอนนี้เลย */
+export async function finalizeIfDraft(stripe, inv) {
+  if (inv && typeof inv === 'object' && inv.status === 'draft') return stripe.invoices.finalizeInvoice(inv.id)
+  return inv
+}
+
+/**
+ * subscription แบบส่งใบแจ้งหนี้ (PromptPay) ที่สมัครค้างไว้แต่ "ไม่เคยจ่ายเลย" (เปิดหน้าจ่ายแล้วปิดไป)
+ * → ยกเลิกใบที่ค้าง + ยกเลิก subscription ทิ้ง ให้เริ่มใหม่ได้สะอาด (ไม่งั้นค้างเป็นของที่ต้องจ่ายและขึ้นแถบเตือน)
+ * คืน true = ทิ้งแล้ว · false = เคยจ่ายแล้ว (เป็นลูกค้าจริง ห้ามแตะ)
+ */
+export async function discardIfNeverPaid(stripe, sub) {
+  if (!sub || sub.collection_method !== 'send_invoice') return false
+  const paid = await stripe.invoices.list({ subscription: sub.id, status: 'paid', limit: 1 })
+  if (paid.data.length) return false
+  const open = await stripe.invoices.list({ subscription: sub.id, status: 'open', limit: 10 })
+  for (const inv of open.data) await stripe.invoices.voidInvoice(inv.id)
+  await stripe.subscriptions.cancel(sub.id)
+  return true
+}
+
+/** สมัครแบบจ่ายด้วย PromptPay → ออกใบแจ้งหนี้ใบแรกทันที คืนใบแจ้งหนี้ (มี hosted_invoice_url ไว้ให้สแกนจ่าย) */
+export async function startInvoiceSubscription(stripe, { customer, priceId, qty, orgId, kind }) {
+  const sub = await stripe.subscriptions.create({
+    customer,
+    items: [{ price: priceId, quantity: qty }],
+    collection_method: 'send_invoice',
+    days_until_due: PROMPTPAY_DUE_DAYS,
+    payment_settings: { payment_method_types: ['promptpay'] },
+    metadata: { org_id: orgId, kind, method: 'promptpay' },
+    expand: ['latest_invoice'],
+  })
+  return finalizeIfDraft(stripe, sub.latest_invoice)
 }
 
 /** ใบแจ้งหนี้ที่ค้างจ่าย (ตัดบัตรไม่ผ่าน) ล่าสุดของลูกค้า → ลิงก์หน้าจ่ายของ Stripe · ไม่มี = null */
@@ -187,7 +229,10 @@ export async function describeInvoice(stripe, invoice) {
 
   const kind = pm.kind || sub.metadata?.kind || 'plan'
   const periodEnd = Math.max(0, ...lines.map((l) => Number(l.period?.end) || 0)) || item?.current_period_end
+  // แบบส่งใบแจ้งหนี้ (PromptPay): รอบใหม่ออกใบตอนสิ้นรอบ + ให้เวลาจ่าย days_until_due วัน → ขยายสิทธิ์เท่านั้น
+  const graceDays = sub.collection_method === 'send_invoice' ? Number(sub.days_until_due) || 0 : 0
   return {
+    graceDays,
     orgId,
     kind,
     plan: pm.plan || sub.metadata?.plan || null,
@@ -227,7 +272,7 @@ export async function applyInvoice(stripe, s, invoice, expectOrg = null) {
       p_tier: d.kind === 'plan' ? d.tier : null,
       p_qty: d.kind === 'seats' ? d.qty : null,
       p_months: d.cycle === 'yearly' ? 12 : 1,
-      p_period_end: bkkDate(d.periodEnd),
+      p_period_end: bkkDate(d.periodEnd + d.graceDays * 86400),
       p_amount: (Number(invoice.amount_paid) || 0) / 100,
       p_customer: d.customer,
       p_subscription: d.subscription,

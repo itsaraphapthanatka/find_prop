@@ -343,7 +343,7 @@ export default function App() {
           {org?.billing_past_due && (canManageOrg || impersonating) && !location.pathname.startsWith('/upgrade') && (
             <div className="banner-warn" role="alert" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
               <span style={{ flex: '1 1 260px' }}>
-                ⚠️ <b>ตัดบัตร{org.billing_past_due === 'seats' ? 'ค่าที่นั่งเพิ่ม' : 'ค่าแพ็กเกจ'}รอบใหม่ไม่สำเร็จ</b> — ระบบจะลองตัดซ้ำอัตโนมัติ
+                ⚠️ <b>{org.billing_past_due === 'seats' ? 'ค่าที่นั่งเพิ่ม' : 'ค่าแพ็กเกจ'}รอบใหม่ยังชำระไม่สำเร็จ</b>
                 {(() => {
                   const until = org.billing_past_due === 'seats' ? org.extra_seats_expires_at : org.sub_expires_at
                   if (!until) return null
@@ -353,7 +353,7 @@ export default function App() {
                     : <> · ชำระภายใน {d} ไม่งั้นองค์กรจะถูกล็อก</>
                 })()}
               </span>
-              <button className="btn sm primary" onClick={() => navigate('/upgrade')}>ชำระเงิน / เปลี่ยนบัตร</button>
+              <button className="btn sm primary" onClick={() => navigate('/upgrade')}>ชำระเงิน</button>
             </div>
           )}
           <Routes>
