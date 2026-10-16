@@ -339,6 +339,23 @@ export default function App() {
           {isSuper && <NavLink to="/super" data-tour="nav-super"><IconShield /><NavText full="Super Admin" short="Super" /></NavLink>}
         </nav>
         <main className="content">
+          {/* ตัดบัตรรอบใหม่ไม่ผ่าน → เตือนเฉพาะคนที่จ่ายได้ (Owner / super สวมสิทธิ์) ทุกหน้า ยกเว้นหน้าอัปเกรดที่มีกล่องจ่ายอยู่แล้ว */}
+          {org?.billing_past_due && (canManageOrg || impersonating) && !location.pathname.startsWith('/upgrade') && (
+            <div className="banner-warn" role="alert" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+              <span style={{ flex: '1 1 260px' }}>
+                ⚠️ <b>ตัดบัตร{org.billing_past_due === 'seats' ? 'ค่าที่นั่งเพิ่ม' : 'ค่าแพ็กเกจ'}รอบใหม่ไม่สำเร็จ</b> — ระบบจะลองตัดซ้ำอัตโนมัติ
+                {(() => {
+                  const until = org.billing_past_due === 'seats' ? org.extra_seats_expires_at : org.sub_expires_at
+                  if (!until) return null
+                  const d = new Date(until).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
+                  return org.billing_past_due === 'seats'
+                    ? <> · ชำระภายใน {d} ไม่งั้นที่นั่งเพิ่มจะหมดอายุ</>
+                    : <> · ชำระภายใน {d} ไม่งั้นองค์กรจะถูกล็อก</>
+                })()}
+              </span>
+              <button className="btn sm primary" onClick={() => navigate('/upgrade')}>ชำระเงิน / เปลี่ยนบัตร</button>
+            </div>
+          )}
           <Routes>
             <Route path="/" element={<ListPage search={search} />} />
             <Route path="/me" element={<ProfilePage />} />

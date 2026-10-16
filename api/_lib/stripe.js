@@ -7,6 +7,7 @@
 //    รอบหน้าที่มีคนกดซื้อจะสร้าง Price ใหม่ให้อัตโนมัติ (ลูกค้าเดิมยังจ่ายราคาเดิมจนกว่าจะเปลี่ยนแพ็กเกจ)
 //  • "ให้สิทธิ์" ทำที่เดียว = applyInvoice() เมื่อใบแจ้งหนี้สถานะ paid เท่านั้น (webhook + หน้ายืนยัน เรียกซ้ำได้ — กันซ้ำด้วยเลขใบแจ้งหนี้)
 
+import crypto from 'node:crypto'
 import Stripe from 'stripe'
 import { patchOrg } from './auth.js'
 
@@ -72,11 +73,13 @@ export async function ensureCustomer(stripe, auth) {
       if (c && !c.deleted) return c.id
     } catch { /* customer หาย (เช่น สลับ test ↔ live key) → สร้างใหม่ */ }
   }
-  const c = await stripe.customers.create({
-    name: org.name || undefined,
-    email: email || undefined,
-    metadata: { org_id: orgId },
-  })
+  // idempotency key: Owner กดซ้ำ/เปิดสองแท็บพร้อมกัน → Stripe คืนลูกค้าคนเดิม ไม่สร้างซ้ำ
+  // (ผูกกับรหัสลูกค้าเดิมที่กำลังแทนที่ด้วย — ลูกค้าเก่าถูกลบแล้วสร้างใหม่ภายใน 24 ชม. จะได้ไม่ได้ตัวที่ลบไปแล้วกลับมา)
+  const params = { name: org.name || undefined, email: email || undefined, metadata: { org_id: orgId } }
+  const idempotencyKey = 'hop-customer-' + crypto.createHash('sha256')
+    .update(JSON.stringify([orgId, org.stripe_customer_id || null, params.name ?? null, params.email ?? null]))
+    .digest('hex').slice(0, 48)
+  const c = await stripe.customers.create(params, { idempotencyKey })
   await patchOrg(s, orgId, { stripe_customer_id: c.id })
   return c.id
 }
@@ -86,6 +89,24 @@ const pickLive = (subs, kind) => subs.find((sub) =>
   LIVE_STATUSES.includes(sub.status) && (sub.metadata?.kind || 'plan') === kind) || null
 /** ตั้งยกเลิกปลายรอบไว้ไหม (API ใหม่: portal อาจตั้ง cancel_at แทน cancel_at_period_end) */
 const cancelScheduled = (sub) => Boolean(sub?.cancel_at_period_end || sub?.cancel_at)
+const PAST_DUE = ['past_due', 'unpaid'] // ตัดบัตรรอบใหม่ไม่ผ่าน (Stripe กำลังลองตัดซ้ำ)
+
+/** สถานะที่ต้องเขียนลงองค์กร จากรายการ subscription ทั้งหมดของลูกค้า (แหล่งความจริง = Stripe) */
+function billingState(subs) {
+  const plan = pickLive(subs, 'plan')
+  const seats = pickLive(subs, 'seats')
+  return {
+    plan,
+    seats,
+    next: {
+      stripe_subscription_id: plan?.id ?? null,
+      sub_cancel_at_period_end: plan ? cancelScheduled(plan) : false,
+      stripe_seat_subscription_id: seats?.id ?? null,
+      // แพ็กเกจสำคัญกว่า (ไม่จ่าย = ล็อกทั้งองค์กร) → เตือนแพ็กเกจก่อน
+      billing_past_due: PAST_DUE.includes(plan?.status) ? 'plan' : PAST_DUE.includes(seats?.status) ? 'seats' : null,
+    },
+  }
+}
 
 /** subscription ที่ยังใช้งานของลูกค้า แยกตามชนิด ('plan' | 'seats') — ไม่มี = null */
 export async function findLiveSubscription(stripe, customerId, kind) {
@@ -109,26 +130,29 @@ export async function syncFromStripe(stripe, auth) {
     if (e?.code !== 'resource_missing') throw e
     await patchOrg(s, orgId, {
       stripe_customer_id: null, stripe_subscription_id: null,
-      stripe_seat_subscription_id: null, sub_cancel_at_period_end: false,
+      stripe_seat_subscription_id: null, sub_cancel_at_period_end: false, billing_past_due: null,
     })
     return { changed: true, customer: 'missing' }
   }
-  const plan = pickLive(subs, 'plan')
-  const seats = pickLive(subs, 'seats')
-  const next = {
-    stripe_subscription_id: plan?.id ?? null,
-    sub_cancel_at_period_end: plan ? cancelScheduled(plan) : false,
-    stripe_seat_subscription_id: seats?.id ?? null,
-  }
+  const { plan, seats, next } = billingState(subs)
   const changed = next.stripe_subscription_id !== (org.stripe_subscription_id ?? null)
     || next.sub_cancel_at_period_end !== Boolean(org.sub_cancel_at_period_end)
     || next.stripe_seat_subscription_id !== (org.stripe_seat_subscription_id ?? null)
+    || next.billing_past_due !== (org.billing_past_due ?? null)
   if (changed) await patchOrg(s, orgId, next)
   return {
     changed,
+    pastDue: next.billing_past_due,
     plan: plan ? { status: plan.status, cancel: cancelScheduled(plan) } : null,
     seats: seats ? { status: seats.status, cancel: cancelScheduled(seats) } : null,
   }
+}
+
+/** ใบแจ้งหนี้ที่ค้างจ่าย (ตัดบัตรไม่ผ่าน) ล่าสุดของลูกค้า → ลิงก์หน้าจ่ายของ Stripe · ไม่มี = null */
+export async function openInvoiceUrl(stripe, customerId) {
+  if (!customerId) return null
+  const list = await stripe.invoices.list({ customer: customerId, status: 'open', limit: 1 })
+  return list.data[0]?.hosted_invoice_url ?? null
 }
 
 const idOf = (x) => (typeof x === 'string' ? x : x?.id) || null
@@ -215,24 +239,17 @@ export async function applyInvoice(stripe, s, invoice, expectOrg = null) {
 }
 
 /**
- * subscription เปลี่ยนสถานะ (ตั้งยกเลิกปลายรอบ / ยกเลิกแล้ว) → สะท้อนลงองค์กร
- * ไม่ตัดสิทธิ์ทันที: ใช้ได้ถึงวันหมดอายุที่จ่ายไว้ แล้วระบบล็อกตามกติกาเดิม
+ * subscription เปลี่ยนสถานะ (ยกเลิกปลายรอบ / ยกเลิกแล้ว / ตัดบัตรไม่ผ่าน / กลับมาปกติ) → สะท้อนลงองค์กร
+ * อ่านรายการ subscription "ปัจจุบัน" ของลูกค้าจาก Stripe ทุกครั้ง แทนการเชื่อข้อมูลใน event
+ * → event มาสลับลำดับ/มาซ้ำก็ได้ผลถูกเสมอ · ไม่ตัดสิทธิ์ทันที: ใช้ได้ถึงวันหมดอายุที่จ่ายไว้ แล้วระบบล็อกตามกติกาเดิม
  */
-export async function syncSubscription(s, sub) {
+export async function syncSubscription(stripe, s, sub) {
   const orgId = sub?.metadata?.org_id
-  if (!orgId) return { ok: true, note: 'not-hop' }
-  const kind = sub.metadata?.kind || 'plan'
-  const ended = ['canceled', 'incomplete_expired'].includes(sub.status)
-  const col = kind === 'seats' ? 'stripe_seat_subscription_id' : 'stripe_subscription_id'
-  const only = `&${col}=eq.${encodeURIComponent(sub.id)}` // แตะเฉพาะถ้าเป็น subscription ตัวเดียวกับที่องค์กรผูกอยู่
-  let matched = null
-  if (ended) {
-    matched = await patchOrg(s, orgId, kind === 'seats'
-      ? { stripe_seat_subscription_id: null }
-      : { stripe_subscription_id: null, sub_cancel_at_period_end: false }, only)
-  } else if (kind === 'plan') {
-    matched = await patchOrg(s, orgId, { sub_cancel_at_period_end: cancelScheduled(sub) }, only)
-  }
-  // matched โชว์ในหน้า Event deliveries ของ Stripe — 0 = องค์กรไม่ได้ผูก subscription ตัวนี้ (ไว้ไล่ปัญหา)
-  return { ok: true, kind, status: sub.status, cancel: cancelScheduled(sub), matched }
+  const customer = idOf(sub?.customer)
+  if (!orgId || !customer) return { ok: true, note: 'not-hop' }
+  const subs = (await stripe.subscriptions.list({ customer, status: 'all', limit: 20 })).data
+  const { next } = billingState(subs)
+  const matched = await patchOrg(s, orgId, next)
+  // โชว์ในหน้า Event deliveries ของ Stripe — matched 0 = ไม่พบองค์กร (ไว้ไล่ปัญหา)
+  return { ok: true, status: sub.status, ...next, matched }
 }

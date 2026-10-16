@@ -176,6 +176,11 @@ export function syncBilling(): Promise<{ changed: boolean }> {
   return authedPost<{ changed: boolean }>('stripe', { action: 'sync' })
 }
 
+/** ลิงก์จ่ายใบแจ้งหนี้ที่ค้าง (ตัดบัตรรอบใหม่ไม่ผ่าน) — null = ไม่มีใบค้าง */
+export function openUnpaidInvoice(): Promise<{ url: string | null }> {
+  return authedPost<{ url: string | null }>('stripe', { action: 'open-invoice' })
+}
+
 /** ลิงก์ Stripe Customer Portal — เปลี่ยนบัตร / ดูใบเสร็จ / ยกเลิกการต่ออายุ */
 export function openBillingPortal(native = false): Promise<{ url: string }> {
   return authedPost<{ url: string }>('stripe', { action: 'portal', native })

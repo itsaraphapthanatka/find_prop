@@ -52,6 +52,8 @@ export interface Organization {
   sub_cancel_at_period_end?: boolean | null
   /** รอบชำระของแพ็กเกจปัจจุบัน (Stripe) */
   sub_cycle?: 'monthly' | 'yearly' | null
+  /** ตัดบัตรรอบใหม่ไม่ผ่าน (Stripe กำลังลองตัดซ้ำ) — 'plan' = ค่าแพ็กเกจ · 'seats' = ค่าที่นั่งเพิ่ม · null = ปกติ */
+  billing_past_due?: 'plan' | 'seats' | null
 }
 
 /** องค์กรใช้งานได้มั้ย (ไม่ถูกระงับ + sub ไม่หมดอายุ + ช่วงทดลองไม่หมด) — ตรรกะเดียวกับ org_ok ในฐานข้อมูล */

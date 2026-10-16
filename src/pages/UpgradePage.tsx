@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
-  startCheckout, startSeatCheckout, confirmCheckout, openBillingPortal, syncBilling, fetchPlanPrices, fetchSeatSetting,
+  startCheckout, startSeatCheckout, confirmCheckout, openBillingPortal, openUnpaidInvoice, syncBilling, fetchPlanPrices, fetchSeatSetting,
   DEFAULT_PRICES, DEFAULT_SEAT_SETTING, MAX_SEAT_QTY, TIERS,
   type CheckoutResult, type PlanKey, type PlanPrices, type SeatSetting, type Tier,
 } from '../lib/payments'
@@ -267,6 +267,20 @@ export default function UpgradePage() {
     }
   }
 
+  /** ตัดบัตรไม่ผ่าน → พาไปหน้าจ่ายใบแจ้งหนี้ที่ค้างของ Stripe (จ่ายด้วยบัตรใบใหม่ได้) · ไม่มีใบค้าง = เปิดหน้าจัดการบัตรแทน */
+  async function payUnpaid() {
+    setErr(null)
+    setBusy('unpaid')
+    try {
+      const { url } = await openUnpaidInvoice()
+      await goTo(url ?? (await openBillingPortal(isNativeApp)).url)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'เปิดหน้าชำระเงินไม่สำเร็จ')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function manageBilling() {
     setErr(null)
     setBusy('portal')
@@ -343,6 +357,22 @@ export default function UpgradePage() {
                 <> · <b style={{ color: 'var(--danger, #c0392b)' }}>ไม่ต่ออายุอัตโนมัติ — ใช้ได้ถึง {fmtDate(org.sub_expires_at)}</b></>
               )}
             </p>
+            {org?.billing_past_due && (
+              <div className="auth-error" role="alert" style={{ marginBottom: 12 }}>
+                <b>ตัดบัตร{org.billing_past_due === 'seats' ? 'ค่าที่นั่งเพิ่ม' : 'ค่าแพ็กเกจ'}รอบใหม่ไม่สำเร็จ</b> — Stripe จะลองตัดซ้ำให้อัตโนมัติ
+                แต่ถ้าบัตรหมดอายุ/วงเงินไม่พอ ให้ชำระด้วยบัตรใบใหม่
+                {(() => {
+                  const until = org.billing_past_due === 'seats' ? org.extra_seats_expires_at : org.sub_expires_at
+                  return until ? <> ภายใน <b>{fmtDate(until)}</b>{org.billing_past_due === 'seats' ? ' ไม่งั้นที่นั่งเพิ่มจะหมดอายุ' : ' ไม่งั้นองค์กรจะถูกล็อก'}</> : null
+                })()}
+                <div className="org-row" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+                  <button className="btn sm primary" disabled={busy !== null} onClick={() => void payUnpaid()}>
+                    {busy === 'unpaid' ? 'กำลังเปิด…' : 'ชำระเงินตอนนี้'}
+                  </button>
+                  <button className="btn sm" disabled={busy !== null} onClick={() => void manageBilling()}>เปลี่ยนบัตรที่ผูกไว้</button>
+                </div>
+              </div>
+            )}
             {org?.stripe_customer_id && (
               <div className="org-row" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
                 <button className="btn" disabled={busy !== null} onClick={() => void manageBilling()}>

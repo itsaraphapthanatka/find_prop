@@ -25,7 +25,8 @@ export function supa() {
   return { url, anonKey, svc: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
 }
 
-const ORG_COLS = 'id,name,plan,plan_tier,stripe_customer_id,stripe_subscription_id,stripe_seat_subscription_id,sub_cancel_at_period_end'
+// ทั้งแถว (ฝั่งเซิร์ฟเวอร์เท่านั้น) — ไม่ระบุคอลัมน์ เพื่อไม่ให้ทั้งระบบจ่ายเงินล่มช่วงที่ deploy โค้ดก่อนรัน SQL รุ่นใหม่
+const ORG_COLS = '*'
 
 /**
  * ยืนยันผู้เรียก = Owner ที่ active ขององค์กร (super ที่สวมสิทธิ์องค์กรนั้นก็ได้)

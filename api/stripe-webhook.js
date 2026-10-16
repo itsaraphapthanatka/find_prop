@@ -11,7 +11,7 @@
 // ตอบ 5xx เมื่อบันทึกไม่สำเร็จ → Stripe ส่งซ้ำให้เองภายหลัง (สูงสุด ~3 วัน)
 
 import { supa } from './_lib/auth.js'
-import { stripeClient, applyInvoice, syncSubscription } from './_lib/stripe.js'
+import { stripeClient, applyInvoice, syncSubscription, invoiceSubscriptionId } from './_lib/stripe.js'
 
 export const config = { api: { bodyParser: false } }
 
@@ -60,8 +60,14 @@ export default async function handler(req, res) {
         break
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
-        out = await syncSubscription(s, obj)
+        out = await syncSubscription(stripe, s, obj)
         break
+      case 'invoice.payment_failed': {
+        // ปกติ customer.subscription.updated (→ past_due) ครอบอยู่แล้ว — รองรับไว้เผื่อติ๊ก event นี้ด้วย
+        const subId = invoiceSubscriptionId(obj)
+        if (subId) out = await syncSubscription(stripe, s, await stripe.subscriptions.retrieve(subId))
+        break
+      }
     }
     return res.status(200).json({ received: true, type: event.type, ...out })
   } catch (e) {

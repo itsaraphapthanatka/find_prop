@@ -1,5 +1,6 @@
 -- HOP · เปลี่ยนระบบเก็บเงินเป็น Stripe (subscription ตัดบัตรอัตโนมัติทุกรอบ)
 -- รันใน Supabase → SQL Editor → Run (idempotent · รันซ้ำได้ · ทรานแซกชันเดียว ไม่แตะข้อมูลเดิม)
+-- รุ่น 2 (2026-10-16): + billing_past_due (แถบเตือนตัดบัตรไม่ผ่าน) — ระบบที่รันรุ่นแรกไปแล้ว รันไฟล์นี้ซ้ำได้เลย
 -- ------------------------------------------------------------------
 -- หลักการ:
 --   • 1 องค์กร = 1 Stripe customer · แพ็กเกจ = 1 subscription · ที่นั่งเพิ่ม = อีก 1 subscription (quantity = จำนวนที่นั่ง)
@@ -17,7 +18,10 @@ alter table public.organizations
   add column if not exists stripe_subscription_id text,
   add column if not exists stripe_seat_subscription_id text,
   add column if not exists sub_cancel_at_period_end boolean not null default false,
-  add column if not exists sub_cycle text;   -- รอบชำระของแพ็กเกจปัจจุบัน 'monthly' | 'yearly' (ไว้แสดงผลในหน้าอัปเกรด)
+  add column if not exists sub_cycle text,   -- รอบชำระของแพ็กเกจปัจจุบัน 'monthly' | 'yearly' (ไว้แสดงผลในหน้าอัปเกรด)
+  -- ตัดบัตรรอบใหม่ไม่ผ่าน (subscription past_due/unpaid) → แถบเตือน Owner · 'plan' | 'seats' · null = ปกติ
+  -- webhook ตั้ง/ล้างตามสถานะจริงใน Stripe · จ่ายสำเร็จ (apply_stripe_invoice) ล้างให้ทันที
+  add column if not exists billing_past_due text check (billing_past_due in ('plan', 'seats'));
 create unique index if not exists organizations_stripe_customer_uidx
   on public.organizations (stripe_customer_id) where stripe_customer_id is not null;
 
@@ -32,7 +36,8 @@ begin
   if new.stripe_customer_id is distinct from old.stripe_customer_id
      or new.stripe_subscription_id is distinct from old.stripe_subscription_id
      or new.stripe_seat_subscription_id is distinct from old.stripe_seat_subscription_id
-     or new.sub_cancel_at_period_end is distinct from old.sub_cancel_at_period_end then
+     or new.sub_cancel_at_period_end is distinct from old.sub_cancel_at_period_end
+     or new.billing_past_due is distinct from old.billing_past_due then
     raise exception 'ข้อมูลการชำระเงิน Stripe แก้ได้เฉพาะระบบชำระเงินเท่านั้น';
   end if;
   return new;
@@ -87,7 +92,8 @@ begin
            sub_cycle = case when p_months = 12 then 'yearly' else 'monthly' end,
            sub_expires_at = greatest(coalesce(sub_expires_at, current_date), v_until),
            stripe_customer_id = coalesce(p_customer, stripe_customer_id),
-           stripe_subscription_id = coalesce(p_subscription, stripe_subscription_id)
+           stripe_subscription_id = coalesce(p_subscription, stripe_subscription_id),
+           billing_past_due = nullif(billing_past_due, 'plan')   -- จ่ายแพ็กเกจสำเร็จ → เลิกเตือน
      where id = p_org
      returning sub_expires_at into expires;
   else
@@ -95,7 +101,8 @@ begin
        set extra_seats = p_qty,
            extra_seats_expires_at = greatest(coalesce(extra_seats_expires_at, current_date), v_until),
            stripe_customer_id = coalesce(p_customer, stripe_customer_id),
-           stripe_seat_subscription_id = coalesce(p_subscription, stripe_seat_subscription_id)
+           stripe_seat_subscription_id = coalesce(p_subscription, stripe_seat_subscription_id),
+           billing_past_due = nullif(billing_past_due, 'seats')
      where id = p_org
      returning extra_seats_expires_at into expires;
   end if;
@@ -122,6 +129,6 @@ commit;
 -- ตรวจผล: ok = true
 select (select count(*) from information_schema.columns
          where table_schema = 'public' and table_name = 'organizations'
-           and column_name in ('stripe_customer_id', 'stripe_subscription_id', 'stripe_seat_subscription_id', 'sub_cancel_at_period_end', 'sub_cycle')) = 5
+           and column_name in ('stripe_customer_id', 'stripe_subscription_id', 'stripe_seat_subscription_id', 'sub_cancel_at_period_end', 'sub_cycle', 'billing_past_due')) = 6
    and exists (select 1 from pg_proc where proname = 'apply_stripe_invoice')
    and exists (select 1 from pg_trigger where tgname = 'trg_guard_org_stripe') as ok;
