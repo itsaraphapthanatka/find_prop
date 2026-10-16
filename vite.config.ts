@@ -116,7 +116,7 @@ export default defineConfig({
         // + /docs/* (คู่มือ + ไฟล์ตัวอย่าง .xlsx) /stats /presentation — แอปใช้ HashRouter ไม่มี path ของ SPA ชนแน่นอน
         navigateFallbackDenylist: [
           /\/features\.html$/, /\/guide\.html$/, /\/flow\.html$/, /\/flow-internal\.html$/, /\/qa-review\.html$/,
-          /^\/docs(\/|$)/, /^\/stats(\.html)?$/, /^\/presentation(\.html)?$/,
+          /^\/docs(\/|$)/, /^\/stats(\.html)?$/, /^\/presentation(\.html)?$/, /\/pay-done\.html$/,
         ],
         runtimeCaching: [
           {

@@ -1,0 +1,194 @@
+// ตัวช่วย Stripe ฝั่งเซิร์ฟเวอร์ (subscription ตัดบัตรอัตโนมัติทุกรอบ)
+//
+// หลักการ:
+//  • STRIPE_SECRET_KEY อยู่ใน env ของ Vercel เท่านั้น — client ไม่มีทางเห็น
+//  • ราคาคำนวณฝั่งเซิร์ฟเวอร์จาก plan_prices / app_settings 'seats' เสมอ (ไม่เชื่อยอดจาก client)
+//  • Price ใน Stripe ใช้ lookup_key คงที่ต่อ (แพ็กเกจ × ระดับ × รอบ) — super แก้ราคาใน DB เมื่อไหร่
+//    รอบหน้าที่มีคนกดซื้อจะสร้าง Price ใหม่ให้อัตโนมัติ (ลูกค้าเดิมยังจ่ายราคาเดิมจนกว่าจะเปลี่ยนแพ็กเกจ)
+//  • "ให้สิทธิ์" ทำที่เดียว = applyInvoice() เมื่อใบแจ้งหนี้สถานะ paid เท่านั้น (webhook + หน้ายืนยัน เรียกซ้ำได้ — กันซ้ำด้วยเลขใบแจ้งหนี้)
+
+import Stripe from 'stripe'
+import { patchOrg } from './auth.js'
+
+let client = null
+
+/** Stripe client (null = ยังไม่ได้ตั้ง STRIPE_SECRET_KEY) */
+export function stripeClient() {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) return null
+  if (!client) client = new Stripe(key, { maxNetworkRetries: 2, timeout: 20000 })
+  return client
+}
+
+/** โดเมนของเว็บแอป สำหรับลิงก์กลับจากหน้าจ่ายเงิน */
+export function appUrl(req) {
+  const fixed = process.env.PUBLIC_APP_URL
+  if (fixed) return fixed.replace(/\/+$/, '')
+  return `https://${req.headers['x-forwarded-host'] || req.headers.host}`
+}
+
+const CYCLE_INTERVAL = { monthly: 'month', yearly: 'year' }
+const CYCLE_TH = { monthly: 'รายเดือน', yearly: 'รายปี' }
+
+/**
+ * หา/สร้าง Price ของ Stripe ให้ตรงกับราคาปัจจุบันใน DB
+ * kind 'plan' → lookup hop_<plan>_<tier>_<cycle> · kind 'seats' → hop_seat_<cycle> (ราคาต่อ 1 ที่นั่ง)
+ */
+export async function ensurePrice(stripe, { kind, plan, tier, cycle, amount }) {
+  const lookup = kind === 'seats' ? `hop_seat_${cycle}` : `hop_${plan}_${tier}_${cycle}`
+  const unit = Math.round(Number(amount) * 100) // บาท → สตางค์
+  const interval = CYCLE_INTERVAL[cycle]
+  const found = (await stripe.prices.list({ lookup_keys: [lookup], active: true, limit: 1 })).data[0]
+  if (found && found.unit_amount === unit && found.currency === 'thb' && found.recurring?.interval === interval) {
+    return found.id
+  }
+  // metadata บน Price = แหล่งความจริงว่าใบแจ้งหนี้นี้ให้สิทธิ์อะไร (อ่านใน describeInvoice)
+  const metadata = kind === 'seats' ? { kind, cycle } : { kind, plan, tier: String(tier), cycle }
+  const params = {
+    currency: 'thb',
+    unit_amount: unit,
+    recurring: { interval },
+    lookup_key: lookup,
+    transfer_lookup_key: true, // ราคาเปลี่ยน → ย้าย lookup_key มาที่ Price ใหม่ (Price เดิมยังใช้กับลูกค้าเดิมได้)
+    metadata,
+  }
+  if (found) {
+    params.product = typeof found.product === 'string' ? found.product : found.product.id
+  } else {
+    const name = kind === 'seats'
+      ? `HOP ที่นั่งทีมเพิ่ม (${CYCLE_TH[cycle]})`
+      : `HOP ${plan === 'pro' ? 'Pro' : 'Basic'} ≤${tier} ทรัพย์ (${CYCLE_TH[cycle]})`
+    params.product_data = { name, metadata }
+  }
+  return (await stripe.prices.create(params)).id
+}
+
+/** 1 องค์กร = 1 Stripe customer — สร้างครั้งแรกแล้วผูกกับองค์กร */
+export async function ensureCustomer(stripe, auth) {
+  const { org, orgId, email, s } = auth
+  if (org.stripe_customer_id) {
+    try {
+      const c = await stripe.customers.retrieve(org.stripe_customer_id)
+      if (c && !c.deleted) return c.id
+    } catch { /* customer หาย (เช่น สลับ test ↔ live key) → สร้างใหม่ */ }
+  }
+  const c = await stripe.customers.create({
+    name: org.name || undefined,
+    email: email || undefined,
+    metadata: { org_id: orgId },
+  })
+  await patchOrg(s, orgId, { stripe_customer_id: c.id })
+  return c.id
+}
+
+/** subscription ที่ยังใช้งานของลูกค้า แยกตามชนิด ('plan' | 'seats') — ไม่มี = null */
+export async function findLiveSubscription(stripe, customerId, kind) {
+  const list = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 20 })
+  return list.data.find((sub) =>
+    ['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)
+    && (sub.metadata?.kind || 'plan') === kind) || null
+}
+
+const idOf = (x) => (typeof x === 'string' ? x : x?.id) || null
+
+/** subscription id ของใบแจ้งหนี้ (API ใหม่อยู่ใต้ parent.subscription_details) */
+export function invoiceSubscriptionId(invoice) {
+  return idOf(invoice?.parent?.subscription_details?.subscription)
+    || idOf(invoice?.subscription)
+    || idOf(invoice?.lines?.data?.find((l) => l.subscription)?.subscription)
+}
+
+/**
+ * อ่านว่าใบแจ้งหนี้ (ที่จ่ายแล้ว) ให้สิทธิ์อะไร
+ * ใช้บรรทัดยอดบวก (= สถานะใหม่ เช่น ส่วนต่างตอนอัปเกรด/ต่ออายุ) → Price metadata
+ * คืน null = ไม่ใช่ใบของ HOP
+ */
+export async function describeInvoice(stripe, invoice) {
+  const subId = invoiceSubscriptionId(invoice)
+  if (!subId) return null
+  const sub = await stripe.subscriptions.retrieve(subId)
+  const orgId = sub.metadata?.org_id
+  if (!orgId) return null
+
+  const lines = invoice.lines?.data ?? []
+  const positive = lines.filter((l) => l.amount > 0)
+  const pick = (positive.length ? positive : lines.filter((l) => l.amount >= 0)).at(-1)
+  const item = sub.items?.data?.[0]
+  let price = item?.price ?? null
+  const linePriceId = idOf(pick?.pricing?.price_details?.price)
+  if (linePriceId && linePriceId !== price?.id) price = await stripe.prices.retrieve(linePriceId)
+  const pm = price?.metadata ?? {}
+
+  const kind = pm.kind || sub.metadata?.kind || 'plan'
+  const periodEnd = Math.max(0, ...lines.map((l) => Number(l.period?.end) || 0)) || item?.current_period_end
+  return {
+    orgId,
+    kind,
+    plan: pm.plan || sub.metadata?.plan || null,
+    tier: Number(pm.tier || sub.metadata?.tier) || null,
+    cycle: pm.cycle || sub.metadata?.cycle || 'monthly',
+    qty: Number(pick?.quantity ?? item?.quantity ?? 1) || 1,
+    periodEnd,
+    customer: idOf(sub.customer),
+    subscription: sub.id,
+  }
+}
+
+/** วันที่ (YYYY-MM-DD ตามเวลาไทย) จาก unix seconds */
+function bkkDate(unix) {
+  return new Date(Number(unix) * 1000 + 7 * 3600 * 1000).toISOString().slice(0, 10)
+}
+
+/**
+ * ใบแจ้งหนี้จ่ายแล้ว → ให้สิทธิ์ผ่าน RPC apply_stripe_invoice (idempotent ด้วยเลขใบแจ้งหนี้)
+ * expectOrg = ถ้าระบุ ต้องตรงกับองค์กรในใบ (หน้ายืนยันของผู้ใช้ กันยืนยันใบขององค์กรอื่น)
+ */
+export async function applyInvoice(stripe, s, invoice, expectOrg = null) {
+  if (!invoice || invoice.status !== 'paid') return { applied: false, paid: false }
+  const d = await describeInvoice(stripe, invoice)
+  if (!d) return { applied: false, paid: true, note: 'not-hop' }
+  if (expectOrg && d.orgId !== expectOrg) return { applied: false, paid: true, note: 'other-org' }
+  if (!d.periodEnd) throw new Error('ไม่พบวันสิ้นรอบของใบแจ้งหนี้')
+
+  const r = await fetch(`${s.url}/rest/v1/rpc/apply_stripe_invoice`, {
+    method: 'POST',
+    headers: { ...s.svc, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      p_invoice_id: invoice.id,
+      p_org: d.orgId,
+      p_kind: d.kind,
+      p_plan: d.kind === 'plan' ? d.plan : null,
+      p_tier: d.kind === 'plan' ? d.tier : null,
+      p_qty: d.kind === 'seats' ? d.qty : null,
+      p_months: d.cycle === 'yearly' ? 12 : 1,
+      p_period_end: bkkDate(d.periodEnd),
+      p_amount: (Number(invoice.amount_paid) || 0) / 100,
+      p_customer: d.customer,
+      p_subscription: d.subscription,
+    }),
+  })
+  if (!r.ok) throw new Error(`บันทึกการชำระเงินไม่สำเร็จ (${r.status}) ${(await r.text().catch(() => '')).slice(0, 300)}`)
+  const row = ((await r.json().catch(() => [])) || [])[0]
+  return { applied: Boolean(row?.applied), paid: true, expires: row?.expires ?? null, kind: d.kind, qty: d.qty }
+}
+
+/**
+ * subscription เปลี่ยนสถานะ (ตั้งยกเลิกปลายรอบ / ยกเลิกแล้ว) → สะท้อนลงองค์กร
+ * ไม่ตัดสิทธิ์ทันที: ใช้ได้ถึงวันหมดอายุที่จ่ายไว้ แล้วระบบล็อกตามกติกาเดิม
+ */
+export async function syncSubscription(s, sub) {
+  const orgId = sub?.metadata?.org_id
+  if (!orgId) return { ok: true, note: 'not-hop' }
+  const kind = sub.metadata?.kind || 'plan'
+  const ended = ['canceled', 'incomplete_expired'].includes(sub.status)
+  const col = kind === 'seats' ? 'stripe_seat_subscription_id' : 'stripe_subscription_id'
+  const only = `&${col}=eq.${encodeURIComponent(sub.id)}` // แตะเฉพาะถ้าเป็น subscription ตัวเดียวกับที่องค์กรผูกอยู่
+  if (ended) {
+    await patchOrg(s, orgId, kind === 'seats'
+      ? { stripe_seat_subscription_id: null }
+      : { stripe_subscription_id: null, sub_cancel_at_period_end: false }, only)
+  } else if (kind === 'plan') {
+    await patchOrg(s, orgId, { sub_cancel_at_period_end: Boolean(sub.cancel_at_period_end || sub.cancel_at) }, only)
+  }
+  return { ok: true }
+}

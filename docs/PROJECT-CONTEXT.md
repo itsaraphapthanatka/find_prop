@@ -6,7 +6,7 @@ Single source of truth for every agent in `./.claude/agents/`. Read this before 
 
 HOP (ชื่อใน `package.json` คือ `hob`, appName บนมือถือคือ `HOP`) คือ **ฐานข้อมูลทรัพย์ให้เช่า/ขายสำหรับนายหน้าอสังหาฯ ไทย** สร้างมาแทนแอป AppSheet เดิมชื่อ "WUT Demo" (โครงสร้างข้อมูลต้นแบบ: [docs/appsheet-analysis.md](appsheet-analysis.md)) ทรัพย์แบ่ง 4 หมวด — ที่อยู่อาศัย · เชิงพาณิชย์ · เชิงอุตสาหกรรม · ที่ดิน — ฟอร์มราว 50 ฟิลด์ เอนทิตีหลักคือ `properties` มี state machine เดียวที่ชัดเจนคือ `deal_status`: **`open` → `rented` | `sold`** (บังคับด้วย CHECK constraint ใน `supabase/property-deal-status.sql`, ค่าเริ่มต้น `open`)
 
-เป็น **SaaS หลายองค์กร (multi-org) ที่เก็บเงินจริง**: แพ็กเกจ/ที่นั่ง (seats) · ช่วงทดลอง (trial) · รางวัลชวนเพื่อน (referral) · ชำระเงินผ่าน **PunPay** ผู้ใช้หนึ่งคนอยู่ได้หลายองค์กรและสลับไปมาได้ สิทธิ์มี **8 ระดับ**: `owner` · `manager` · `associate` · `analyst` · `survey` · `temporary` · `social` · `trainee` (คำอธิบายเต็มใน `src/lib/roles.ts` และ [docs/roles-spec.md](roles-spec.md))
+เป็น **SaaS หลายองค์กร (multi-org) ที่เก็บเงินจริง**: แพ็กเกจ/ที่นั่ง (seats) · ช่วงทดลอง (trial) · รางวัลชวนเพื่อน (referral) · ชำระเงินผ่าน **Stripe** (subscription ตัดบัตรอัตโนมัติ) ผู้ใช้หนึ่งคนอยู่ได้หลายองค์กรและสลับไปมาได้ สิทธิ์มี **8 ระดับ**: `owner` · `manager` · `associate` · `analyst` · `survey` · `temporary` · `social` · `trainee` (คำอธิบายเต็มใน `src/lib/roles.ts` และ [docs/roles-spec.md](roles-spec.md))
 
 **ข้อมูลอ่อนไหวที่ไหลอยู่ในระบบ**: ข้อมูลติดต่อเจ้าของทรัพย์ (ชื่อ/เบอร์) · บ้านเลขที่และเลขที่ห้อง · พิกัดแผนที่ · ยอดเงินและรายการชำระเงิน บทบาทระดับล่าง (`associate`, `analyst`, ...) **ต้องมองไม่เห็น** ข้อมูลติดต่อ/บ้านเลขที่/พิกัดของทรัพย์ที่คนอื่นลงไว้ — และการซ่อนนั้นต้องบังคับที่ฐานข้อมูล ไม่ใช่ที่ UI
 
@@ -35,7 +35,7 @@ Owner(s): `itsaraphap <itsaraphap.top@gmail.com>` (263 commits ทั้งห�
 | endpoint | หน้าที่ |
 |---|---|
 | `/api/ai` | เรียกโมเดล AI (maxDuration 60s) |
-| `/api/create-charge` · `/api/verify-charge` · `/api/punpay-webhook` | เส้นทางเงิน (PunPay) |
+| `/api/stripe` (checkout · confirm · portal) · `/api/stripe-webhook` | เส้นทางเงิน (Stripe subscription ตัดบัตรอัตโนมัติ) |
 | `/api/create-member` · `/api/send-invite` | เชิญ/สร้างสมาชิกทีม |
 | `/api/push-cron` | cron รายวัน 00:00 UTC (maxDuration 60s, กันด้วย `CRON_SECRET`) |
 | `/api/resolve-latlng` · `/api/backfill-latlng` | ดึง/เติมพิกัดจากลิงก์ Google Maps |
@@ -53,7 +53,7 @@ Owner(s): `itsaraphap <itsaraphap.top@gmail.com>` (263 commits ทั้งห�
 
 **Background jobs**: Vercel cron เดียว — `/api/push-cron` ทุกวัน 00:00 UTC (07:00 เวลาไทย)
 
-**External services**: Supabase (DB + Storage) · Vercel (hosting + functions + cron) · PunPay (ชำระเงิน) · OpenStreetMap/Leaflet (แผนที่) · Resend + SMTP (อีเมล) · FCM (push) · โมเดล AI ผ่าน `AI_API_URL`
+**External services**: Supabase (DB + Storage) · Vercel (hosting + functions + cron) · Stripe (ชำระเงิน — subscription) · OpenStreetMap/Leaflet (แผนที่) · Resend + SMTP (อีเมล) · FCM (push) · โมเดล AI ผ่าน `AI_API_URL`
 
 **มือถือ**: Capacitor 7 ห่อ `dist/` ตัวเดียวกับเว็บ — **ไม่มีโค้ด native แยก** `appId: com.hobproperty.app` (เปลี่ยนไม่ได้หลังเผยแพร่) · live-update คุมเองที่ `src/lib/appUpdate.ts` โดยตั้ง `CapacitorUpdater: { autoUpdate: false }` ไว้ตั้งใจ
 
@@ -91,7 +91,7 @@ Owner(s): `itsaraphap <itsaraphap.top@gmail.com>` (263 commits ทั้งห�
 - Reports and documents addressed to the owner are written in Thai; code identifiers, paths, commands, and HTTP details stay in English.
 - **คอมเมนต์ในโค้ดและ commit message เขียนภาษาไทย** ตามแบบที่ repo นี้ใช้มาตลอด 263 commits — คอมเมนต์ไทยในโค้ดนี้อธิบาย *"ทำไม"* ไม่ใช่ *"ทำอะไร"* และถือเป็นเอกสารที่มีน้ำหนัก **การแก้ที่ลบคอมเมนต์เหล่านี้ทิ้งถือว่าทำข้อมูลหาย** (ตัวอย่างที่ดี: `src/lib/native.ts` อธิบายว่าทำไมห้ามปล่อย `API_BASE` ว่างในแอป พร้อมวันที่ที่เคยพังจริง)
 - Never `git add/commit/push/stash/checkout/reset` unless the user explicitly asks in that turn. Never edit `.env*`, never print secret values, never add secrets to tracked files.
-- **ตัวแปรลับห้ามขึ้นต้นด้วย `VITE_`** — Vite ฝังทุกตัวที่ขึ้นต้นด้วย `VITE_` ลงไปใน bundle ฝั่ง client ตัวที่ต้องอยู่ฝั่งเซิร์ฟเวอร์เท่านั้น: `AI_API_KEY` · `SUPABASE_SERVICE_ROLE_KEY` · `PUNPAY_SECRET_KEY` · `PUNPAY_WEBHOOK_SECRET` · `RESEND_API_KEY` · `SMTP_PASS` · `CRON_SECRET` · `FCM_SERVICE_ACCOUNT` (ที่ขึ้นต้น `VITE_` ได้มีแค่ `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_BASE`)
+- **ตัวแปรลับห้ามขึ้นต้นด้วย `VITE_`** — Vite ฝังทุกตัวที่ขึ้นต้นด้วย `VITE_` ลงไปใน bundle ฝั่ง client ตัวที่ต้องอยู่ฝั่งเซิร์ฟเวอร์เท่านั้น: `AI_API_KEY` · `SUPABASE_SERVICE_ROLE_KEY` · `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` · `RESEND_API_KEY` · `SMTP_PASS` · `CRON_SECRET` · `FCM_SERVICE_ACCOUNT` (ที่ขึ้นต้น `VITE_` ได้มีแค่ `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_BASE`)
 - **แก้สิทธิ์ = แก้สองที่** `supabase/*.sql` (ด่านจริง) และ `src/lib/roles.ts` (UI) ห้ามแก้ข้างเดียว
 - **เกณฑ์ผ่านขั้นต่ำก่อนส่งงาน**: `npx tsc -b` ต้องเขียว และชุด pure-node selftest ต้องไม่แดงเพิ่มจาก baseline ด้านล่าง
 - **ไม่มี ESLint/Prettier ในโปรเจกต์** — เขียนตามสไตล์ไฟล์ข้างเคียง อย่าเพิ่ม formatter เองโดยไม่ถามเจ้าของ

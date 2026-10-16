@@ -19,9 +19,3 @@ export async function fetchSetting(supaUrl, apiKey, key) {
     return null
   }
 }
-
-/** แพ็กเกจทดสอบ ฿1 เปิดอยู่ไหม — ไม่มีค่า/อ่านพลาด = ปิด (fail-safe ฝั่งเก็บเงิน) */
-export async function paymentTestEnabled(supaUrl, apiKey) {
-  const v = await fetchSetting(supaUrl, apiKey, 'payment_test')
-  return Boolean(v && typeof v === 'object' && v.enabled === true)
-}

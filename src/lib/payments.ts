@@ -1,28 +1,37 @@
 import { supabase } from './supabase'
 import { API_BASE } from './native'
 
-export interface Charge {
-  charge_id: string
-  checkout_url: string
-  amount: number
-  currency: string
-  status: string
-}
-export interface VerifyResult {
-  paid: boolean
-  status?: string
-  plan?: string
+/** ผลของการกดสมัคร/เปลี่ยนแพ็กเกจ */
+export interface CheckoutResult {
+  /** หน้าที่ต้องพาผู้ใช้ไป (Stripe Checkout หรือหน้าใบแจ้งหนี้กรณีธนาคารขอยืนยันตัวตน) */
+  url?: string | null
+  /** Checkout Session id — แอปมือถือเก็บไว้ยืนยันตอนปิดหน้าจ่ายเงิน */
+  id?: string
+  /** เปลี่ยนแพ็กเกจ/จำนวนที่นั่งใน subscription เดิมสำเร็จแล้ว (ตัดบัตรส่วนต่างแล้ว) */
+  updated?: boolean
+  /** กลับมาต่ออายุอัตโนมัติ (เคยกดยกเลิกไว้) */
+  resumed?: boolean
+  /** ตัดบัตรส่วนต่างไม่ผ่าน — ต้องจ่ายผ่านหน้าใบแจ้งหนี้ (url) ก่อน */
+  pending?: boolean
+  error?: string
+  kind?: 'plan' | 'seats'
   applied?: boolean
   expires?: string | null
-  /** รวมที่นั่งที่ซื้อเพิ่มทั้งหมดหลังรายการนี้ (เฉพาะ plan = 'seats') */
-  seats?: number | null
+}
+export interface ConfirmResult {
+  paid: boolean
+  status?: string
+  applied?: boolean
+  expires?: string | null
+  kind?: 'plan' | 'seats'
+  qty?: number | null
 }
 
 async function authedPost<T>(path: string, body: unknown): Promise<T> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new Error('ต้องเข้าสู่ระบบก่อน')
-  // ตัดที่ 25 วินาที — ถ้าเซิร์ฟเวอร์/PunPay ช้าผิดปกติ ให้ผู้ใช้เห็นข้อความแทนปุ่มค้างเงียบๆ
+  // ตัดที่ 25 วินาที — ถ้าเซิร์ฟเวอร์/Stripe ช้าผิดปกติ ให้ผู้ใช้เห็นข้อความแทนปุ่มค้างเงียบๆ
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 25000)
   let res: Response
@@ -49,10 +58,8 @@ async function authedPost<T>(path: string, body: unknown): Promise<T> {
   return json as T
 }
 
-// 'test' = แพ็กเกจทดสอบ ฿1 (ได้สิทธิ์ Basic ระดับ 100 หนึ่งเดือน) — ⚠️ ปิดสวิตช์ก่อนเปิดใช้จริง
 // 'starter' = แพ็ก Basic (คีย์เดิมใน DB — เปลี่ยนเฉพาะชื่อที่แสดง)
-// 'seats'  = ซื้อที่นั่งเพิ่ม (ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุของ subscription)
-export type PlanKey = 'starter' | 'pro' | 'test' | 'seats'
+export type PlanKey = 'starter' | 'pro'
 /** ระดับแพ็กเกจ = โควตาทรัพย์สูงสุด · เกิน 500 = Enterprise (คุยกับทีมงาน) */
 export type Tier = 100 | 250 | 500
 export const TIERS: Tier[] = [100, 250, 500]
@@ -127,20 +134,6 @@ export async function fetchSeatPrice(): Promise<PlanPrice> {
   return { monthly: s.monthly, yearly: s.yearly }
 }
 
-/** สวิตช์แพ็กเกจทดสอบ ฿1 (app_settings 'payment_test') — super เปิด-ปิดได้ · อ่านพลาด = ปิด */
-export async function fetchPaymentTestEnabled(): Promise<boolean> {
-  try {
-    const { data } = await supabase.from('app_settings').select('value').eq('key', 'payment_test').maybeSingle()
-    let v: unknown = data?.value ?? null
-    if (typeof v === 'string') {
-      try { v = JSON.parse(v) } catch { return false }
-    }
-    return Boolean(v && typeof v === 'object' && (v as { enabled?: boolean }).enabled === true)
-  } catch {
-    return false
-  }
-}
-
 /** โหลดราคาจริงจาก DB — ไม่ throw (ใช้ fallback แทน) เพื่อไม่ให้หน้าราคาพังเพราะเน็ต/ตารางยังไม่มี */
 export async function fetchPlanPrices(): Promise<PlanPrices> {
   const out: PlanPrices = JSON.parse(JSON.stringify(DEFAULT_PRICES)) as PlanPrices
@@ -159,17 +152,26 @@ export async function fetchPlanPrices(): Promise<PlanPrices> {
   }
 }
 
-/** สร้างรายการชำระเงิน → คืน checkout_url ให้พาผู้ใช้ไปจ่าย (ยอดเงินคำนวณฝั่งเซิร์ฟเวอร์) */
-export function createCharge(plan: PlanKey, tier: Tier, cycle: 'monthly' | 'yearly'): Promise<Charge> {
-  return authedPost<Charge>('create-charge', { plan, tier, cycle })
+export type Cycle = 'monthly' | 'yearly'
+
+// ── Stripe (subscription ตัดบัตรอัตโนมัติทุกรอบ) — ยอดเงินคำนวณฝั่งเซิร์ฟเวอร์เสมอ (api/stripe.js) ──
+
+/** สมัคร/เปลี่ยนแพ็กเกจ — ยังไม่มี subscription = คืน url หน้า Stripe Checkout · มีแล้ว = เปลี่ยนในที่เดิม */
+export function startCheckout(plan: PlanKey, tier: Tier, cycle: Cycle, native = false): Promise<CheckoutResult> {
+  return authedPost<CheckoutResult>('stripe', { action: 'checkout', kind: 'plan', plan, tier, cycle, native })
 }
 
-/** ซื้อที่นั่งเพิ่ม qty ที่นั่ง — ไม่แตะแพ็กเกจ/วันหมดอายุของ subscription */
-export function createSeatCharge(qty: number, cycle: 'monthly' | 'yearly'): Promise<Charge> {
-  return authedPost<Charge>('create-charge', { plan: 'seats', qty, cycle })
+/** ที่นั่งเพิ่ม — qty = จำนวนที่นั่งเพิ่ม "ทั้งหมด" ที่ต้องการ (subscription แยกจากแพ็กเกจ ปรับจำนวนได้) */
+export function startSeatCheckout(qty: number, cycle: Cycle, native = false): Promise<CheckoutResult> {
+  return authedPost<CheckoutResult>('stripe', { action: 'checkout', kind: 'seats', qty, cycle, native })
 }
 
-/** ถามเซิร์ฟเวอร์ว่าจ่ายแล้วหรือยัง (เซิร์ฟเวอร์ยืนยันกับ PunPay + อัปเกรดให้ถ้าจ่ายจริง) */
-export function verifyCharge(chargeId: string): Promise<VerifyResult> {
-  return authedPost<VerifyResult>('verify-charge', { charge_id: chargeId })
+/** กลับจากหน้า Stripe Checkout → ให้เซิร์ฟเวอร์ยืนยันกับ Stripe + ให้สิทธิ์ทันที (ไม่ต้องรอ webhook) */
+export function confirmCheckout(sessionId: string): Promise<ConfirmResult> {
+  return authedPost<ConfirmResult>('stripe', { action: 'confirm', session_id: sessionId })
+}
+
+/** ลิงก์ Stripe Customer Portal — เปลี่ยนบัตร / ดูใบเสร็จ / ยกเลิกการต่ออายุ */
+export function openBillingPortal(native = false): Promise<{ url: string }> {
+  return authedPost<{ url: string }>('stripe', { action: 'portal', native })
 }

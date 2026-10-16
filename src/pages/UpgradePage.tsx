@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
-  createCharge, createSeatCharge, verifyCharge, fetchPlanPrices, fetchPaymentTestEnabled, fetchSeatSetting,
+  startCheckout, startSeatCheckout, confirmCheckout, openBillingPortal, fetchPlanPrices, fetchSeatSetting,
   DEFAULT_PRICES, DEFAULT_SEAT_SETTING, MAX_SEAT_QTY, TIERS,
-  type PlanKey, type PlanPrices, type SeatSetting, type Tier,
+  type CheckoutResult, type PlanKey, type PlanPrices, type SeatSetting, type Tier,
 } from '../lib/payments'
 import { rolePerm } from '../lib/roles'
 import { isNativeApp } from '../lib/native'
@@ -31,7 +31,10 @@ const PLANS = [
   },
 ]
 
-type ActiveCharge = { charge_id: string; checkout_url?: string; plan?: PlanKey }
+// แอปมือถือ: Checkout เปิดใน in-app browser → เก็บ session ไว้ยืนยันตอนผู้ใช้ปิดหน้าจ่ายเงินกลับมา
+const PENDING_KEY = 'hop_stripe_session'
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
+const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
 
 export default function UpgradePage() {
   const navigate = useNavigate()
@@ -40,35 +43,51 @@ export default function UpgradePage() {
   const isAdmin = rolePerm(profile?.is_super ? 'owner' : profile?.role).canManageOrg
     || Boolean(profile?.is_super && profile?.impersonate_org_id)
 
-  const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly')
+  const [cycle, setCycle] = useState<'monthly' | 'yearly'>(() => org?.sub_cycle === 'yearly' ? 'yearly' : 'monthly')
   // ระดับ = โควตาทรัพย์ — ค่าเริ่มต้นตามระดับปัจจุบันขององค์กร (ไม่มี = เล็กสุด ให้อัปเองตามใช้จริง)
   const [tier, setTier] = useState<Tier>(() =>
     (TIERS as number[]).includes(org?.plan_tier ?? 0) ? (org!.plan_tier as Tier) : 100)
   const [busy, setBusy] = useState<string | null>(null)
-  const [charge, setCharge] = useState<ActiveCharge | null>(null)
-  const [status, setStatus] = useState('')
-  const [done, setDone] = useState<{ plan: string; expires: string | null } | null>(null)
+  const [notice, setNotice] = useState('')
+  const [confirming, setConfirming] = useState(false)
+  const [done, setDone] = useState<{ kind: 'plan' | 'seats'; expires: string | null } | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  // ตัดบัตรส่วนต่างไม่ผ่าน/ธนาคารขอยืนยันตัวตน → ลิงก์หน้าใบแจ้งหนี้ของ Stripe ให้กดจ่ายเอง
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null)
   const [prices, setPrices] = useState<PlanPrices>(DEFAULT_PRICES)
-  const pollRef = useRef<number | null>(null)
-  // ที่นั่งเพิ่ม — ราคา/โควตาต่อแพ็กเกจ (super admin ตั้งได้) + จำนวนที่จะซื้อ
+  // ที่นั่งเพิ่ม — ราคา/โควตาต่อแพ็กเกจ (super admin ตั้งได้)
   const [seatCfg, setSeatCfg] = useState<SeatSetting>(DEFAULT_SEAT_SETTING)
   const seatPrice = { monthly: seatCfg.monthly, yearly: seatCfg.yearly }
-  // มาจากหน้าจัดการทีมตอนทีมเกินโควตา (/upgrade?seats=3) → กรอกจำนวนที่ขาดไว้ให้เลย
+  const hasPlanSub = Boolean(org?.stripe_subscription_id)
+  const hasSeatSub = Boolean(org?.stripe_seat_subscription_id)
+  // ที่นั่งเพิ่ม = subscription เดียว จำนวน = ที่นั่งเพิ่ม "ทั้งหมด" ที่ต้องการ
+  // มาจากหน้าจัดการทีมตอนทีมเกินโควตา (/upgrade?seats=3 = ขาดอีก 3) → ตั้งเป็นของเดิม + ที่ขาด
   const [seatQty, setSeatQty] = useState(() => {
-    const q = Math.floor(Number(new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('seats')))
-    return q >= 1 && q <= MAX_SEAT_QTY ? q : 1
+    const short = Math.floor(Number(new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('seats')))
+    const now = activeExtraSeats(org)
+    const want = short >= 1 ? now + short : Math.max(1, now)
+    return Math.min(MAX_SEAT_QTY, Math.max(1, want))
   })
 
-  // การ์ดทดสอบ ฿1 โชว์เฉพาะตอน super เปิดสวิตช์ payment_test (เซิร์ฟเวอร์บังคับซ้ำอีกชั้น)
-  const [testOn, setTestOn] = useState(false)
+  // องค์กรโหลดเสร็จทีหลังหน้า (เปิดลิงก์ตรง/รีเฟรช) → ตั้งค่าเริ่มต้นตามขององค์กรอีกรอบ ครั้งเดียวต่อองค์กร
+  const initFor = useRef<string | null>(org?.id ?? null)
+  useEffect(() => {
+    if (!org?.id || initFor.current === org.id) return
+    initFor.current = org.id
+    if ((TIERS as number[]).includes(org.plan_tier ?? 0)) setTier(org.plan_tier as Tier)
+    if (org.sub_cycle === 'yearly' || org.sub_cycle === 'monthly') setCycle(org.sub_cycle)
+    const short = Math.floor(Number(new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('seats')))
+    const now = activeExtraSeats(org)
+    setSeatQty(Math.min(MAX_SEAT_QTY, Math.max(1, short >= 1 ? now + short : now)))
+  }, [org])
+
   // ช่องทางติดต่อทีมขาย (LINE OA) — super admin ตั้งจากหน้า Super Admin
   const [contact, setContact] = useState(DEFAULT_CONTACT)
   useEffect(() => {
     void fetchPlanPrices().then(setPrices)
-    void fetchPaymentTestEnabled().then(setTestOn)
     void fetchContactSetting().then(setContact)
     void fetchSeatSetting().then(setSeatCfg)
+    try { localStorage.removeItem('hop_charge') } catch { /* รายการค้างของระบบเก่า (PunPay) */ }
   }, [])
 
   // มาจากลิงก์ "ซื้อที่นั่งเพิ่ม" (/upgrade#seats) → เลื่อนไปการ์ดที่นั่งให้เลย
@@ -89,132 +108,163 @@ export default function UpgradePage() {
   const yearSavePct = (p: { monthly: number; yearly: number }) =>
     Math.max(0, Math.round((1 - p.yearly / (p.monthly * 12)) * 100))
 
-  function stopPoll() {
-    if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null }
-  }
-  function startPoll(chargeId: string) {
-    stopPoll()
-    let tries = 0
-    pollRef.current = window.setInterval(() => {
-      tries++
-      if (tries > 75) { stopPoll(); setStatus('หมดเวลารอ — ถ้าจ่ายแล้วยังไม่ขึ้น กด "ตรวจสอบอีกครั้ง"'); return }
-      void checkOnce(chargeId)
-    }, 4000)
-  }
-
-  async function checkOnce(chargeId: string) {
-    try {
-      const r = await verifyCharge(chargeId)
-      if (r.paid) {
-        stopPoll()
-        try { localStorage.removeItem('hop_charge') } catch { /* ข้าม */ }
-        setDone({ plan: r.plan || charge?.plan || '', expires: r.expires ?? null })
-        await refreshProfile()
-      } else {
-        setStatus('ยังไม่พบการชำระเงิน — ถ้าจ่าย+อัปสลิปแล้ว รอสักครู่ (ระบบตรวจสลิปอัตโนมัติ)')
-      }
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : 'ตรวจสอบไม่สำเร็จ')
-    }
-  }
-
-  // ── เปิดหน้าชำระเงิน PunPay ──
-  // เดิมเรียก window.open "หลัง" รอเซิร์ฟเวอร์สร้างรายการ → Safari/iPhone บล็อก popup เงียบๆ และในแอปมือถือ
-  // window.open ไม่เปิดอะไรเลย (ผู้ใช้กดแล้วเห็นว่าเงียบ) → เปิดหน้าต่างรอไว้ทันทีตอนกด แล้วค่อยใส่ลิงก์ทีหลัง
-  // · แอปมือถือใช้ in-app browser (@capacitor/browser) แทน
-  function preOpenCheckout(): Window | null {
-    if (isNativeApp) return null
-    const w = window.open('', '_blank')
-    if (w) {
-      try {
-        w.document.title = 'กำลังเปิดหน้าชำระเงิน…'
-        w.document.body.innerHTML = '<p style="font-family:sans-serif;padding:28px;color:#555">กำลังเปิดหน้าชำระเงิน PunPay…</p>'
-      } catch { /* ข้าม */ }
-    }
-    return w
-  }
-  /** คืน true ถ้าเปิดหน้าชำระเงินได้ · false = เบราว์เซอร์บล็อก (ให้ผู้ใช้กดปุ่ม "เปิดหน้าชำระเงิน" เอง) */
-  async function openCheckout(url: string, w: Window | null): Promise<boolean> {
-    if (isNativeApp) {
-      const { Browser } = await import('@capacitor/browser')
-      await Browser.open({ url })
-      return true
-    }
-    if (w && !w.closed) {
-      w.location.href = url
-      try { w.opener = null } catch { /* ข้าม */ }
-      return true
-    }
-    return false
-  }
-  const OPENED = 'เปิดหน้าชำระเงินแล้ว — สแกน PromptPay แล้วอัปโหลดสลิป จากนั้นระบบจะตรวจสอบให้อัตโนมัติ'
-  const BLOCKED = 'เบราว์เซอร์บล็อกหน้าต่างใหม่ — กดปุ่ม "เปิดหน้าชำระเงิน" ด้านล่างเพื่อจ่าย (ระบบรอตรวจสอบให้อยู่แล้ว)'
-
-  // error ขึ้นด้านบนของหน้า แต่ปุ่มอาจอยู่ล่างสุด (เช่น การ์ดทดสอบ) → เลื่อนให้เห็นทุกครั้ง ไม่ให้ดูเหมือนกดแล้วเงียบ
+  // error ขึ้นด้านบนของหน้า แต่ปุ่มอาจอยู่ล่าง (การ์ดที่นั่ง) → เลื่อนให้เห็นทุกครั้ง ไม่ให้ดูเหมือนกดแล้วเงียบ
   const errRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (err) errRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [err])
 
-  async function pay(plan: PlanKey) {
-    setErr(null)
-    setBusy(plan)
-    const w = preOpenCheckout() // ต้องเรียกทันทีในจังหวะกด (ก่อน await) ไม่งั้นโดนบล็อก
+  const alive = useRef(true)
+  useEffect(() => () => { alive.current = false }, [])
+  // confirmLoop/ตัวฟังของแอปถูกผูกตอน mount — เรียกผ่าน ref เพื่อได้ refreshProfile ตัวล่าสุด
+  // (ตัวแรกสุดอาจยังไม่มี session → รีเฟรชแล้วเงียบ หน้าโชว์แพ็กเกจเก่า)
+  const refresh = useRef(refreshProfile)
+  refresh.current = refreshProfile
+
+  /** ยืนยันกับเซิร์ฟเวอร์ (ซึ่งถาม Stripe) ว่าจ่ายแล้ว → ให้สิทธิ์ทันที · ลองซ้ำเผื่อใบแจ้งหนี้ยังประมวลผลไม่เสร็จ */
+  async function confirmLoop(sessionId: string) {
+    setConfirming(true)
+    setNotice('กำลังยืนยันการชำระเงินกับ Stripe…')
     try {
-      const c = await createCharge(plan, tier, cycle)
-      setCharge({ charge_id: c.charge_id, checkout_url: c.checkout_url, plan })
-      try { localStorage.setItem('hop_charge', c.charge_id) } catch { /* ข้าม */ }
-      setStatus((await openCheckout(c.checkout_url, w)) ? OPENED : BLOCKED)
-      startPoll(c.charge_id)
+      for (let i = 0; i < 10 && alive.current; i++) {
+        const r = await confirmCheckout(sessionId)
+        if (r.paid) {
+          try { localStorage.removeItem(PENDING_KEY) } catch { /* ข้าม */ }
+          await refresh.current()
+          setDone({ kind: r.kind ?? 'plan', expires: r.expires ?? null })
+          return
+        }
+        // ยังไม่ได้จ่าย (ปิดหน้าจ่ายเงินไปก่อน) / หน้าจ่ายเงินหมดอายุ → เลิกรอ
+        if (r.status === 'open' || r.status === 'expired') {
+          try { localStorage.removeItem(PENDING_KEY) } catch { /* ข้าม */ }
+          setNotice('ยังไม่ได้ชำระเงิน — กดเลือกแพ็กเกจใหม่ได้ทุกเมื่อ')
+          return
+        }
+        await sleep(3000)
+      }
+      setNotice('Stripe ยังประมวลผลไม่เสร็จ — ถ้าจ่ายแล้ว ระบบจะอัปเดตแพ็กเกจให้อัตโนมัติภายในไม่กี่นาที')
     } catch (e) {
-      try { w?.close() } catch { /* ข้าม */ }
-      const msg = e instanceof Error ? e.message : 'สร้างรายการไม่สำเร็จ'
-      setErr(msg)
-      // super ปิดสวิตช์ระหว่างที่หน้านี้เปิดค้าง → ซ่อนการ์ดทดสอบ
-      if (plan === 'test' && msg.includes('ถูกปิด')) setTestOn(false)
+      setErr(e instanceof Error ? e.message : 'ยืนยันการชำระเงินไม่สำเร็จ')
     } finally {
-      setBusy(null)
+      if (alive.current) setConfirming(false)
     }
   }
 
-  /** ซื้อที่นั่งเพิ่ม — ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุ subscription */
-  async function paySeats() {
-    setErr(null)
-    setBusy('seats')
-    const w = preOpenCheckout()
-    try {
-      const c = await createSeatCharge(seatQty, cycle)
-      setCharge({ charge_id: c.charge_id, checkout_url: c.checkout_url, plan: 'seats' })
-      try { localStorage.setItem('hop_charge', c.charge_id) } catch { /* ข้าม */ }
-      setStatus((await openCheckout(c.checkout_url, w)) ? OPENED : BLOCKED)
-      startPoll(c.charge_id)
-    } catch (e) {
-      try { w?.close() } catch { /* ข้าม */ }
-      setErr(e instanceof Error ? e.message : 'สร้างรายการไม่สำเร็จ')
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  // มีรายการค้างจากการรีโหลด → ตรวจต่อ
+  // กลับจากหน้า Stripe Checkout (เว็บ): /?stripe=success&session_id=cs_…#/upgrade
+  // แอปมือถือ: มี session ค้าง (ปิดแอปไประหว่างจ่าย) → ยืนยันต่อ + ยืนยันทุกครั้งที่ปิดหน้าจ่ายเงิน
   useEffect(() => {
-    let saved: string | null = null
-    try { saved = localStorage.getItem('hop_charge') } catch { saved = null }
-    if (saved) {
-      setCharge({ charge_id: saved })
-      setStatus('พบรายการค้าง — กำลังตรวจสอบการชำระเงิน…')
-      startPoll(saved)
+    const q = new URLSearchParams(window.location.search)
+    const back = q.get('stripe')
+    if (back) {
+      // ล้าง query ทิ้ง (กดรีเฟรช/แชร์ลิงก์แล้วไม่ยืนยันซ้ำ) — คง hash route ไว้
+      window.history.replaceState(null, '', window.location.pathname + window.location.hash)
+      const sid = q.get('session_id')
+      if (back === 'success' && sid) void confirmLoop(sid)
+      else if (back === 'cancel') setNotice('ยกเลิกการชำระเงินแล้ว — ยังไม่มีการตัดบัตร')
+      return
     }
-    return () => stopPoll()
+    if (!isNativeApp) return
+    let saved: string | null = null
+    try { saved = localStorage.getItem(PENDING_KEY) } catch { saved = null }
+    if (saved) void confirmLoop(saved)
+    let off: (() => void) | undefined
+    void import('@capacitor/browser').then(async ({ Browser }) => {
+      const h = await Browser.addListener('browserFinished', () => {
+        let sid: string | null = null
+        try { sid = localStorage.getItem(PENDING_KEY) } catch { sid = null }
+        if (sid) void confirmLoop(sid)
+        else void refresh.current() // ปิดจากหน้าพอร์ทัล/ใบแจ้งหนี้ → ดึงสถานะล่าสุด
+      })
+      off = () => void h.remove()
+    })
+    return () => off?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function reset() {
-    stopPoll()
-    setCharge(null)
-    setStatus('')
+  /** พาไปหน้าของ Stripe — เว็บ: ไปในแท็บเดิม (ไม่โดนบล็อก popup) · แอป: in-app browser */
+  async function goTo(url: string) {
+    if (isNativeApp) {
+      const { Browser } = await import('@capacitor/browser')
+      await Browser.open({ url })
+    } else {
+      window.location.assign(url)
+    }
+  }
+
+  /** ผลจากเซิร์ฟเวอร์ → ไปหน้าจ่ายเงิน / แสดงผลสำเร็จ / ให้จ่ายผ่านหน้าใบแจ้งหนี้ */
+  async function handleResult(r: CheckoutResult) {
+    if (r.pending) {
+      setInvoiceUrl(r.url ?? null)
+      setErr(r.error ?? 'ตัดบัตรส่วนต่างไม่สำเร็จ')
+      return
+    }
+    if (r.updated) {
+      await refresh.current()
+      if (r.resumed) setNotice('กลับมาต่ออายุอัตโนมัติแล้ว — ระบบจะตัดบัตรรอบถัดไปตามปกติ')
+      else setDone({ kind: r.kind ?? 'plan', expires: r.expires ?? null })
+      return
+    }
+    if (r.url) {
+      if (isNativeApp && r.id) {
+        try { localStorage.setItem(PENDING_KEY, r.id) } catch { /* ข้าม */ }
+      }
+      setNotice('กำลังไปหน้าชำระเงินของ Stripe…')
+      await goTo(r.url)
+    }
+  }
+
+  const planLabel = (p: PlanKey, t: number) => `${p === 'pro' ? 'Pro' : 'Basic'} ≤${t} ทรัพย์`
+  const cycleLabel = (c: 'monthly' | 'yearly') => (c === 'yearly' ? 'รายปี' : 'รายเดือน')
+
+  async function pay(plan: PlanKey, resume = false) {
+    // มี subscription แล้ว = เปลี่ยนในที่เดิม ตัดบัตรส่วนต่างทันที → ถามก่อน (ต่ออายุเฉยๆ ไม่มีการตัดเงินตอนนี้)
+    if (hasPlanSub && !resume && !window.confirm(
+      `เปลี่ยนเป็น ${planLabel(plan, tier)} (${cycleLabel(cycle)})?\n\n`
+      + 'ระบบจะคิดส่วนต่างตามวันที่เหลือของรอบนี้ และตัดบัตรที่ผูกไว้ทันที '
+      + '(ลดแพ็กเกจ = ส่วนที่เหลือเป็นเครดิตหักรอบถัดไป)',
+    )) return
     setErr(null)
-    try { localStorage.removeItem('hop_charge') } catch { /* ข้าม */ }
+    setInvoiceUrl(null)
+    setNotice('')
+    setBusy(plan)
+    try {
+      await handleResult(await startCheckout(plan, tier, cycle, isNativeApp))
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'เริ่มการชำระเงินไม่สำเร็จ')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** ที่นั่งเพิ่ม — subscription แยกจากแพ็กเกจ (ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุของแพ็กเกจ) */
+  async function paySeats() {
+    if (hasSeatSub && !window.confirm(
+      `ปรับที่นั่งเพิ่มเป็นทั้งหมด ${seatQty} ที่นั่ง (${cycleLabel(cycle)})?\n\nระบบจะคิดส่วนต่างตามวันที่เหลือของรอบนี้ และตัดบัตรที่ผูกไว้ทันที`,
+    )) return
+    setErr(null)
+    setInvoiceUrl(null)
+    setNotice('')
+    setBusy('seats')
+    try {
+      await handleResult(await startSeatCheckout(seatQty, cycle, isNativeApp))
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'เริ่มการชำระเงินไม่สำเร็จ')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function manageBilling() {
+    setErr(null)
+    setBusy('portal')
+    try {
+      const r = await openBillingPortal(isNativeApp)
+      await goTo(r.url)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'เปิดหน้าจัดการการชำระเงินไม่สำเร็จ')
+    } finally {
+      setBusy(null)
+    }
   }
 
   if (!isAdmin) {
@@ -237,34 +287,26 @@ export default function UpgradePage() {
         {done ? (
           <section className="form-card" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 46, marginBottom: 6 }}>🎉</div>
-            <h3>{done.plan === 'seats' ? 'เพิ่มที่นั่งสำเร็จ!' : 'อัปเกรดสำเร็จ!'}</h3>
+            <h3>{done.kind === 'seats' ? 'ปรับที่นั่งสำเร็จ!' : 'ชำระเงินสำเร็จ!'}</h3>
             <p className="plan-line">
-              {done.plan === 'seats' ? (
-                <>องค์กร <b>{org?.name}</b> มีที่นั่งเพิ่มแล้ว — ตอนนี้ใช้ได้ <b>{seatLimit(org) ?? 'ไม่จำกัด'}</b> ที่นั่ง
-                  {done.expires ? ` · ที่นั่งเพิ่มใช้ได้ถึง ${new Date(done.expires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}</>
+              {done.kind === 'seats' ? (
+                <>องค์กร <b>{org?.name}</b> ตอนนี้ใช้ได้ <b>{seatLimit(org) ?? 'ไม่จำกัด'}</b> ที่นั่ง
+                  {done.expires ? ` · ต่ออายุอัตโนมัติ (รอบนี้ถึง ${fmtDate(done.expires)})` : ''}</>
               ) : (
-                <>องค์กร <b>{org?.name}</b> เป็นแพ็กเกจ <b>{done.plan === 'pro' ? 'Pro' : 'Basic'}</b> แล้ว
-                  {done.expires ? ` · ใช้ได้ถึง ${new Date(done.expires).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}</>
+                <>องค์กร <b>{org?.name}</b> เป็นแพ็กเกจ{' '}
+                  <b>{org?.plan === 'pro' ? 'Pro' : 'Basic'}{org?.plan_tier ? ` ≤${org.plan_tier} ทรัพย์` : ''}</b> แล้ว
+                  {done.expires ? ` · ต่ออายุอัตโนมัติ (รอบนี้ถึง ${fmtDate(done.expires)})` : ''}</>
               )}
             </p>
             <div className="org-row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-              {done.plan === 'seats' && <button className="btn" onClick={() => navigate('/team')}>ไปเชิญลูกทีม</button>}
+              {done.kind === 'seats' && <button className="btn" onClick={() => navigate('/team')}>ไปเชิญลูกทีม</button>}
               <button className="btn primary" onClick={() => navigate('/')}>เริ่มใช้งาน</button>
             </div>
           </section>
-        ) : charge ? (
+        ) : confirming ? (
           <section className="form-card">
-            <h3>{charge.checkout_url ? 'รอการชำระเงิน' : 'กำลังตรวจสอบรายการค้าง'}</h3>
-            <p className="plan-line" style={{ minHeight: '1.4em' }}>{status}</p>
-            <div className="org-row" style={{ flexWrap: 'wrap' }}>
-              {charge.checkout_url && (isNativeApp ? (
-                <button className="btn primary" onClick={() => void openCheckout(charge.checkout_url!, null)}>เปิดหน้าชำระเงิน</button>
-              ) : (
-                <a className="btn primary" href={charge.checkout_url} target="_blank" rel="noreferrer">เปิดหน้าชำระเงิน</a>
-              ))}
-              <button className="btn" onClick={() => void checkOnce(charge.charge_id)}>ตรวจสอบอีกครั้ง</button>
-              <button className="btn sm" onClick={reset}>ยกเลิก</button>
-            </div>
+            <h3>กำลังยืนยันการชำระเงิน</h3>
+            <p className="plan-line" style={{ minHeight: '1.4em' }}>{notice}</p>
           </section>
         ) : (
           <>
@@ -277,7 +319,20 @@ export default function UpgradePage() {
                     : org?.plan === 'starter' ? `Basic${org?.plan_tier ? ` ≤${org.plan_tier} ทรัพย์` : ''}`
                       : org?.plan === 'enterprise' ? 'Enterprise' : 'ยังไม่ได้เลือก'}
               </span>
+              {hasPlanSub && org?.sub_expires_at && (
+                <> · {org.sub_cancel_at_period_end
+                  ? <b style={{ color: 'var(--danger, #c0392b)' }}>ยกเลิกการต่ออายุแล้ว — ใช้ได้ถึง {fmtDate(org.sub_expires_at)}</b>
+                  : <>ต่ออายุอัตโนมัติ (ตัดบัตรทุกรอบ)</>}</>
+              )}
             </p>
+            {org?.stripe_customer_id && (
+              <div className="org-row" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
+                <button className="btn" disabled={busy !== null} onClick={() => void manageBilling()}>
+                  {busy === 'portal' ? 'กำลังเปิด…' : 'จัดการการชำระเงิน (บัตร / ใบเสร็จ / ยกเลิก)'}
+                </button>
+              </div>
+            )}
+            {notice && <p className="plan-line" style={{ color: 'var(--purple)' }}>{notice}</p>}
             <div style={{ display: 'inline-flex', gap: 4, padding: 4, border: '1px solid var(--line)', borderRadius: 999, marginBottom: 18 }}>
               {(['monthly', 'yearly'] as const).map((c) => (
                 <button
@@ -295,7 +350,16 @@ export default function UpgradePage() {
                 </button>
               ))}
             </div>
-            {err && <div className="auth-error" ref={errRef}>{err}</div>}
+            {err && (
+              <div className="auth-error" ref={errRef}>
+                {err}
+                {invoiceUrl && (
+                  <div style={{ marginTop: 8 }}>
+                    <button className="btn sm primary" onClick={() => void goTo(invoiceUrl)}>เปิดหน้าใบแจ้งหนี้เพื่อชำระ</button>
+                  </div>
+                )}
+              </div>
+            )}
             {/* ระดับ = โควตาทรัพย์ในระบบ — ราคาทั้งสองแพ็กเปลี่ยนตามระดับที่เลือก */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>จำนวนทรัพย์ในระบบ</div>
@@ -326,13 +390,27 @@ export default function UpgradePage() {
                     <li>✓ ทีม {seatCfg.base[p.key][tier]} ที่นั่ง (เพิ่มได้)</li>
                     {p.points.map((pt) => <li key={pt}>✓ {pt}</li>)}
                   </ul>
-                  <button className="btn primary" style={{ width: '100%' }} disabled={busy !== null} onClick={() => void pay(p.key)}>
-                    {busy === p.key ? 'กำลังสร้างรายการ…' : 'จ่ายด้วย PromptPay'}
-                  </button>
+                  {(() => {
+                    // แพ็กเกจ + ระดับ + รอบชำระ ตรงกับที่ใช้อยู่ = ไม่มีอะไรให้เปลี่ยน (ยกเว้นเคยกดยกเลิกต่ออายุ → ต่ออายุได้)
+                    const current = hasPlanSub && org?.plan === p.key && org?.plan_tier === tier && org?.sub_cycle === cycle
+                    const resume = current && Boolean(org?.sub_cancel_at_period_end)
+                    return (
+                      <button
+                        className={`btn ${current && !resume ? '' : 'primary'}`} style={{ width: '100%' }}
+                        disabled={busy !== null || (current && !resume)} onClick={() => void pay(p.key, resume)}
+                      >
+                        {busy === p.key ? 'กำลังดำเนินการ…'
+                          : resume ? 'ต่ออายุแพ็กเกจนี้ต่อ'
+                            : current ? '✓ แพ็กเกจปัจจุบัน'
+                              : hasPlanSub ? `เปลี่ยนเป็นแพ็กเกจนี้ (${cycleLabel(cycle)})`
+                                : 'สมัคร · ชำระด้วยบัตร'}
+                      </button>
+                    )
+                  })()}
                 </section>
               ))}
             </div>
-            {/* ที่นั่งเพิ่ม — ซื้อแยกจากแพ็กเกจ ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุ subscription */}
+            {/* ที่นั่งเพิ่ม — subscription แยกจากแพ็กเกจ ไม่เปลี่ยนแพ็กเกจ/วันหมดอายุของแพ็กเกจ */}
             <section className="form-card" id="seats" style={{ marginTop: 14 }}>
               <h3 style={{ margin: '0 0 2px' }}>ที่นั่งเพิ่ม</h3>
               {onTrial(org) && (
@@ -343,12 +421,12 @@ export default function UpgradePage() {
               )}
               <p className="plan-line">
                 แพ็กเกจปัจจุบันให้ <b>{baseSeats(effectivePlan(org), org?.plan_tier, seatCfg.base) ?? 'ไม่จำกัด'}</b> ที่นั่ง
-                {activeExtraSeats(org) > 0 && <> + ซื้อเพิ่มไว้แล้ว <b>{activeExtraSeats(org)}</b> ที่นั่ง</>}
-                {' '}· ต้องการมากกว่านี้ ซื้อเพิ่มรายที่นั่งได้เลย (1 ที่นั่ง = 1 บัญชี)
+                {activeExtraSeats(org) > 0 && <> + ซื้อเพิ่มไว้ <b>{activeExtraSeats(org)}</b> ที่นั่ง{hasSeatSub ? ' (ต่ออายุอัตโนมัติ)' : ''}</>}
+                {' '}· 1 ที่นั่ง = 1 บัญชี
               </p>
               <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div className="form-field" style={{ marginBottom: 0, maxWidth: 150 }}>
-                  <label>จำนวนที่นั่ง</label>
+                <div className="form-field" style={{ marginBottom: 0, maxWidth: 190 }}>
+                  <label>{hasSeatSub ? 'ที่นั่งเพิ่มทั้งหมด (ปรับได้)' : 'จำนวนที่นั่งเพิ่ม'}</label>
                   <input
                     type="number" min={1} max={MAX_SEAT_QTY} value={seatQty}
                     onChange={(e) => {
@@ -364,11 +442,12 @@ export default function UpgradePage() {
                   </span>
                 </p>
                 <button className="btn primary" disabled={busy !== null} onClick={() => void paySeats()}>
-                  {busy === 'seats' ? 'กำลังสร้างรายการ…' : 'จ่ายด้วย PromptPay'}
+                  {busy === 'seats' ? 'กำลังดำเนินการ…' : hasSeatSub ? 'ปรับจำนวนที่นั่ง' : 'ซื้อที่นั่ง · ชำระด้วยบัตร'}
                 </button>
               </div>
               <p className="plan-line" style={{ marginTop: 10 }}>
-                ที่นั่งที่ซื้อมีอายุตามรอบที่จ่าย (ต่ออายุจากวันหมดอายุเดิม) · หมดอายุแล้วจะ<b>เชิญคนใหม่ไม่ได้</b> แต่ไม่มีใครถูกนำออกจากองค์กร
+                ตัดบัตรอัตโนมัติทุกรอบตามจำนวนที่นั่ง · เลิกใช้ที่นั่งเพิ่ม = ยกเลิกในหน้า "จัดการการชำระเงิน"
+                (ใช้ได้ถึงสิ้นรอบ) · หมดอายุแล้วจะ<b>เชิญคนใหม่ไม่ได้</b> แต่ไม่มีใครถูกนำออกจากองค์กร
               </p>
             </section>
 
@@ -381,20 +460,9 @@ export default function UpgradePage() {
               </a>
             </section>
             <p className="plan-line" style={{ marginTop: 16 }}>
-              ชำระผ่าน PromptPay (สแกน QR + อัปโหลดสลิป) · ระบบตรวจสอบและอัปเกรดอัตโนมัติ · จ่ายรายปีถูกกว่า
+              ชำระด้วยบัตรเครดิต/เดบิตผ่าน Stripe (มาตรฐานความปลอดภัยระดับธนาคาร — HOP ไม่เห็นเลขบัตร) ·
+              ตัดบัตรอัตโนมัติทุกรอบ ยกเลิกได้ทุกเมื่อ ใช้ได้ถึงสิ้นรอบที่จ่ายแล้ว · จ่ายรายปีถูกกว่า
             </p>
-            {/* 🧪 แพ็กเกจทดสอบ ฿1 — โชว์เฉพาะตอน super เปิดสวิตช์ในหน้า Super Admin (ปิดก่อนเปิดตัวจริง) */}
-            {testOn && (
-              <section className="form-card" style={{ marginTop: 14, borderStyle: 'dashed' }}>
-                <h3 style={{ margin: '0 0 2px' }}>🧪 ทดสอบระบบชำระเงิน</h3>
-                <p className="plan-line">
-                  จ่ายจริง <b>฿1</b> ผ่าน PromptPay → ได้แพ็กเกจ "เริ่มต้น" 1 เดือน (ไว้ทดสอบครบวงจร: QR → สลิป → webhook → อัปเกรด)
-                </p>
-                <button className="btn" disabled={busy !== null} onClick={() => void pay('test')}>
-                  {busy === 'test' ? 'กำลังสร้างรายการ…' : 'จ่าย ฿1 เพื่อทดสอบ'}
-                </button>
-              </section>
-            )}
           </>
         )}
       </div>

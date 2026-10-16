@@ -44,6 +44,14 @@ export interface Organization {
   /** ที่นั่งที่ซื้อเพิ่มนอกเหนือจากแพ็กเกจ (supabase/seats.sql) */
   extra_seats?: number | null
   extra_seats_expires_at?: string | null
+  /** Stripe (supabase/stripe.sql) — มี subscription = ตัดบัตรอัตโนมัติทุกรอบ */
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
+  stripe_seat_subscription_id?: string | null
+  /** กดยกเลิกการต่ออายุแล้ว — ใช้ได้ถึง sub_expires_at แล้วไม่ตัดบัตรรอบใหม่ */
+  sub_cancel_at_period_end?: boolean | null
+  /** รอบชำระของแพ็กเกจปัจจุบัน (Stripe) */
+  sub_cycle?: 'monthly' | 'yearly' | null
 }
 
 /** องค์กรใช้งานได้มั้ย (ไม่ถูกระงับ + sub ไม่หมดอายุ + ช่วงทดลองไม่หมด) — ตรรกะเดียวกับ org_ok ในฐานข้อมูล */

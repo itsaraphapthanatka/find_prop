@@ -77,10 +77,11 @@
 ## เส้นทางการซื้อที่นั่ง
 
 ```
-TeamPage "ซื้อที่นั่งเพิ่ม" → /#/upgrade#seats → createSeatCharge(qty, cycle)
-  → api/create-charge.js (plan:'seats')  ยอด = ราคาที่นั่ง × qty  ← คำนวณฝั่งเซิร์ฟเวอร์เท่านั้น
-  → PunPay QR → จ่าย → api/verify-charge.js ยืนยันกับ PunPay
-  → RPC apply_seat_payment (service-role, กันซ้ำด้วย charge_id) → extra_seats += qty
+TeamPage "ซื้อที่นั่งเพิ่ม" → /#/upgrade#seats → startSeatCheckout(qty, cycle)
+  → api/stripe.js (action 'checkout', kind 'seats')  ราคาต่อที่นั่งคำนวณฝั่งเซิร์ฟเวอร์เท่านั้น
+  → Stripe Checkout (subscription แยกจากแพ็กเกจ · quantity = ที่นั่งเพิ่มทั้งหมด) → ตัดบัตรอัตโนมัติทุกรอบ
+  → invoice.paid → RPC apply_stripe_invoice (service-role, กันซ้ำด้วย invoice id) → extra_seats = quantity
+  (มี subscription ที่นั่งอยู่แล้ว = ปรับ quantity ในที่เดิม คิดส่วนต่างตามวันที่เหลือ)
 ```
 
 ## บั๊กเดิมที่ไฟล์นี้แก้ไปด้วย
@@ -99,7 +100,7 @@ TeamPage "ซื้อที่นั่งเพิ่ม" → /#/upgrade#seats
 | ครบตามเกณฑ์ (มาตรฐาน 2 คนที่จ่ายแล้ว) | ผู้ชวนได้ Pro +30 วัน (เพดานรวม 90 วัน) |
 
 เหตุผล: เดิมให้รางวัลตอน "สร้างองค์กร" → ใช้อีเมลชั่วคราวสมัคร 6 บัญชีก็ได้ Pro ฟรี 90 วันโดยไม่มีเงินเข้าระบบ
-ตอนนี้ต้องมีแถวใน `payments` (จ่ายจริงผ่าน PunPay) จึงนับ — ซื้อที่นั่งเพิ่มก็นับเพราะเป็นเงินจริงเหมือนกัน
+ตอนนี้ต้องมีแถวใน `payments` (จ่ายจริง — ปัจจุบันผ่าน Stripe) จึงนับ — ซื้อที่นั่งเพิ่มก็นับเพราะเป็นเงินจริงเหมือนกัน
 
 - `grant_referral_reward()` เรียกได้จาก **ฝั่งเซิร์ฟเวอร์เท่านั้น** (revoke จาก authenticated) ผู้ใช้แจกวัน Pro ให้ตัวเองไม่ได้
 - ถ้าการให้รางวัลพลาด **การจ่ายเงินยังสำเร็จปกติ** (ครอบ `exception when others then null` — เงินเข้าแล้วต้องได้แพ็กเกจ)
