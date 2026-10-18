@@ -90,8 +90,12 @@ export async function ensureCustomer(stripe, auth) {
 }
 
 const LIVE_STATUSES = ['active', 'trialing', 'past_due', 'unpaid']
-const pickLive = (subs, kind) => subs.find((sub) =>
-  LIVE_STATUSES.includes(sub.status) && (sub.metadata?.kind || 'plan') === kind) || null
+/** สร้างก่อน = มาก่อน (created เท่ากัน → เทียบ id) — ใช้ตัดสินว่าตัวไหนคือ subscription ตัวจริงเมื่อมีซ้ำ */
+const olderFirst = (a, b) => (a.created - b.created) || (a.id < b.id ? -1 : 1)
+/** subscription ที่ยังใช้งานของชนิดนี้ — มีหลายตัว (จ่าย Checkout ซ้อน) = เอาตัวที่สร้างก่อน ให้ตรงกับ refundIfDuplicate */
+const pickLive = (subs, kind) => subs
+  .filter((sub) => LIVE_STATUSES.includes(sub.status) && (sub.metadata?.kind || 'plan') === kind)
+  .sort(olderFirst)[0] || null
 /** ตั้งยกเลิกปลายรอบไว้ไหม (API ใหม่: portal อาจตั้ง cancel_at แทน cancel_at_period_end) */
 const cancelScheduled = (sub) => Boolean(sub?.cancel_at_period_end || sub?.cancel_at)
 const PAST_DUE = ['past_due', 'unpaid'] // ตัดบัตรรอบใหม่ไม่ผ่าน (Stripe กำลังลองตัดซ้ำ) / ใบแจ้งหนี้เกินกำหนด
@@ -119,6 +123,52 @@ function billingState(subs) {
 export async function findLiveSubscription(stripe, customerId, kind) {
   const list = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 20 })
   return pickLive(list.data, kind)
+}
+
+/**
+ * ปิดหน้าจ่าย (Checkout Session) ที่ยังเปิดค้างของชนิดเดียวกัน ก่อนเริ่มรายการใหม่
+ * เปิดหน้าอัปเกรดสองแท็บแล้วจ่ายครบทั้งคู่ = ได้ subscription ซ้ำ ตัดเงินสองทาง → ให้จ่ายได้แค่หน้าล่าสุด
+ * (ชั้นแรก · ถ้ายังหลุดมาได้ applyInvoice จะยกเลิก + คืนเงินตัวซ้ำให้เอง)
+ */
+export async function expireOpenCheckouts(stripe, customer, kind) {
+  const open = await stripe.checkout.sessions.list({ customer, status: 'open', limit: 20 })
+  await Promise.all(open.data
+    .filter((cs) => cs.mode === 'subscription' && (cs.metadata?.kind || 'plan') === kind)
+    // จ่ายเสร็จพอดี / หมดอายุไปก่อน = Stripe ตอบ error → ข้าม (กรณีนั้น refundIfDuplicate รับช่วงต่อ)
+    .map((cs) => stripe.checkout.sessions.expire(cs.id).catch(() => null)))
+}
+
+// ── Customer Portal: ใช้ configuration ของ HOP เอง ไม่พึ่งค่าตั้งใน Dashboard ──
+// เปลี่ยนแพ็กเกจ/จำนวนที่นั่งต้องทำที่หน้าอัปเกรดของเราเท่านั้น (คิดส่วนต่าง + pending_if_incomplete กันได้ของโดยไม่จ่าย)
+// ถ้าใครไปเปิด "เปลี่ยนแพ็กเกจ" ใน Dashboard ภายหลัง ลูกค้าจะข้ามการกันนี้ได้ → ล็อกไว้ในโค้ด
+// ค่าที่เหลือตั้งให้ตรงกับ configuration Default บน Live (อ่านมาเทียบ 2026-10-18)
+// แก้ค่าในนี้ = ต้องเปลี่ยนเลขรุ่น (configuration เดิมไม่ถูกแก้ตาม — ระบบสร้างตัวใหม่ตามรุ่น)
+const PORTAL_CONFIG_VERSION = 'v1'
+let portalConfigId = null
+
+/** configuration ของ Portal ตามรุ่นปัจจุบัน — หาเจอใช้ตัวเดิม ไม่เจอสร้างใหม่ (แยก Test/Live เอง) */
+export async function ensurePortalConfig(stripe) {
+  if (portalConfigId) return portalConfigId
+  for await (const c of stripe.billingPortal.configurations.list({ active: true, limit: 100 })) {
+    if (c.metadata?.hop_portal === PORTAL_CONFIG_VERSION) return (portalConfigId = c.id)
+  }
+  const c = await stripe.billingPortal.configurations.create({
+    name: `HOP ${PORTAL_CONFIG_VERSION} — เปลี่ยนบัตร / ใบเสร็จ / ยกเลิกปลายรอบ (สร้างจากโค้ด)`,
+    metadata: { hop_portal: PORTAL_CONFIG_VERSION },
+    features: {
+      customer_update: { enabled: true, allowed_updates: ['name', 'email', 'address', 'phone'] },
+      invoice_history: { enabled: true },
+      payment_method_update: { enabled: true },
+      subscription_cancel: {
+        enabled: true,
+        mode: 'at_period_end',
+        proration_behavior: 'none',
+        cancellation_reason: { enabled: true, options: ['too_expensive', 'switched_service', 'unused', 'other'] },
+      },
+      subscription_update: { enabled: false },
+    },
+  }, { idempotencyKey: `hop-portal-config-${PORTAL_CONFIG_VERSION}` })
+  return (portalConfigId = c.id)
 }
 
 /**
@@ -242,7 +292,54 @@ export async function describeInvoice(stripe, invoice) {
     periodEnd,
     customer: idOf(sub.customer),
     subscription: sub.id,
+    sub,
   }
+}
+
+/** ตัดบัตรอัตโนมัติ (ไม่ใช่ PromptPay ส่งใบแจ้งหนี้) */
+const isCardSub = (sub) => sub?.collection_method !== 'send_invoice'
+
+/**
+ * subscription ที่ใบนี้สังกัดเป็น "ตัวซ้ำ" ไหม (จ่าย Checkout สองแท็บพร้อมกัน หลุด expireOpenCheckouts มาได้)
+ * ตัวจริง = ตัวที่ยังใช้งานและสร้างก่อน · ตัวซ้ำ = ชนิดเดียวกัน สร้างทีหลัง → ยกเลิกทันที + คืนเงินเต็มจำนวน ไม่ให้สิทธิ์
+ * จัดการอัตโนมัติเฉพาะ "บัตรทั้งคู่" — PromptPay ลูกค้าต้องสแกนจ่ายเองทีละใบ ไม่ใช่การตัดเงินซ้ำโดยไม่ตั้งใจ
+ * เรียกซ้ำได้: ตัวซ้ำถูกติดป้าย metadata ไว้ก่อนยกเลิก · คืนเงินใช้ idempotency key + ข้ามถ้าคืนไปแล้ว
+ * คืน null = ไม่ใช่ตัวซ้ำ · คืน id ตัวจริง = เป็นตัวซ้ำ (ยกเลิก + คืนเงินแล้ว)
+ */
+async function refundIfDuplicate(stripe, invoice, d) {
+  const sub = d.sub
+  let keep = sub.metadata?.hop_duplicate_of || null
+  if (!keep) {
+    if (!isCardSub(sub)) return null
+    const subs = (await stripe.subscriptions.list({ customer: d.customer, status: 'all', limit: 20 })).data
+    const first = pickLive(subs, d.kind)
+    // ไม่มีตัวอื่น / ตัวนี้คือตัวจริง / ใบของ subscription เก่ากว่า (เช่น ตัวที่ยกเลิกไปแล้ว ส่ง webhook ซ้ำ) = ปกติ
+    if (!first || first.id === sub.id || olderFirst(sub, first) < 0 || !isCardSub(first)) return null
+    keep = first.id
+    // ติดป้ายก่อนยกเลิก (subscription ที่ยกเลิกแล้วแก้ metadata ไม่ได้) → รอบหน้ารู้ทันทีว่าเป็นตัวซ้ำ
+    if (sub.status !== 'canceled') await stripe.subscriptions.update(sub.id, { metadata: { hop_duplicate_of: keep } })
+  }
+  if (sub.status !== 'canceled') {
+    await stripe.subscriptions.cancel(sub.id, {
+      cancellation_details: { comment: `HOP: จ่ายซ้ำกับ ${keep} (เปิดหน้าจ่ายหลายแท็บ) — ยกเลิก + คืนเงินอัตโนมัติ` },
+    }).catch((e) => { if (e?.code !== 'resource_missing') throw e })
+  }
+  const pays = await stripe.invoicePayments.list({ invoice: invoice.id, status: 'paid', limit: 10 })
+  for (const p of pays.data) {
+    const pi = idOf(p.payment?.payment_intent)
+    const charge = idOf(p.payment?.charge)
+    if (!pi && !charge) continue
+    try {
+      await stripe.refunds.create(
+        { ...(pi ? { payment_intent: pi } : { charge }), reason: 'duplicate', metadata: { hop_duplicate_of: keep, invoice: invoice.id } },
+        { idempotencyKey: `hop-dup-refund-${p.id}` },
+      )
+    } catch (e) {
+      if (e?.code !== 'charge_already_refunded') throw e
+    }
+  }
+  console.warn('[stripe] จ่ายซ้ำ — ยกเลิก + คืนเงินแล้ว', { invoice: invoice.id, sub: sub.id, keep })
+  return keep
 }
 
 /** วันที่ (YYYY-MM-DD ตามเวลาไทย) จาก unix seconds */
@@ -259,7 +356,13 @@ export async function applyInvoice(stripe, s, invoice, expectOrg = null) {
   const d = await describeInvoice(stripe, invoice)
   if (!d) return { applied: false, paid: true, note: 'not-hop' }
   if (expectOrg && d.orgId !== expectOrg) return { applied: false, paid: true, note: 'other-org' }
+  const keep = await refundIfDuplicate(stripe, invoice, d)
+  if (keep) return { applied: false, paid: true, duplicate: true, kind: d.kind, note: `duplicate-of ${keep}` }
   if (!d.periodEnd) throw new Error('ไม่พบวันสิ้นรอบของใบแจ้งหนี้')
+  // Price ไม่มี metadata (เช่น สร้าง Price เองใน Dashboard) → ห้ามส่งค่าว่างไปตั้งแพ็กเกจ · 500 ให้ Stripe ส่ง webhook ซ้ำหลังแก้
+  if (d.kind === 'plan' && !(d.plan && d.tier)) {
+    throw new Error(`ใบแจ้งหนี้ ${invoice.id}: Price ไม่มี metadata plan/tier — ต้องเป็น Price ที่ระบบสร้าง (lookup hop_…)`)
+  }
 
   const r = await fetch(`${s.url}/rest/v1/rpc/apply_stripe_invoice`, {
     method: 'POST',

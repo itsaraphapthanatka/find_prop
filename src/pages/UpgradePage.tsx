@@ -152,6 +152,13 @@ export default function UpgradePage() {
     try {
       for (let i = 0; i < 10 && alive.current; i++) {
         const r = await confirmCheckout(sessionId)
+        if (r.duplicate) {
+          try { localStorage.removeItem(PENDING_KEY) } catch { /* ข้าม */ }
+          await refresh.current()
+          setNotice('รายการนี้ซ้ำกับที่ชำระไว้แล้ว (เปิดหน้าจ่ายเงินไว้หลายหน้า) — ระบบยกเลิกและคืนเงินรายการซ้ำให้อัตโนมัติ'
+            + ' เงินจะคืนเข้าบัตรภายใน 5–10 วันทำการ · แพ็กเกจเดิมใช้งานได้ตามปกติ')
+          return
+        }
         if (r.paid) {
           try { localStorage.removeItem(PENDING_KEY) } catch { /* ข้าม */ }
           await refresh.current()

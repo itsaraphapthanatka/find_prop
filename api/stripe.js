@@ -13,7 +13,7 @@
 import { cors, requireOrgOwner, patchOrg } from './_lib/auth.js'
 import {
   stripeClient, appUrl, ensurePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
-  finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription,
+  finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription, expireOpenCheckouts, ensurePortalConfig,
 } from './_lib/stripe.js'
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
@@ -90,6 +90,9 @@ async function checkout(req, res, stripe, a, body) {
 
   const priceId = await ensurePrice(stripe, { kind, plan, tier, cycle, amount })
   const customer = await ensureCustomer(stripe, a)
+  // ปิดหน้าจ่ายบัตรที่เปิดค้างไว้แท็บอื่นก่อนทุกครั้ง (จ่ายครบทั้งสองแท็บ = subscription ซ้ำ ตัดเงินสองทาง)
+  // ทำก่อนแยกทาง: มี subscription แล้วแต่ยังมีแท็บ Checkout ค้าง ก็จ่ายซ้อนได้เหมือนกัน
+  await expireOpenCheckouts(stripe, customer, kind)
   let live = await findLiveSubscription(stripe, customer, kind)
   // เคยกดจ่าย PromptPay แต่ไม่ได้สแกนจ่ายเลย → ทิ้งของค้าง เริ่มใหม่ (จะเลือกบัตรหรือ PromptPay รอบนี้ก็ได้)
   if (live && await discardIfNeverPaid(stripe, live)) live = null
@@ -219,7 +222,9 @@ async function confirm(res, stripe, a, body) {
   if (!invoiceId) return res.status(200).json({ paid: false, status: 'no-invoice', kind })
   const invoice = await stripe.invoices.retrieve(invoiceId)
   const r = await applyInvoice(stripe, a.s, invoice, a.orgId)
-  return res.status(200).json({ paid: r.paid, applied: r.applied, expires: r.expires ?? null, kind, qty: r.qty ?? null })
+  return res.status(200).json({
+    paid: r.paid, applied: r.applied, duplicate: r.duplicate === true, expires: r.expires ?? null, kind, qty: r.qty ?? null,
+  })
 }
 
 /** ใบแจ้งหนี้ PromptPay: ต้องเป็นของ subscription ขององค์กรนี้ · ยังไม่จ่าย = บอกสถานะ (open/void) */
@@ -240,8 +245,14 @@ async function portal(req, res, stripe, a, body) {
   const customer = a.org.stripe_customer_id
   if (!customer) return res.status(400).json({ error: 'องค์กรนี้ยังไม่เคยชำระเงินผ่านบัตร' })
   const base = appUrl(req)
+  // configuration ของ HOP (ปิดเปลี่ยนแพ็กเกจใน Portal) — สร้างไม่สำเร็จ = ใช้ Default ใน Dashboard ไปก่อน ปุ่มยังใช้ได้
+  const configuration = await ensurePortalConfig(stripe).catch((e) => {
+    console.error('[stripe] portal configuration', e?.raw?.message || e?.message || e)
+    return undefined
+  })
   const session = await stripe.billingPortal.sessions.create({
     customer,
+    configuration,
     locale: 'th',
     return_url: body.native === true ? `${base}/pay-done.html?s=portal` : `${base}/#/upgrade`,
   })

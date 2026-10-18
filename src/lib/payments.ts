@@ -24,6 +24,8 @@ export interface ConfirmResult {
   paid: boolean
   status?: string
   applied?: boolean
+  /** จ่ายซ้อนกับรายการที่จ่ายไว้แล้ว (เปิดหน้าจ่ายหลายแท็บ) — เซิร์ฟเวอร์ยกเลิก + คืนเงินให้แล้ว ไม่ได้สิทธิ์เพิ่ม */
+  duplicate?: boolean
   expires?: string | null
   kind?: 'plan' | 'seats'
   qty?: number | null
