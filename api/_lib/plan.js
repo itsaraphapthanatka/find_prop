@@ -13,3 +13,25 @@ export function effectivePlan(org) {
 export function isProPlan(plan) {
   return plan === 'pro' || plan === 'enterprise'
 }
+
+const PAID_PLANS = ['starter', 'pro', 'enterprise']
+
+/**
+ * ซื้อ/ปรับที่นั่งเพิ่มได้ไหม — ที่นั่งผูกกับแพ็กเกจที่จ่ายเงิน (ตรงกับ seatBlock ใน src/lib/plan.ts)
+ * Free/ช่วงทดลองซื้อไม่ได้ (Free ไม่มีทีม · ทดลองหมดแล้วที่นั่งใช้ไม่ได้แต่ยังโดนตัดเงินทุกรอบ)
+ * แพ็กเกจตั้งยกเลิกไว้ = ที่นั่งกำลังจะยกเลิกตาม (cascadeSeats) → ให้ต่ออายุแพ็กเกจก่อน
+ * คืนข้อความเหตุผล · null = ซื้อได้
+ */
+export function seatPurchaseBlock(org) {
+  if (!org || !PAID_PLANS.includes(org.plan)) {
+    return 'ซื้อที่นั่งเพิ่มได้เฉพาะองค์กรที่ใช้แพ็กเกจ Basic หรือ Pro — สมัครแพ็กเกจก่อน'
+  }
+  const today = new Date().toISOString().slice(0, 10)
+  if (org.sub_status !== 'active' || (org.sub_expires_at && org.sub_expires_at < today)) {
+    return 'แพ็กเกจหมดอายุแล้ว — ต่ออายุแพ็กเกจก่อน แล้วค่อยซื้อที่นั่ง'
+  }
+  if (org.sub_cancel_at_period_end) {
+    return 'แพ็กเกจตั้งยกเลิกการต่ออายุไว้ (ที่นั่งเพิ่มจะยกเลิกตาม) — กดต่ออายุแพ็กเกจก่อน แล้วค่อยซื้อ/ปรับที่นั่ง'
+  }
+  return null
+}

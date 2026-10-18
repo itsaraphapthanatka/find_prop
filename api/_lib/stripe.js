@@ -166,6 +166,71 @@ export async function findLiveSubscription(stripe, customerId, kind) {
   return pickLive(list.data, kind)
 }
 
+/** วันสิ้นรอบปัจจุบัน (API ใหม่อยู่ที่ subscription item) */
+const itemEnd = (sub) => Number(sub?.items?.data?.[0]?.current_period_end) || 0
+/** subscription แพ็กเกจจริง — ไม่นับตัวซ้ำที่ถูกคืนเงิน และ PromptPay ที่ทิ้งเพราะไม่เคยจ่าย */
+const realPlans = (subs) => subs.filter((x) =>
+  (x.metadata?.kind || 'plan') === 'plan' && !x.metadata?.hop_duplicate_of && !x.metadata?.hop_discarded)
+
+/**
+ * ที่นั่งเพิ่มผูกกับแพ็กเกจ (ไม่มีแพ็กเกจ = ใช้ที่นั่งไม่ได้ ห้ามเก็บเงินค่าที่นั่งต่อ)
+ *  • แพ็กเกจตั้งยกเลิกปลายรอบ → ที่นั่งจบวันเดียวกัน (ที่นั่งต่ออายุก่อนวันนั้น = รอบสุดท้าย Stripe คิดตามสัดส่วนถึงวันจบ)
+ *  • แพ็กเกจจบไปแล้ว → ที่นั่งไม่ต่ออายุอีก · ค่าที่นั่งค้างจ่ายอยู่ = ยกเลิกทันที เลิกลองตัดบัตร
+ *  • แพ็กเกจกลับมาต่ออายุ → ที่นั่งที่ระบบตั้งยกเลิกให้ (ป้าย hop_cancel_with_plan) กลับมาด้วย
+ *    ที่นั่งที่ลูกค้ากดยกเลิกเองใน Portal = ไม่แตะ
+ * องค์กรที่จ่ายแพ็กเกจผ่าน PunPay ยุคก่อน (ไม่มี subscription แพ็กเกจใน Stripe) = ไม่แตะ
+ * คืน subscription ที่นั่งหลังแก้ · ไม่ได้แก้อะไร = null
+ */
+export async function cascadeSeats(stripe, subs) {
+  const seats = pickLive(subs, 'seats')
+  if (!seats) return null
+  const plans = realPlans(subs)
+  const live = plans.filter((x) => LIVE_STATUSES.includes(x.status))
+  if (live.some((x) => !cancelScheduled(x))) {
+    if (!seats.metadata?.hop_cancel_with_plan || !cancelScheduled(seats)) return null
+    return stripe.subscriptions.update(seats.id, {
+      ...(seats.cancel_at_period_end ? { cancel_at_period_end: false } : { cancel_at: '' }),
+      metadata: { hop_cancel_with_plan: '' },
+    })
+  }
+  if (cancelScheduled(seats)) return null // ตั้งยกเลิกไว้แล้ว (ระบบหรือลูกค้าตั้ง)
+  const mark = { metadata: { hop_cancel_with_plan: '1' } }
+  if (live.length) {
+    const planEnd = Math.max(...live.map((x) => Number(x.cancel_at) || itemEnd(x)))
+    // ที่นั่งหมดรอบหลังแพ็กเกจ = แค่ไม่ต่ออายุ (จ่ายถึงไหนใช้ถึงนั่น) · หมดรอบก่อน = ต่ออายุได้จนถึงวันแพ็กเกจจบพอดี
+    return stripe.subscriptions.update(seats.id,
+      planEnd > itemEnd(seats) ? { cancel_at: planEnd, ...mark } : { cancel_at_period_end: true, ...mark })
+  }
+  // ไม่มีแพ็กเกจเหลือ — ต้องเป็นแพ็กเกจที่จบ "หลัง" ซื้อที่นั่ง (ไม่ใช่ subscription เก่าก่อนหน้านั้น)
+  if (!plans.some((x) => (Number(x.ended_at) || 0) > seats.created)) return null
+  if (PAST_DUE.includes(seats.status)) {
+    await stripe.subscriptions.update(seats.id, mark)
+    return stripe.subscriptions.cancel(seats.id, {
+      cancellation_details: { comment: 'HOP: แพ็กเกจจบแล้ว — ยกเลิกที่นั่งเพิ่มตาม ไม่ลองตัดค่าที่นั่งต่อ' },
+    })
+  }
+  return stripe.subscriptions.update(seats.id, { cancel_at_period_end: true, ...mark })
+}
+
+/** ใส่ subscription ที่เพิ่งแก้กลับเข้ารายการ (ให้ billingState เห็นสถานะล่าสุด) */
+const withUpdated = (subs, moved) => (moved ? subs.map((x) => (x.id === moved.id ? moved : x)) : subs)
+
+/** cascadeSeats แบบไม่ทำให้งานหลักล้ม — ซิงก์สถานะ/ตอบ webhook ต้องไปต่อได้ (ครั้งหน้ายังลองใหม่) */
+async function cascadeSeatsSafe(stripe, subs) {
+  try {
+    return await cascadeSeats(stripe, subs)
+  } catch (e) {
+    console.error('[stripe] ยกเลิก/คืนที่นั่งตามแพ็กเกจไม่สำเร็จ', e?.raw?.message || e?.message || e)
+    return null
+  }
+}
+
+/** แพ็กเกจเพิ่งกลับมาต่ออายุ (กดซื้อซ้ำตอนตั้งยกเลิกไว้) → ดึงที่นั่งที่ระบบตั้งยกเลิกตามกลับมาด้วย */
+export async function resumeSeatsWithPlan(stripe, customer) {
+  const subs = (await stripe.subscriptions.list({ customer, status: 'all', limit: 20 })).data
+  return cascadeSeatsSafe(stripe, subs)
+}
+
 /**
  * ปิดหน้าจ่าย (Checkout Session) ที่ยังเปิดค้างของชนิดเดียวกัน ก่อนเริ่มรายการใหม่
  * เปิดหน้าอัปเกรดสองแท็บแล้วจ่ายครบทั้งคู่ = ได้ subscription ซ้ำ ตัดเงินสองทาง → ให้จ่ายได้แค่หน้าล่าสุด
@@ -232,6 +297,7 @@ export async function syncFromStripe(stripe, auth) {
     })
     return { changed: true, customer: 'missing' }
   }
+  subs = withUpdated(subs, await cascadeSeatsSafe(stripe, subs))
   const { plan, seats, next } = billingState(subs)
   const changed = next.stripe_subscription_id !== (org.stripe_subscription_id ?? null)
     || next.sub_cancel_at_period_end !== Boolean(org.sub_cancel_at_period_end)
@@ -263,6 +329,8 @@ export async function discardIfNeverPaid(stripe, sub) {
   if (paid.data.length) return false
   const open = await stripe.invoices.list({ subscription: sub.id, status: 'open', limit: 10 })
   for (const inv of open.data) await stripe.invoices.voidInvoice(inv.id)
+  // ป้ายนี้ = ไม่ใช่ "แพ็กเกจที่จบ" (cascadeSeats จะได้ไม่ยกเลิกที่นั่งตาม ตอนกำลังสมัครแพ็กเกจใหม่แทน)
+  await stripe.subscriptions.update(sub.id, { metadata: { hop_discarded: '1' } })
   await stripe.subscriptions.cancel(sub.id)
   return true
 }
@@ -446,9 +514,41 @@ export async function syncSubscription(stripe, s, sub) {
   const orgId = sub?.metadata?.org_id
   const customer = idOf(sub?.customer)
   if (!orgId || !customer) return { ok: true, note: 'not-hop' }
-  const subs = (await stripe.subscriptions.list({ customer, status: 'all', limit: 20 })).data
+  let subs = (await stripe.subscriptions.list({ customer, status: 'all', limit: 20 })).data
+  const moved = await cascadeSeatsSafe(stripe, subs)
+  subs = withUpdated(subs, moved)
   const { next } = billingState(subs)
   const matched = await patchOrg(s, orgId, next)
   // โชว์ในหน้า Event deliveries ของ Stripe — matched 0 = ไม่พบองค์กร (ไว้ไล่ปัญหา)
-  return { ok: true, status: sub.status, ...next, matched }
+  return { ok: true, status: sub.status, ...next, matched, ...(moved ? { seats_cascade: moved.id } : {}) }
+}
+
+// ── ตัดบัตรรอบใหม่ไม่ผ่าน → ขยายสิทธิ์ตามรอบที่ Stripe จะลองตัดซ้ำ (Smart Retries) ──
+// ปกติสิทธิ์ = สิ้นรอบ + 3 วัน (apply_stripe_invoice) แต่ Stripe อาจลองตัดซ้ำนานถึง 1 สัปดาห์–2 เดือนตามที่ตั้งใน Dashboard
+// → ทุกครั้งที่ตัดไม่ผ่าน ขยายถึง "วันที่จะลองครั้งถัดไป + 1 วัน" (เผื่อเวลาตัดเงิน + webhook invoice.paid มาถึง)
+// ไม่ต้องรู้ค่าตั้งใน Dashboard: ตามวันจริงที่ Stripe นัดไว้ (next_payment_attempt) · Stripe เลิกลองแล้ว (null) = ไม่ขยายอีก ล็อกตามวันเดิม
+const RETRY_BUFFER_DAYS = 1
+const RETRY_MAX_DAYS = 62 // นโยบายยาวสุดของ Smart Retries คือ 2 เดือน — กันค่าแปลกปลอม
+
+/**
+ * ใบรอบต่ออายุ (subscription_cycle) ที่ตัดบัตรไม่ผ่านและ Stripe ยังนัดลองตัดซ้ำ → ขยายวันหมดอายุของแพ็กเกจ/ที่นั่ง
+ * ขยายอย่างเดียว ไม่หด (อัปเดตเฉพาะเมื่อวันเดิมน้อยกว่า) · event มาซ้ำ/สลับลำดับได้ผลเหมือนเดิม
+ * ใช้กับ invoice.payment_failed และ invoice.updated (บัญชีที่ใช้ Automations ได้ next_payment_attempt จาก event นี้แทน)
+ */
+export async function extendForRetry(stripe, s, invoice) {
+  if (invoice?.status !== 'open' || invoice.billing_reason !== 'subscription_cycle') return { extended: false }
+  if (invoice.collection_method === 'send_invoice') return { extended: false } // PromptPay ขยายด้วย days_until_due อยู่แล้ว
+  if (!(Number(invoice.attempt_count) >= 1)) return { extended: false } // ยังไม่เคยตัดไม่ผ่าน (เช่น เพิ่งออกใบรอบใหม่)
+  const next = Number(invoice.next_payment_attempt) || 0
+  if (!next) return { extended: false, note: 'no-more-retries' }
+  const subId = invoiceSubscriptionId(invoice)
+  const sub = subId ? await stripe.subscriptions.retrieve(subId) : null
+  const orgId = sub?.metadata?.org_id
+  if (!orgId || sub.metadata?.hop_duplicate_of) return { extended: false, note: 'not-hop' }
+  const kind = sub.metadata?.kind || 'plan'
+  const cap = Date.now() / 1000 + RETRY_MAX_DAYS * 86400
+  const until = bkkDate(Math.min(next, cap) + RETRY_BUFFER_DAYS * 86400)
+  const col = kind === 'seats' ? 'extra_seats_expires_at' : 'sub_expires_at'
+  const matched = await patchOrg(s, orgId, { [col]: until }, `&${col}=lt.${until}`)
+  return { extended: matched > 0, kind, until, attempt: invoice.attempt_count ?? null }
 }

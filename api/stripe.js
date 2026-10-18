@@ -13,8 +13,9 @@
 import { cors, requireOrgOwner, patchOrg } from './_lib/auth.js'
 import {
   stripeClient, appUrl, ensurePrice, samePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
-  finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription, expireOpenCheckouts, ensurePortalConfig,
+  finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription, expireOpenCheckouts, ensurePortalConfig, resumeSeatsWithPlan,
 } from './_lib/stripe.js'
+import { seatPurchaseBlock } from './_lib/plan.js'
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
 import { promptpayEnabled } from './_lib/settings.js'
@@ -79,6 +80,9 @@ async function checkout(req, res, stripe, a, body) {
     const p = (await fetchPlanPrices(a.s.url, a.s.anonKey))[plan][tier]
     amount = cycle === 'yearly' ? p.yearly : p.monthly
   } else {
+    // ที่นั่งเพิ่มผูกกับแพ็กเกจที่จ่ายเงิน — Free/ทดลองใช้/แพ็กเกจหมดหรือตั้งยกเลิกไว้ ซื้อไม่ได้ (หน้าเว็บซ่อนปุ่มอยู่แล้ว ที่นี่บังคับซ้ำ)
+    const blocked = seatPurchaseBlock(a.org)
+    if (blocked) return res.status(409).json({ error: blocked })
     // qty = จำนวนที่นั่งเพิ่ม "ทั้งหมด" ที่ต้องการ (subscription เดียว ปรับจำนวนได้)
     qty = Math.floor(Number(body.qty))
     if (!(qty >= 1 && qty <= MAX_SEAT_QTY)) {
@@ -124,8 +128,15 @@ async function checkout(req, res, stripe, a, body) {
     }
     // เคยกดยกเลิกต่ออายุไว้ → กดซื้ออีกครั้ง = กลับมาต่ออายุตามเดิม
     if (scheduledCancel) {
-      await stripe.subscriptions.update(live.id, live.cancel_at_period_end ? { cancel_at_period_end: false } : { cancel_at: '' })
-      if (kind === 'plan') await patchOrg(a.s, a.orgId, { sub_cancel_at_period_end: false })
+      // ล้างป้าย "ยกเลิกตามแพ็กเกจ" ด้วย — ต่ออายุเองแล้ว ภายหลังลูกค้ากดยกเลิกเองระบบจะได้ไม่ดึงกลับมา
+      await stripe.subscriptions.update(live.id, {
+        ...(live.cancel_at_period_end ? { cancel_at_period_end: false } : { cancel_at: '' }),
+        ...(live.metadata?.hop_cancel_with_plan ? { metadata: { hop_cancel_with_plan: '' } } : {}),
+      })
+      if (kind === 'plan') {
+        await patchOrg(a.s, a.orgId, { sub_cancel_at_period_end: false })
+        await resumeSeatsWithPlan(stripe, customer) // ที่นั่งที่ระบบตั้งยกเลิกตามแพ็กเกจ → กลับมาต่ออายุด้วย
+      }
       if (same) return res.status(200).json({ updated: true, resumed: true, kind })
     }
 

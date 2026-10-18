@@ -11,7 +11,7 @@ import { rolePerm } from '../lib/roles'
 import { isNativeApp } from '../lib/native'
 import {
   onTrial, fetchContactSetting, DEFAULT_CONTACT,
-  seatLimit, baseSeats, effectivePlan, activeExtraSeats,
+  seatLimit, baseSeats, effectivePlan, activeExtraSeats, seatBlock,
 } from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
@@ -65,6 +65,7 @@ export default function UpgradePage() {
   const seatPrice = { monthly: seatCfg.monthly, yearly: seatCfg.yearly }
   const hasPlanSub = Boolean(org?.stripe_subscription_id)
   const hasSeatSub = Boolean(org?.stripe_seat_subscription_id)
+  const seatBlocked = seatBlock(org) // ที่นั่งผูกกับแพ็กเกจที่จ่ายเงิน — Free/ทดลอง/หมดอายุ/ตั้งยกเลิก ซื้อไม่ได้
   // ที่นั่งเพิ่ม = subscription เดียว จำนวน = ที่นั่งเพิ่ม "ทั้งหมด" ที่ต้องการ
   // มาจากหน้าจัดการทีมตอนทีมเกินโควตา (/upgrade?seats=3 = ขาดอีก 3) → ตั้งเป็นของเดิม + ที่ขาด
   const [seatQty, setSeatQty] = useState(() => {
@@ -522,7 +523,7 @@ export default function UpgradePage() {
               {onTrial(org) && (
                 <p className="plan-line" style={{ color: 'var(--purple)' }}>
                   ⏳ ช่วงทดลองใช้ตอนนี้ <b>ไม่จำกัดที่นั่ง</b> — พอหมดช่วงทดลองจะเหลือตามแพ็กเกจที่ซื้อ
-                  ส่วนที่เกินซื้อที่นั่งเพิ่มได้จากการ์ดนี้
+                  ส่วนที่เกินซื้อที่นั่งเพิ่มได้หลังสมัครแพ็กเกจ
                 </p>
               )}
               <p className="plan-line">
@@ -530,35 +531,46 @@ export default function UpgradePage() {
                 {activeExtraSeats(org) > 0 && <> + ซื้อเพิ่มไว้ <b>{activeExtraSeats(org)}</b> ที่นั่ง{hasSeatSub ? (subMethod.seats === 'promptpay' ? ' (ใบแจ้งหนี้ทุกรอบ)' : ' (ต่ออายุทุกรอบ)') : ''}</>}
                 {' '}· 1 ที่นั่ง = 1 บัญชี
               </p>
-              <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div className="form-field" style={{ marginBottom: 0, maxWidth: 190 }}>
-                  <label>{hasSeatSub ? 'ที่นั่งเพิ่มทั้งหมด (ปรับได้)' : 'จำนวนที่นั่งเพิ่ม'}</label>
-                  <input
-                    type="number" min={1} max={MAX_SEAT_QTY} value={seatQty}
-                    onChange={(e) => {
-                      const n = Math.floor(Number(e.target.value))
-                      setSeatQty(Number.isFinite(n) ? Math.min(MAX_SEAT_QTY, Math.max(1, n)) : 1)
-                    }}
-                  />
-                </div>
-                <p style={{ margin: 0, fontSize: 15 }}>
-                  ฿{((cycle === 'yearly' ? seatPrice.yearly : seatPrice.monthly) * seatQty).toLocaleString()}
-                  <span style={{ color: 'var(--muted)' }}>
-                    {cycle === 'yearly' ? '/ปี' : '/เดือน'} (฿{(cycle === 'yearly' ? Math.round(seatPrice.yearly / 12) : seatPrice.monthly).toLocaleString()} ต่อที่นั่ง/เดือน)
-                  </span>
+              {seatBlocked ? (
+                <p className="plan-line" style={{ color: 'var(--purple)', margin: '6px 0 0' }}>
+                  🔒 {seatBlocked === 'free'
+                    ? <>ที่นั่งเพิ่มซื้อได้เมื่อใช้แพ็กเกจ <b>Basic หรือ Pro</b> — เลือกแพ็กเกจด้านบนก่อน</>
+                    : seatBlocked === 'expired'
+                      ? <>แพ็กเกจหมดอายุแล้ว — ต่ออายุแพ็กเกจด้านบนก่อน แล้วค่อยซื้อที่นั่ง</>
+                      : <>แพ็กเกจตั้งยกเลิกการต่ออายุไว้ ที่นั่งเพิ่มจะ<b>ยกเลิกตามวันเดียวกัน</b> — กดต่ออายุแพ็กเกจด้านบนก่อน ถ้าจะซื้อ/ปรับที่นั่ง</>}
                 </p>
-                <button className="btn primary" disabled={busy !== null} onClick={() => void paySeats()}>
-                  {busy === 'seats' ? 'กำลังดำเนินการ…' : hasSeatSub ? 'ปรับจำนวนที่นั่ง' : 'ซื้อที่นั่ง · ชำระด้วยบัตร'}
-                </button>
-                {promptpayOn && !hasSeatSub && (
-                  <button className="btn" disabled={busy !== null} onClick={() => void paySeats('promptpay')}>
-                    {busy === 'seats:pp' ? 'กำลังออกใบแจ้งหนี้…' : 'หรือจ่ายด้วย PromptPay'}
+              ) : (
+                <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div className="form-field" style={{ marginBottom: 0, maxWidth: 190 }}>
+                    <label>{hasSeatSub ? 'ที่นั่งเพิ่มทั้งหมด (ปรับได้)' : 'จำนวนที่นั่งเพิ่ม'}</label>
+                    <input
+                      type="number" min={1} max={MAX_SEAT_QTY} value={seatQty}
+                      onChange={(e) => {
+                        const n = Math.floor(Number(e.target.value))
+                        setSeatQty(Number.isFinite(n) ? Math.min(MAX_SEAT_QTY, Math.max(1, n)) : 1)
+                      }}
+                    />
+                  </div>
+                  <p style={{ margin: 0, fontSize: 15 }}>
+                    ฿{((cycle === 'yearly' ? seatPrice.yearly : seatPrice.monthly) * seatQty).toLocaleString()}
+                    <span style={{ color: 'var(--muted)' }}>
+                      {cycle === 'yearly' ? '/ปี' : '/เดือน'} (฿{(cycle === 'yearly' ? Math.round(seatPrice.yearly / 12) : seatPrice.monthly).toLocaleString()} ต่อที่นั่ง/เดือน)
+                    </span>
+                  </p>
+                  <button className="btn primary" disabled={busy !== null} onClick={() => void paySeats()}>
+                    {busy === 'seats' ? 'กำลังดำเนินการ…' : hasSeatSub ? 'ปรับจำนวนที่นั่ง' : 'ซื้อที่นั่ง · ชำระด้วยบัตร'}
                   </button>
-                )}
-              </div>
+                  {promptpayOn && !hasSeatSub && (
+                    <button className="btn" disabled={busy !== null} onClick={() => void paySeats('promptpay')}>
+                      {busy === 'seats:pp' ? 'กำลังออกใบแจ้งหนี้…' : 'หรือจ่ายด้วย PromptPay'}
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="plan-line" style={{ marginTop: 10 }}>
                 ตัดบัตรอัตโนมัติทุกรอบตามจำนวนที่นั่ง · เลิกใช้ที่นั่งเพิ่ม = ยกเลิกในหน้า "จัดการการชำระเงิน"
-                (ใช้ได้ถึงสิ้นรอบ) · หมดอายุแล้วจะ<b>เชิญคนใหม่ไม่ได้</b> แต่ไม่มีใครถูกนำออกจากองค์กร
+                (ใช้ได้ถึงสิ้นรอบ) · <b>ยกเลิกแพ็กเกจ = ที่นั่งเพิ่มยกเลิกตามอัตโนมัติ</b> (จบวันเดียวกับแพ็กเกจ)
+                · หมดอายุแล้วจะ<b>เชิญคนใหม่ไม่ได้</b> แต่ไม่มีใครถูกนำออกจากองค์กร
               </p>
             </section>
 
