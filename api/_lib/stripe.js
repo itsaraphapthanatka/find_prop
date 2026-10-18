@@ -3,13 +3,14 @@
 // หลักการ:
 //  • STRIPE_SECRET_KEY อยู่ใน env ของ Vercel เท่านั้น — client ไม่มีทางเห็น
 //  • ราคาคำนวณฝั่งเซิร์ฟเวอร์จาก plan_prices / app_settings 'seats' เสมอ (ไม่เชื่อยอดจาก client)
-//  • Price ใน Stripe ใช้ lookup_key คงที่ต่อ (แพ็กเกจ × ระดับ × รอบ) — super แก้ราคาใน DB เมื่อไหร่
+//  • Product คงที่ต่อ (แพ็กเกจ × ระดับ) · Price ใต้ Product นั้นใช้ lookup_key คงที่ต่อรอบบิล — super แก้ราคาใน DB เมื่อไหร่
 //    รอบหน้าที่มีคนกดซื้อจะสร้าง Price ใหม่ให้อัตโนมัติ (ลูกค้าเดิมยังจ่ายราคาเดิมจนกว่าจะเปลี่ยนแพ็กเกจ)
 //  • "ให้สิทธิ์" ทำที่เดียว = applyInvoice() เมื่อใบแจ้งหนี้สถานะ paid เท่านั้น (webhook + หน้ายืนยัน เรียกซ้ำได้ — กันซ้ำด้วยเลขใบแจ้งหนี้)
 
 import crypto from 'node:crypto'
 import Stripe from 'stripe'
 import { patchOrg } from './auth.js'
+import { TIERS } from './prices.js'
 
 let client = null
 
@@ -34,39 +35,79 @@ const CYCLE_INTERVAL = { monthly: 'month', yearly: 'year' }
 // Stripe ตัด PromptPay อัตโนมัติไม่ได้ (ลูกค้าต้องสแกน QR เอง) → ทุกรอบ Stripe ออกใบแจ้งหนี้ ส่งอีเมล ให้จ่ายภายใน N วัน
 // สิทธิ์ขยายเพิ่ม N วัน (+3 เดิม) เพื่อไม่ให้ล็อกองค์กรก่อนครบกำหนดจ่าย
 export const PROMPTPAY_DUE_DAYS = 7
-const CYCLE_TH = { monthly: 'รายเดือน', yearly: 'รายปี' }
 
 /**
- * หา/สร้าง Price ของ Stripe ให้ตรงกับราคาปัจจุบันใน DB
+ * Product คงที่ 1 ตัวต่อแพ็กเกจ × ระดับ (ไม่แยกรอบบิล) — ราคารายเดือน/รายปีเป็น Price 2 ตัวใต้ Product เดียวกัน
+ * ตามที่ Stripe แนะนำ: ใบแจ้งหนี้/รายงานแยกแพ็กเกจได้ชัด · ตั้ง id เอง (hop_starter_100, hop_seat) จะได้หาเจอโดยไม่ต้องค้น
+ */
+function productOf(kind, plan, tier) {
+  if (kind === 'seats') return { id: 'hop_seat', name: 'HOP ที่นั่งทีมเพิ่ม', metadata: { kind } }
+  return {
+    id: `hop_${plan}_${tier}`,
+    name: `HOP ${plan === 'pro' ? 'Pro' : 'Basic'} ≤${tier} ทรัพย์`,
+    metadata: { kind, plan, tier: String(tier) },
+  }
+}
+
+async function ensureProduct(stripe, product) {
+  try {
+    const found = await stripe.products.retrieve(product.id)
+    if (!found.active) await stripe.products.update(product.id, { active: true })
+    return
+  } catch (e) {
+    if (e?.code !== 'resource_missing') throw e
+  }
+  try {
+    await stripe.products.create(product)
+  } catch (e) {
+    if (e?.code !== 'resource_already_exists') throw e // สองคำขอสร้างพร้อมกัน — อีกคำขอสร้างไปแล้ว ใช้ตัวนั้นได้เลย
+  }
+}
+
+/**
+ * หา/สร้าง Price ของ Stripe ให้ตรงกับราคาปัจจุบันใน DB — คืน Price object
  * kind 'plan' → lookup hop_<plan>_<tier>_<cycle> · kind 'seats' → hop_seat_<cycle> (ราคาต่อ 1 ที่นั่ง)
+ * Price เก่าที่อยู่ใต้ Product แบบแยกรอบบิล (ก่อน 2026-10-18) → สร้างตัวใหม่ใต้ Product คงที่แล้วย้าย lookup_key มา
+ * (ลูกค้าเดิมยังจ่าย Price เก่าต่อได้ตามปกติ)
  */
 export async function ensurePrice(stripe, { kind, plan, tier, cycle, amount }) {
   const lookup = kind === 'seats' ? `hop_seat_${cycle}` : `hop_${plan}_${tier}_${cycle}`
   const unit = Math.round(Number(amount) * 100) // บาท → สตางค์
   const interval = CYCLE_INTERVAL[cycle]
+  const product = productOf(kind, plan, tier)
   const found = (await stripe.prices.list({ lookup_keys: [lookup], active: true, limit: 1 })).data[0]
-  if (found && found.unit_amount === unit && found.currency === 'thb' && found.recurring?.interval === interval) {
-    return found.id
+  if (found && idOf(found.product) === product.id && found.unit_amount === unit
+    && found.currency === 'thb' && found.recurring?.interval === interval) {
+    return found
   }
+  await ensureProduct(stripe, product)
   // metadata บน Price = แหล่งความจริงว่าใบแจ้งหนี้นี้ให้สิทธิ์อะไร (อ่านใน describeInvoice)
   const metadata = kind === 'seats' ? { kind, cycle } : { kind, plan, tier: String(tier), cycle }
-  const params = {
+  return stripe.prices.create({
+    product: product.id,
     currency: 'thb',
     unit_amount: unit,
     recurring: { interval },
     lookup_key: lookup,
     transfer_lookup_key: true, // ราคาเปลี่ยน → ย้าย lookup_key มาที่ Price ใหม่ (Price เดิมยังใช้กับลูกค้าเดิมได้)
     metadata,
-  }
-  if (found) {
-    params.product = typeof found.product === 'string' ? found.product : found.product.id
-  } else {
-    const name = kind === 'seats'
-      ? `HOP ที่นั่งทีมเพิ่ม (${CYCLE_TH[cycle]})`
-      : `HOP ${plan === 'pro' ? 'Pro' : 'Basic'} ≤${tier} ทรัพย์ (${CYCLE_TH[cycle]})`
-    params.product_data = { name, metadata }
-  }
-  return (await stripe.prices.create(params)).id
+  })
+}
+
+/**
+ * ราคาเดียวกันในความหมายของ HOP (ชนิด/แพ็กเกจ/ระดับ/รอบ/ยอดตรงกัน) แม้เป็นคนละ Price id
+ * — ลูกค้าเดิมที่ยังอยู่บน Price เก่า (ก่อนย้ายไป Product คงที่) กดแพ็กเกจเดิม = ไม่ใช่การเปลี่ยนแพ็กเกจ
+ */
+export function samePrice(a, b) {
+  if (!a || !b) return false
+  if (a.id === b.id) return true
+  const m = a.metadata ?? {}
+  const n = b.metadata ?? {}
+  return a.unit_amount === b.unit_amount && a.currency === b.currency
+    && a.recurring?.interval === b.recurring?.interval
+    && (m.kind || 'plan') === (n.kind || 'plan')
+    && (m.plan ?? null) === (n.plan ?? null)
+    && (m.tier ?? null) === (n.tier ?? null)
 }
 
 /** 1 องค์กร = 1 Stripe customer — สร้างครั้งแรกแล้วผูกกับองค์กร */
@@ -296,6 +337,12 @@ export async function describeInvoice(stripe, invoice) {
   }
 }
 
+/** ใบนี้มาจาก Price ที่ระบบสมัครเองสร้าง (ensurePrice) — ชนิด/แพ็กเกจ/ระดับครบและถูกต้องตามที่ apply_stripe_invoice รับ */
+function isHopPrice(d) {
+  if (d.kind === 'seats') return true
+  return d.kind === 'plan' && ['starter', 'pro'].includes(d.plan) && TIERS.includes(d.tier)
+}
+
 /** ตัดบัตรอัตโนมัติ (ไม่ใช่ PromptPay ส่งใบแจ้งหนี้) */
 const isCardSub = (sub) => sub?.collection_method !== 'send_invoice'
 
@@ -356,13 +403,17 @@ export async function applyInvoice(stripe, s, invoice, expectOrg = null) {
   const d = await describeInvoice(stripe, invoice)
   if (!d) return { applied: false, paid: true, note: 'not-hop' }
   if (expectOrg && d.orgId !== expectOrg) return { applied: false, paid: true, note: 'other-org' }
+  // Price ที่ไม่ได้มาจาก ensurePrice (เช่น ราคา Enterprise ที่ตั้งเองใน Dashboard) → ไม่ใช่ของระบบสมัครเอง: ข้าม ตอบ 200
+  // · ห้ามส่งค่าว่างไปตั้งแพ็กเกจ · ไม่ throw (เดิม 500 → Stripe ส่ง webhook ซ้ำไปอีก ~3 วันทั้งที่แก้อะไรไม่ได้)
+  // · ต้องเช็กก่อนตัวกันซ้ำ: ไม่งั้น subscription Enterprise ที่สร้างตอน Pro ตัวเก่ายังไม่หมด ถูกนับเป็นตัวซ้ำแล้วโดนยกเลิก + คืนเงิน
+  // แพ็กเกจ Enterprise ยังตั้งโดย super ในหน้า Super Admin เหมือนเดิม
+  if (!isHopPrice(d)) {
+    console.warn('[stripe] ใบแจ้งหนี้ไม่ใช่ราคาของระบบสมัครเอง (Price ไม่มี metadata ของ HOP) — ข้าม', { invoice: invoice.id, sub: d.subscription })
+    return { applied: false, paid: true, kind: d.kind, note: 'not-hop-price' }
+  }
   const keep = await refundIfDuplicate(stripe, invoice, d)
   if (keep) return { applied: false, paid: true, duplicate: true, kind: d.kind, note: `duplicate-of ${keep}` }
   if (!d.periodEnd) throw new Error('ไม่พบวันสิ้นรอบของใบแจ้งหนี้')
-  // Price ไม่มี metadata (เช่น สร้าง Price เองใน Dashboard) → ห้ามส่งค่าว่างไปตั้งแพ็กเกจ · 500 ให้ Stripe ส่ง webhook ซ้ำหลังแก้
-  if (d.kind === 'plan' && !(d.plan && d.tier)) {
-    throw new Error(`ใบแจ้งหนี้ ${invoice.id}: Price ไม่มี metadata plan/tier — ต้องเป็น Price ที่ระบบสร้าง (lookup hop_…)`)
-  }
 
   const r = await fetch(`${s.url}/rest/v1/rpc/apply_stripe_invoice`, {
     method: 'POST',

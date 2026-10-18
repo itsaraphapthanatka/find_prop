@@ -12,7 +12,7 @@
 
 import { cors, requireOrgOwner, patchOrg } from './_lib/auth.js'
 import {
-  stripeClient, appUrl, ensurePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
+  stripeClient, appUrl, ensurePrice, samePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
   finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription, expireOpenCheckouts, ensurePortalConfig,
 } from './_lib/stripe.js'
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
@@ -88,7 +88,8 @@ async function checkout(req, res, stripe, a, body) {
     amount = cycle === 'yearly' ? sp.yearly : sp.monthly
   }
 
-  const priceId = await ensurePrice(stripe, { kind, plan, tier, cycle, amount })
+  const price = await ensurePrice(stripe, { kind, plan, tier, cycle, amount })
+  const priceId = price.id
   const customer = await ensureCustomer(stripe, a)
   // ปิดหน้าจ่ายบัตรที่เปิดค้างไว้แท็บอื่นก่อนทุกครั้ง (จ่ายครบทั้งสองแท็บ = subscription ซ้ำ ตัดเงินสองทาง)
   // ทำก่อนแยกทาง: มี subscription แล้วแต่ยังมีแท็บ Checkout ค้าง ก็จ่ายซ้อนได้เหมือนกัน
@@ -113,7 +114,8 @@ async function checkout(req, res, stripe, a, body) {
     }
     const item = live.items.data[0]
     const scheduledCancel = Boolean(live.cancel_at_period_end || live.cancel_at)
-    const same = item.price.id === priceId && (item.quantity ?? 1) === qty
+    // เทียบตามความหมาย (แพ็กเกจ/ระดับ/รอบ/ยอด) — ลูกค้าเดิมอาจยังอยู่บน Price เก่าก่อนย้าย Product
+    const same = samePrice(item.price, price) && (item.quantity ?? 1) === qty
 
     if (same && !scheduledCancel) {
       return res.status(409).json({

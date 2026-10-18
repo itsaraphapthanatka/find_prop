@@ -1,5 +1,6 @@
 // ทดสอบตรรกะ Stripe ฝั่งเซิร์ฟเวอร์ (api/_lib/stripe.js) ด้วย Stripe จำลอง — ไม่ยิง Stripe/Supabase จริง · รัน: npm run test:stripe
-// ครอบ: กันจ่ายซ้ำ (ปิดหน้าจ่ายเก่า + ยกเลิก/คืนเงินตัวซ้ำ) · Price ไม่มี metadata ห้ามให้สิทธิ์ · Portal ปิดเปลี่ยนแพ็กเกจ
+// ครอบ: กันจ่ายซ้ำ (ปิดหน้าจ่ายเก่า + ยกเลิก/คืนเงินตัวซ้ำ) · Price ไม่มี metadata ห้ามให้สิทธิ์ (ข้าม ไม่ 500) · Portal ปิดเปลี่ยนแพ็กเกจ
+//       · Product คงที่ต่อแพ็กเกจ × ระดับ
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 
@@ -166,14 +167,100 @@ const count = (st, name) => st.calls.filter((c) => c[0] === name).length
   eq('ที่นั่ง + แพ็กเกจ → ให้สิทธิ์ที่นั่งตามปกติ', [r.duplicate ?? false, rpc[0]?.p_kind, rpc[0]?.p_qty], [false, 'seats', 3])
 }
 
-// ── 6) Price ไม่มี metadata plan/tier → ห้ามส่งค่าว่างไปตั้งแพ็กเกจ (โยน error ให้ webhook ตอบ 500) ──
+// ── 6) Price ไม่มี metadata plan/tier → ห้ามส่งค่าว่างไปตั้งแพ็กเกจ · ข้าม (webhook ตอบ 200 ไม่ให้ Stripe ส่งซ้ำ 3 วัน) ──
 {
   const { applyInvoice } = await fresh()
   const st = fakeStripe({ subs: [sub('sub_M', 1000, { price: 'price_manual' })] })
   rpc.length = 0
   let err = null
-  try { await applyInvoice(st, S, invoice('in_M', 'sub_M', 'price_manual')) } catch (e) { err = e.message }
-  eq('Price ไม่มี metadata → error + ไม่เรียก RPC', [Boolean(err && err.includes('metadata')), rpc.length], [true, 0])
+  let r = null
+  try { r = await applyInvoice(st, S, invoice('in_M', 'sub_M', 'price_manual')) } catch (e) { err = e.message }
+  eq('Price ไม่มี metadata → ไม่ throw + ไม่เรียก RPC + บอกเหตุผล', [err, rpc.length, r?.applied, r?.note], [null, 0, false, 'not-hop-price'])
+
+  // มี plan แต่ระดับแปลก/ไม่มี → ไม่ใช่ราคาของระบบเช่นกัน
+  PRICE.price_badtier = { id: 'price_badtier', metadata: { kind: 'plan', plan: 'pro', tier: '999', cycle: 'monthly' } }
+  const st2 = fakeStripe({ subs: [sub('sub_T', 1000, { price: 'price_badtier' })] })
+  const r2 = await applyInvoice(st2, S, invoice('in_T', 'sub_T', 'price_badtier'))
+  eq('ระดับ 999 → ข้าม ไม่เรียก RPC', [r2.note, rpc.length], ['not-hop-price', 0])
+}
+
+// ── 6b) Enterprise ตั้งราคาเองใน Dashboard ระหว่างที่ Pro ตัวเก่ายังไม่หมดรอบ → ต้องไม่ถูกนับเป็น "ตัวซ้ำ" แล้วโดนยกเลิก + คืนเงิน ──
+{
+  const { applyInvoice } = await fresh()
+  const subs = [sub('sub_pro', 1000), sub('sub_ent', 2000, { price: 'price_manual' })]
+  const st = fakeStripe({ subs, payments: [{ id: 'inpay_E', invoice: 'in_E', status: 'paid', payment: { type: 'payment_intent', payment_intent: 'pi_E' } }] })
+  rpc.length = 0
+  const r = await applyInvoice(st, S, invoice('in_E', 'sub_ent', 'price_manual'))
+  eq('Enterprise ไม่ถูกยกเลิก/คืนเงิน', [r.duplicate ?? false, subs[1].status, count(st, 'sub.cancel'), count(st, 'refund')], [false, 'active', 0, 0])
+  eq('Enterprise ไม่แตะแพ็กเกจในระบบ (super ตั้งเอง)', [r.note, rpc.length], ['not-hop-price', 0])
+}
+
+// ── 6c) Product คงที่ 1 ตัวต่อแพ็กเกจ × ระดับ (รายเดือน/รายปีอยู่ใต้ Product เดียวกัน) ──
+{
+  const { ensurePrice, samePrice } = await fresh()
+  const err = (code) => Object.assign(new Error(code), { code })
+  /** Stripe จำลองเฉพาะ Price/Product */
+  const catalog = (prices = [], products = {}) => {
+    const calls = []
+    let seq = 0
+    return {
+      calls,
+      prices: {
+        list: async ({ lookup_keys: [k] }) => ({ data: prices.filter((p) => p.active && p.lookup_key === k).slice(0, 1) }),
+        create: async (p) => {
+          calls.push(['price.create', p.product, p.lookup_key])
+          if (p.transfer_lookup_key) for (const x of prices) if (x.lookup_key === p.lookup_key) x.lookup_key = null
+          const x = { id: `price_n${++seq}`, active: true, ...p }
+          delete x.transfer_lookup_key
+          prices.push(x)
+          return x
+        },
+      },
+      products: {
+        retrieve: async (id) => { if (!products[id]) throw err('resource_missing'); return products[id] },
+        create: async (p) => {
+          calls.push(['product.create', p.id, p.name])
+          if (products[p.id]) throw err('resource_already_exists')
+          products[p.id] = { active: true, ...p }
+          return products[p.id]
+        },
+        update: async (id, p) => { calls.push(['product.update', id]); Object.assign(products[id], p); return products[id] },
+      },
+    }
+  }
+  const c = (st, name) => st.calls.filter((x) => x[0] === name).length
+
+  const st = catalog()
+  const m = await ensurePrice(st, { kind: 'plan', plan: 'pro', tier: 250, cycle: 'monthly', amount: 1390 })
+  eq('สร้าง Product id คงที่ ชื่อไม่มีรอบบิล', st.calls.filter((x) => x[0] === 'product.create'), [['product.create', 'hop_pro_250', 'HOP Pro ≤250 ทรัพย์']])
+  eq('Price อยู่ใต้ Product คงที่ + lookup ตามรอบ', [m.product, m.lookup_key, m.unit_amount], ['hop_pro_250', 'hop_pro_250_monthly', 139000])
+  eq('Price metadata ยังมีรอบบิล (describeInvoice ใช้)', m.metadata, { kind: 'plan', plan: 'pro', tier: '250', cycle: 'monthly' })
+  const again = await ensurePrice(st, { kind: 'plan', plan: 'pro', tier: 250, cycle: 'monthly', amount: 1390 })
+  eq('เรียกซ้ำราคาเดิม → Price เดิม ไม่สร้างใหม่', [again.id, c(st, 'price.create')], [m.id, 1])
+  const y = await ensurePrice(st, { kind: 'plan', plan: 'pro', tier: 250, cycle: 'yearly', amount: 14178 })
+  eq('รายปีอยู่ Product เดียวกับรายเดือน', [y.product, y.recurring.interval, c(st, 'product.create')], ['hop_pro_250', 'year', 1])
+  const seat = await ensurePrice(st, { kind: 'seats', cycle: 'monthly', amount: 290 })
+  eq('ที่นั่งเพิ่ม → Product hop_seat', seat.product, 'hop_seat')
+  const up = await ensurePrice(st, { kind: 'plan', plan: 'pro', tier: 250, cycle: 'monthly', amount: 1490 })
+  eq('super แก้ราคา → Price ใหม่ใต้ Product เดิม + ย้าย lookup', [up.product, up.lookup_key, m.lookup_key], ['hop_pro_250', 'hop_pro_250_monthly', null])
+
+  // Price เก่าบน Live (Product แยกรอบบิล เช่น "HOP Basic ≤100 ทรัพย์ (รายเดือน)") → ย้ายมา Product คงที่ ยอดเท่าเดิม
+  const legacy = {
+    id: 'price_legacy', active: true, product: 'prod_old_monthly', lookup_key: 'hop_starter_100_monthly',
+    unit_amount: 59000, currency: 'thb', recurring: { interval: 'month' },
+    metadata: { kind: 'plan', plan: 'starter', tier: '100', cycle: 'monthly' },
+  }
+  const st2 = catalog([legacy])
+  const p = await ensurePrice(st2, { kind: 'plan', plan: 'starter', tier: 100, cycle: 'monthly', amount: 590 })
+  eq('Price เก่า → สร้างใหม่ใต้ hop_starter_100 + ย้าย lookup', [p.product, p.lookup_key, legacy.lookup_key], ['hop_starter_100', 'hop_starter_100_monthly', null])
+  eq('ลูกค้าบน Price เก่า = แพ็กเกจเดียวกัน (กดซ้ำไม่ถือว่าเปลี่ยน)', samePrice(legacy, p), true)
+  eq('ระดับต่าง ≠ แพ็กเกจเดียวกัน', samePrice(legacy, { ...p, id: 'x', metadata: { ...p.metadata, tier: '250' } }), false)
+  eq('ยอดต่าง ≠ แพ็กเกจเดียวกัน', samePrice(legacy, { ...p, id: 'x', unit_amount: 69000 }), false)
+  eq('รอบบิลต่าง ≠ แพ็กเกจเดียวกัน', samePrice(legacy, { ...p, id: 'x', recurring: { interval: 'year' } }), false)
+
+  const st3 = catalog([], { hop_seat: { id: 'hop_seat', active: false } })
+  await ensurePrice(st3, { kind: 'seats', cycle: 'yearly', amount: 2958 })
+  eq('Product ถูก archive → เปิดใช้คืน ไม่สร้างซ้ำ', [c(st3, 'product.update'), c(st3, 'product.create')], [1, 0])
 }
 
 // ── 7) Customer Portal: ใช้ configuration ของ HOP ที่ปิดเปลี่ยนแพ็กเกจ ──
