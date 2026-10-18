@@ -14,8 +14,11 @@ import { cors, requireOrgOwner, patchOrg } from './_lib/auth.js'
 import {
   stripeClient, appUrl, ensurePrice, samePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
   finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription, expireOpenCheckouts, ensurePortalConfig, resumeSeatsWithPlan,
+  findLiveEnterprise,
 } from './_lib/stripe.js'
-import { seatPurchaseBlock } from './_lib/plan.js'
+import { seatPurchaseBlock, enterpriseActive } from './_lib/plan.js'
+
+const ENTERPRISE_LOCKED = 'องค์กรนี้ใช้แพ็กเกจ Enterprise (ดีลกับทีมงาน) — ถ้าต้องการเปลี่ยนแพ็กเกจ ติดต่อทีมงาน'
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
 import { promptpayEnabled } from './_lib/settings.js'
@@ -71,6 +74,8 @@ async function checkout(req, res, stripe, a, body) {
   let qty = 1
   let amount
   if (kind === 'plan') {
+    // Enterprise เปลี่ยนเป็น Basic/Pro เองไม่ได้ — ไม่งั้นไปแก้ราคาใน subscription ของดีล (หน้าเว็บซ่อนปุ่มอยู่แล้ว ที่นี่บังคับซ้ำ)
+    if (enterpriseActive(a.org)) return res.status(409).json({ error: ENTERPRISE_LOCKED })
     plan = body.plan
     tier = Number(body.tier)
     if (!['starter', 'pro'].includes(plan)) return res.status(400).json({ error: 'แพ็กเกจไม่ถูกต้อง (starter|pro)' })
@@ -95,6 +100,10 @@ async function checkout(req, res, stripe, a, body) {
   const price = await ensurePrice(stripe, { kind, plan, tier, cycle, amount })
   const priceId = price.id
   const customer = await ensureCustomer(stripe, a)
+  // ดีล Enterprise ที่ยอมรับ Quote แล้วแต่ยังไม่จ่ายใบแรก (องค์กรยังไม่เป็น enterprise ในระบบ) ก็ห้ามเหมือนกัน
+  if (kind === 'plan' && await findLiveEnterprise(stripe, a.s, customer, a.orgId)) {
+    return res.status(409).json({ error: ENTERPRISE_LOCKED })
+  }
   // ปิดหน้าจ่ายบัตรที่เปิดค้างไว้แท็บอื่นก่อนทุกครั้ง (จ่ายครบทั้งสองแท็บ = subscription ซ้ำ ตัดเงินสองทาง)
   // ทำก่อนแยกทาง: มี subscription แล้วแต่ยังมีแท็บ Checkout ค้าง ก็จ่ายซ้อนได้เหมือนกัน
   await expireOpenCheckouts(stripe, customer, kind)

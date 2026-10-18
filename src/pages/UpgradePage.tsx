@@ -11,7 +11,7 @@ import { rolePerm } from '../lib/roles'
 import { isNativeApp } from '../lib/native'
 import {
   onTrial, fetchContactSetting, DEFAULT_CONTACT,
-  seatLimit, baseSeats, effectivePlan, activeExtraSeats, seatBlock,
+  seatLimit, baseSeats, effectivePlan, activeExtraSeats, seatBlock, enterpriseActive,
 } from '../lib/plan'
 
 // ราคาอยู่ใน state (โหลดจากตาราง plan_prices — super admin ตั้งเอง) ที่นี่มีแค่ข้อความ/ฟีเจอร์
@@ -66,6 +66,7 @@ export default function UpgradePage() {
   const hasPlanSub = Boolean(org?.stripe_subscription_id)
   const hasSeatSub = Boolean(org?.stripe_seat_subscription_id)
   const seatBlocked = seatBlock(org) // ที่นั่งผูกกับแพ็กเกจที่จ่ายเงิน — Free/ทดลอง/หมดอายุ/ตั้งยกเลิก ซื้อไม่ได้
+  const isEnterprise = enterpriseActive(org) // ดีล Enterprise — เปลี่ยนเป็น Basic/Pro เองไม่ได้ ต้องคุยกับทีมงาน
   // ที่นั่งเพิ่ม = subscription เดียว จำนวน = ที่นั่งเพิ่ม "ทั้งหมด" ที่ต้องการ
   // มาจากหน้าจัดการทีมตอนทีมเกินโควตา (/upgrade?seats=3 = ขาดอีก 3) → ตั้งเป็นของเดิม + ที่ขาด
   const [seatQty, setSeatQty] = useState(() => {
@@ -469,6 +470,12 @@ export default function UpgradePage() {
                 ))}
               </div>
             </div>
+            {isEnterprise && (
+              <p className="plan-line" style={{ color: 'var(--purple)', margin: '0 0 12px' }}>
+                🏢 องค์กรนี้ใช้แพ็กเกจ <b>Enterprise</b> (ดีลกับทีมงาน) — ถ้าต้องการเปลี่ยนแพ็กเกจหรือรายละเอียดดีล
+                ติดต่อทีมงานทาง LINE {contact.lineId}
+              </p>
+            )}
             <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
               {PLANS.map((p) => (
                 <section key={p.key} className="form-card" style={p.featured ? { borderColor: 'var(--purple)' } : undefined}>
@@ -488,7 +495,9 @@ export default function UpgradePage() {
                     <li>✓ ทีม {seatCfg.base[p.key][tier]} ที่นั่ง (เพิ่มได้)</li>
                     {p.points.map((pt) => <li key={pt}>✓ {pt}</li>)}
                   </ul>
-                  {(() => {
+                  {isEnterprise ? (
+                    <button className="btn" style={{ width: '100%' }} disabled>ใช้ Enterprise อยู่ — ติดต่อทีมงาน</button>
+                  ) : (() => {
                     // แพ็กเกจ + ระดับ + รอบชำระ ตรงกับที่ใช้อยู่ = ไม่มีอะไรให้เปลี่ยน (ยกเว้นเคยกดยกเลิกต่ออายุ → ต่ออายุได้)
                     const current = hasPlanSub && org?.plan === p.key && org?.plan_tier === tier && org?.sub_cycle === cycle
                     const resume = current && Boolean(org?.sub_cancel_at_period_end)
@@ -506,7 +515,7 @@ export default function UpgradePage() {
                     )
                   })()}
                   {/* PromptPay = ใบแจ้งหนี้ทุกรอบ (Stripe ตัดอัตโนมัติไม่ได้) — เฉพาะสมัครใหม่ · super เปิดสวิตช์แล้วเท่านั้น */}
-                  {promptpayOn && !hasPlanSub && (
+                  {promptpayOn && !hasPlanSub && !isEnterprise && (
                     <button
                       className="btn" style={{ width: '100%', marginTop: 8 }}
                       disabled={busy !== null} onClick={() => void pay(p.key, false, 'promptpay')}
@@ -537,7 +546,9 @@ export default function UpgradePage() {
                     ? <>ที่นั่งเพิ่มซื้อได้เมื่อใช้แพ็กเกจ <b>Basic หรือ Pro</b> — เลือกแพ็กเกจด้านบนก่อน</>
                     : seatBlocked === 'expired'
                       ? <>แพ็กเกจหมดอายุแล้ว — ต่ออายุแพ็กเกจด้านบนก่อน แล้วค่อยซื้อที่นั่ง</>
-                      : <>แพ็กเกจตั้งยกเลิกการต่ออายุไว้ ที่นั่งเพิ่มจะ<b>ยกเลิกตามวันเดียวกัน</b> — กดต่ออายุแพ็กเกจด้านบนก่อน ถ้าจะซื้อ/ปรับที่นั่ง</>}
+                      : seatBlocked === 'enterprise'
+                        ? <>แพ็กเกจ <b>Enterprise ไม่จำกัดที่นั่ง</b>อยู่แล้ว — ไม่ต้องซื้อเพิ่ม</>
+                        : <>แพ็กเกจตั้งยกเลิกการต่ออายุไว้ ที่นั่งเพิ่มจะ<b>ยกเลิกตามวันเดียวกัน</b> — กดต่ออายุแพ็กเกจด้านบนก่อน ถ้าจะซื้อ/ปรับที่นั่ง</>}
                 </p>
               ) : (
                 <div className="org-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>

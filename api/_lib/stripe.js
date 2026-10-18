@@ -133,9 +133,17 @@ export async function ensureCustomer(stripe, auth) {
 const LIVE_STATUSES = ['active', 'trialing', 'past_due', 'unpaid']
 /** สร้างก่อน = มาก่อน (created เท่ากัน → เทียบ id) — ใช้ตัดสินว่าตัวไหนคือ subscription ตัวจริงเมื่อมีซ้ำ */
 const olderFirst = (a, b) => (a.created - b.created) || (a.id < b.id ? -1 : 1)
+/**
+ * ชนิดของ subscription: 'plan' | 'seats' | 'enterprise'
+ * ป้ายบน subscription > metadata ของ Price > 'plan' (subscription เก่า/ตั้งเองที่ไม่มีป้าย นับเป็นแพ็กเกจตามเดิม)
+ * Enterprise จาก Quote ที่ Price ไม่มีป้าย → stampEnterprise ดูจาก Product แล้วติดป้ายให้ก่อน
+ */
+const kindOf = (sub) => sub?.metadata?.kind || sub?.items?.data?.[0]?.price?.metadata?.kind || 'plan'
+/** นับเป็น "แพ็กเกจ" ขององค์กร (ที่นั่งเพิ่มผูกกับทั้งสองแบบ) */
+const PLAN_KINDS = ['plan', 'enterprise']
 /** subscription ที่ยังใช้งานของชนิดนี้ — มีหลายตัว (จ่าย Checkout ซ้อน) = เอาตัวที่สร้างก่อน ให้ตรงกับ refundIfDuplicate */
 const pickLive = (subs, kind) => subs
-  .filter((sub) => LIVE_STATUSES.includes(sub.status) && (sub.metadata?.kind || 'plan') === kind)
+  .filter((sub) => LIVE_STATUSES.includes(sub.status) && kindOf(sub) === kind)
   .sort(olderFirst)[0] || null
 /** ตั้งยกเลิกปลายรอบไว้ไหม (API ใหม่: portal อาจตั้ง cancel_at แทน cancel_at_period_end) */
 const cancelScheduled = (sub) => Boolean(sub?.cancel_at_period_end || sub?.cancel_at)
@@ -145,7 +153,8 @@ const payMethodOf = (sub) => (sub?.collection_method === 'send_invoice' ? 'promp
 
 /** สถานะที่ต้องเขียนลงองค์กร จากรายการ subscription ทั้งหมดของลูกค้า (แหล่งความจริง = Stripe) */
 function billingState(subs) {
-  const plan = pickLive(subs, 'plan')
+  // Enterprise ที่ยังใช้งาน = แพ็กเกจหลักขององค์กร (Basic/Pro ตัวเก่าที่รอหมดรอบ ไม่ใช่ตัวที่ต้องแสดง)
+  const plan = pickLive(subs, 'enterprise') || pickLive(subs, 'plan')
   const seats = pickLive(subs, 'seats')
   return {
     plan,
@@ -166,11 +175,75 @@ export async function findLiveSubscription(stripe, customerId, kind) {
   return pickLive(list.data, kind)
 }
 
+// ── ดีล Enterprise (ทีมงานทำ Quote ใน Stripe Dashboard) ──
+// Product "HOP Enterprise" ติด metadata kind=enterprise ครั้งเดียว → Quote ที่ลูกค้ายอมรับได้ subscription ที่ไม่มีป้ายของ HOP
+// ระบบติดป้าย kind/org_id ให้เองครั้งแรกที่เจอ แล้วโค้ดส่วนอื่นอ่านจากป้ายต่อ (ชนิด/ที่นั่ง/ต่ออายุ/ตัดบัตรไม่ผ่าน)
+
+/** องค์กรของลูกค้า Stripe: metadata org_id ของลูกค้า (ลูกค้าที่ HOP สร้าง) > องค์กรที่ผูก stripe_customer_id ไว้ · ไม่เจอ = null */
+async function orgOfCustomer(stripe, s, customerId) {
+  if (!customerId) return null
+  const c = await stripe.customers.retrieve(customerId).catch(() => null)
+  if (c && !c.deleted && c.metadata?.org_id) return c.metadata.org_id
+  if (!s) return null
+  const r = await fetch(`${s.url}/rest/v1/organizations?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id`, {
+    headers: s.svc,
+  }).catch(() => null)
+  if (!r?.ok) return null
+  return ((await r.json().catch(() => [])) || [])[0]?.id ?? null
+}
+
+/**
+ * subscription ที่ยังไม่มีป้ายของ HOP แต่เป็น Product/Price ที่ติด kind=enterprise → ติดป้าย kind + org_id (แก้ใน Stripe + ในรายการที่ส่งมา)
+ * orgHint = รู้องค์กรอยู่แล้ว (ลิสต์จากลูกค้าขององค์กรนั้น) · ไม่ใช่ Enterprise / หาองค์กรไม่เจอ = ไม่แตะ
+ */
+async function stampEnterprise(stripe, s, subs, orgHint = null) {
+  const productKind = new Map()
+  for (const sub of subs) {
+    if (sub.metadata?.kind && sub.metadata?.org_id) continue
+    const price = sub.items?.data?.[0]?.price
+    let kind = sub.metadata?.kind || price?.metadata?.kind || null
+    const pid = idOf(price?.product)
+    if (!kind && pid) {
+      if (!productKind.has(pid)) {
+        const prod = typeof price.product === 'object' ? price.product : await stripe.products.retrieve(pid).catch(() => null)
+        productKind.set(pid, prod?.metadata?.kind || null)
+      }
+      kind = productKind.get(pid)
+    }
+    if (kind !== 'enterprise') continue
+    const orgId = sub.metadata?.org_id || orgHint || await orgOfCustomer(stripe, s, idOf(sub.customer))
+    if (!orgId) continue
+    const meta = { kind: 'enterprise', org_id: orgId }
+    // subscription ที่จบแล้วแก้ metadata ไม่ได้ — ติดป้ายในหน่วยความจำอย่างเดียวพอ (ใช้แค่ในรอบนี้)
+    if (!['canceled', 'incomplete_expired'].includes(sub.status)) await stripe.subscriptions.update(sub.id, { metadata: meta })
+    sub.metadata = { ...(sub.metadata || {}), ...meta }
+  }
+  return subs
+}
+
+/** ติดป้าย Enterprise แบบไม่ทำให้งานหลักล้ม (ติดไม่สำเร็จ = ใช้ชนิดจาก Price metadata ไปก่อน ครั้งหน้าลองใหม่) */
+async function stampEnterpriseSafe(stripe, s, subs, orgHint = null) {
+  try {
+    await stampEnterprise(stripe, s, subs, orgHint)
+  } catch (e) {
+    console.error('[stripe] ติดป้าย Enterprise ไม่สำเร็จ', e?.raw?.message || e?.message || e)
+  }
+  return subs
+}
+
+/** subscription Enterprise ที่ยังใช้งานและไม่ได้ตั้งยกเลิก — มี = องค์กรห้ามสมัคร/เปลี่ยน Basic/Pro เอง (ไม่งั้นไปแก้ราคาในดีล) */
+export async function findLiveEnterprise(stripe, s, customerId, orgId) {
+  const subs = (await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 20 })).data
+  await stampEnterpriseSafe(stripe, s, subs, orgId)
+  const ent = pickLive(subs, 'enterprise')
+  return ent && !cancelScheduled(ent) ? ent : null
+}
+
 /** วันสิ้นรอบปัจจุบัน (API ใหม่อยู่ที่ subscription item) */
 const itemEnd = (sub) => Number(sub?.items?.data?.[0]?.current_period_end) || 0
 /** subscription แพ็กเกจจริง — ไม่นับตัวซ้ำที่ถูกคืนเงิน และ PromptPay ที่ทิ้งเพราะไม่เคยจ่าย */
 const realPlans = (subs) => subs.filter((x) =>
-  (x.metadata?.kind || 'plan') === 'plan' && !x.metadata?.hop_duplicate_of && !x.metadata?.hop_discarded)
+  PLAN_KINDS.includes(kindOf(x)) && !x.metadata?.hop_duplicate_of && !x.metadata?.hop_discarded)
 
 /**
  * ที่นั่งเพิ่มผูกกับแพ็กเกจ (ไม่มีแพ็กเกจ = ใช้ที่นั่งไม่ได้ ห้ามเก็บเงินค่าที่นั่งต่อ)
@@ -297,6 +370,7 @@ export async function syncFromStripe(stripe, auth) {
     })
     return { changed: true, customer: 'missing' }
   }
+  await stampEnterpriseSafe(stripe, s, subs, orgId)
   subs = withUpdated(subs, await cascadeSeatsSafe(stripe, subs))
   const { plan, seats, next } = billingState(subs)
   const changed = next.stripe_subscription_id !== (org.stripe_subscription_id ?? null)
@@ -370,10 +444,12 @@ export function invoiceSubscriptionId(invoice) {
  * ใช้บรรทัดยอดบวก (= สถานะใหม่ เช่น ส่วนต่างตอนอัปเกรด/ต่ออายุ) → Price metadata
  * คืน null = ไม่ใช่ใบของ HOP
  */
-export async function describeInvoice(stripe, invoice) {
+export async function describeInvoice(stripe, invoice, s = null) {
   const subId = invoiceSubscriptionId(invoice)
   if (!subId) return null
   const sub = await stripe.subscriptions.retrieve(subId)
+  // subscription จาก Quote (Enterprise) ยังไม่มีป้าย → ติดป้าย + หาองค์กรจากลูกค้าก่อน
+  if (!sub.metadata?.org_id || !sub.metadata?.kind) await stampEnterpriseSafe(stripe, s, [sub])
   const orgId = sub.metadata?.org_id
   if (!orgId) return null
 
@@ -396,7 +472,7 @@ export async function describeInvoice(stripe, invoice) {
     kind,
     plan: pm.plan || sub.metadata?.plan || null,
     tier: Number(pm.tier || sub.metadata?.tier) || null,
-    cycle: pm.cycle || sub.metadata?.cycle || 'monthly',
+    cycle: pm.cycle || sub.metadata?.cycle || (price?.recurring?.interval === 'year' ? 'yearly' : 'monthly'),
     qty: Number(pick?.quantity ?? item?.quantity ?? 1) || 1,
     periodEnd,
     customer: idOf(sub.customer),
@@ -462,19 +538,66 @@ function bkkDate(unix) {
   return new Date(Number(unix) * 1000 + 7 * 3600 * 1000).toISOString().slice(0, 10)
 }
 
+/** เท่ากับ +3 วันใน apply_stripe_invoice (เผื่อ Stripe ตัดบัตรรอบใหม่ช้า) */
+const PAID_GRACE_DAYS = 3
+
+/** บันทึกยอดลงตาราง payments (ใช้ทำสถิติ/ประวัติ) — เลขใบแจ้งหนี้ซ้ำ = ข้าม · บันทึกพลาด = log ไว้ ไม่ทำให้การให้สิทธิ์ล้ม */
+async function recordPayment(s, row) {
+  const r = await fetch(`${s.url}/rest/v1/payments`, {
+    method: 'POST',
+    headers: { ...s.svc, 'Content-Type': 'application/json', Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify(row),
+  }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }))
+  if (!r.ok) console.error('[stripe] บันทึกยอดลง payments ไม่สำเร็จ', r.status, (await r.text().catch(() => '')).slice(0, 200))
+}
+
+/**
+ * ใบแจ้งหนี้ Enterprise จ่ายแล้ว (ตัดบัตร / ทีมงานกด Mark as paid ใน Dashboard) → แพ็กเกจ enterprise + ต่ออายุถึงสิ้นรอบ
+ * ไม่ผ่าน RPC apply_stripe_invoice (รับเฉพาะ Basic/Pro) — เขียนด้วย service role ตรงๆ แต่ทุกขั้นเรียกซ้ำได้:
+ * วันหมดอายุ "ขยายอย่างเดียว" + บันทึกยอดแบบข้ามถ้ามีแล้ว → webhook ส่งซ้ำ/สลับลำดับได้ผลเหมือนเดิม
+ * ใบที่สิ้นรอบไปแล้ว (เช่น webhook ซ้ำหลังเลิกใช้ Enterprise) = บันทึกยอดอย่างเดียว ไม่ดึงแพ็กเกจกลับเป็น Enterprise
+ */
+async function applyEnterprise(s, invoice, d) {
+  if (!d.periodEnd) throw new Error('ไม่พบวันสิ้นรอบของใบแจ้งหนี้')
+  const until = bkkDate(d.periodEnd + (d.graceDays + PAID_GRACE_DAYS) * 86400)
+  const current = until >= bkkDate(Date.now() / 1000)
+  let extended = 0
+  if (current) {
+    await patchOrg(s, d.orgId, {
+      plan: 'enterprise',
+      sub_status: 'active',
+      sub_cycle: d.cycle,
+      stripe_customer_id: d.customer,
+      stripe_subscription_id: d.subscription,
+    })
+    extended = await patchOrg(s, d.orgId, { sub_expires_at: until }, `&or=(sub_expires_at.is.null,sub_expires_at.lt.${until})`)
+    await patchOrg(s, d.orgId, { billing_past_due: null }, '&billing_past_due=eq.plan') // จ่ายแล้ว → เลิกเตือนค่าแพ็กเกจ
+  }
+  await recordPayment(s, {
+    charge_id: invoice.id,
+    org_id: d.orgId,
+    plan: 'enterprise',
+    months: d.cycle === 'yearly' ? 12 : 1,
+    amount: (Number(invoice.amount_paid) || 0) / 100,
+    tier: null,
+  })
+  return { applied: extended > 0, paid: true, expires: until, kind: 'enterprise', ...(current ? {} : { note: 'past-period' }) }
+}
+
 /**
  * ใบแจ้งหนี้จ่ายแล้ว → ให้สิทธิ์ผ่าน RPC apply_stripe_invoice (idempotent ด้วยเลขใบแจ้งหนี้)
  * expectOrg = ถ้าระบุ ต้องตรงกับองค์กรในใบ (หน้ายืนยันของผู้ใช้ กันยืนยันใบขององค์กรอื่น)
  */
 export async function applyInvoice(stripe, s, invoice, expectOrg = null) {
   if (!invoice || invoice.status !== 'paid') return { applied: false, paid: false }
-  const d = await describeInvoice(stripe, invoice)
+  const d = await describeInvoice(stripe, invoice, s)
   if (!d) return { applied: false, paid: true, note: 'not-hop' }
   if (expectOrg && d.orgId !== expectOrg) return { applied: false, paid: true, note: 'other-org' }
-  // Price ที่ไม่ได้มาจาก ensurePrice (เช่น ราคา Enterprise ที่ตั้งเองใน Dashboard) → ไม่ใช่ของระบบสมัครเอง: ข้าม ตอบ 200
+  // ดีล Enterprise (Product ติด kind=enterprise) → ตั้งแพ็กเกจ + ต่ออายุเอง (ไม่ผ่านตัวกันซ้ำ — ทีมงานตั้งดีลเอง)
+  if (d.kind === 'enterprise') return applyEnterprise(s, invoice, d)
+  // Price อื่นที่ไม่ได้มาจาก ensurePrice (ตั้งเองใน Dashboard โดยไม่ติด kind) → ไม่ใช่ของระบบสมัครเอง: ข้าม ตอบ 200
   // · ห้ามส่งค่าว่างไปตั้งแพ็กเกจ · ไม่ throw (เดิม 500 → Stripe ส่ง webhook ซ้ำไปอีก ~3 วันทั้งที่แก้อะไรไม่ได้)
-  // · ต้องเช็กก่อนตัวกันซ้ำ: ไม่งั้น subscription Enterprise ที่สร้างตอน Pro ตัวเก่ายังไม่หมด ถูกนับเป็นตัวซ้ำแล้วโดนยกเลิก + คืนเงิน
-  // แพ็กเกจ Enterprise ยังตั้งโดย super ในหน้า Super Admin เหมือนเดิม
+  // · ต้องเช็กก่อนตัวกันซ้ำ: ไม่งั้น subscription ที่ตั้งเองตอน Pro ตัวเก่ายังไม่หมด ถูกนับเป็นตัวซ้ำแล้วโดนยกเลิก + คืนเงิน
   if (!isHopPrice(d)) {
     console.warn('[stripe] ใบแจ้งหนี้ไม่ใช่ราคาของระบบสมัครเอง (Price ไม่มี metadata ของ HOP) — ข้าม', { invoice: invoice.id, sub: d.subscription })
     return { applied: false, paid: true, kind: d.kind, note: 'not-hop-price' }
@@ -511,10 +634,13 @@ export async function applyInvoice(stripe, s, invoice, expectOrg = null) {
  * → event มาสลับลำดับ/มาซ้ำก็ได้ผลถูกเสมอ · ไม่ตัดสิทธิ์ทันที: ใช้ได้ถึงวันหมดอายุที่จ่ายไว้ แล้วระบบล็อกตามกติกาเดิม
  */
 export async function syncSubscription(stripe, s, sub) {
-  const orgId = sub?.metadata?.org_id
   const customer = idOf(sub?.customer)
+  // subscription จาก Quote (Enterprise) ยังไม่มีป้าย → ติดป้าย + หาองค์กรจากลูกค้า
+  if (sub && customer && !sub.metadata?.org_id) await stampEnterpriseSafe(stripe, s, [sub])
+  const orgId = sub?.metadata?.org_id
   if (!orgId || !customer) return { ok: true, note: 'not-hop' }
   let subs = (await stripe.subscriptions.list({ customer, status: 'all', limit: 20 })).data
+  await stampEnterpriseSafe(stripe, s, subs, orgId)
   const moved = await cascadeSeatsSafe(stripe, subs)
   subs = withUpdated(subs, moved)
   const { next } = billingState(subs)
@@ -543,9 +669,10 @@ export async function extendForRetry(stripe, s, invoice) {
   if (!next) return { extended: false, note: 'no-more-retries' }
   const subId = invoiceSubscriptionId(invoice)
   const sub = subId ? await stripe.subscriptions.retrieve(subId) : null
+  if (sub && !sub.metadata?.org_id) await stampEnterpriseSafe(stripe, s, [sub]) // Enterprise จาก Quote ยังไม่มีป้าย
   const orgId = sub?.metadata?.org_id
   if (!orgId || sub.metadata?.hop_duplicate_of) return { extended: false, note: 'not-hop' }
-  const kind = sub.metadata?.kind || 'plan'
+  const kind = kindOf(sub) // 'enterprise' ต่ออายุแพ็กเกจเหมือน 'plan'
   const cap = Date.now() / 1000 + RETRY_MAX_DAYS * 86400
   const until = bkkDate(Math.min(next, cap) + RETRY_BUFFER_DAYS * 86400)
   const col = kind === 'seats' ? 'extra_seats_expires_at' : 'sub_expires_at'

@@ -1,7 +1,7 @@
 // ทดสอบตรรกะ Stripe ฝั่งเซิร์ฟเวอร์ (api/_lib/stripe.js) ด้วย Stripe จำลอง — ไม่ยิง Stripe/Supabase จริง · รัน: npm run test:stripe
 // ครอบ: กันจ่ายซ้ำ (ปิดหน้าจ่ายเก่า + ยกเลิก/คืนเงินตัวซ้ำ) · Price ไม่มี metadata ห้ามให้สิทธิ์ (ข้าม ไม่ 500) · Portal ปิดเปลี่ยนแพ็กเกจ
 //       · Product คงที่ต่อแพ็กเกจ × ระดับ · ขยายสิทธิ์ตามรอบลองตัดซ้ำ (Smart Retries) · ที่นั่งยกเลิกตามแพ็กเกจ
-//       · Free/ทดลอง/หมดอายุ/ตั้งยกเลิก ซื้อที่นั่งไม่ได้
+//       · Free/ทดลอง/หมดอายุ/ตั้งยกเลิก ซื้อที่นั่งไม่ได้ · ดีล Enterprise จาก Quote (ติดป้าย/ให้สิทธิ์/ต่ออายุ/กันซื้อเอง)
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 
@@ -18,19 +18,44 @@ const eq = (name, got, want) =>
 // ── Supabase จำลอง: จด RPC ที่ถูกเรียก · PATCH องค์กรเทียบเงื่อนไข `คอลัมน์=lt.วันที่` กับแถวจำลอง (ขยายอย่างเดียว ไม่หด) ──
 const rpc = []
 const patches = []
+const payRows = []
 let orgRow = {}
+let orgByCustomer = {} // องค์กรที่ผูก stripe_customer_id ไว้ (GET organizations?stripe_customer_id=eq.…)
+/** เงื่อนไขของ PostgREST ที่โค้ดใช้: col=lt.X · col=eq.X · or=(col.is.null,col.lt.X) */
+const cond = (k, v) => {
+  if (k === 'id' || k === 'select') return true
+  if (k === 'or') {
+    return v.slice(1, -1).split(',').some((c) => {
+      const [col, op, ...rest] = c.split('.')
+      const val = rest.join('.')
+      return op === 'is' ? orgRow[col] == null : op === 'lt' ? orgRow[col] != null && orgRow[col] < val : false
+    })
+  }
+  if (v.startsWith('lt.')) return orgRow[k] != null && orgRow[k] < v.slice(3)
+  if (v.startsWith('eq.')) return String(orgRow[k]) === v.slice(3)
+  return true
+}
 globalThis.fetch = async (url, init) => {
-  if (String(url).includes('/rpc/apply_stripe_invoice')) {
+  const u = String(url)
+  if (u.includes('/rpc/apply_stripe_invoice')) {
     rpc.push(JSON.parse(init.body))
     return new Response(JSON.stringify([{ applied: true, expires: '2026-11-20' }]), { status: 200 })
   }
-  if (String(url).includes('/rest/v1/organizations') && init?.method === 'PATCH') {
+  if (u.includes('/rest/v1/payments') && init?.method === 'POST') {
+    const row = JSON.parse(init.body)
+    if (!payRows.some((r) => r.charge_id === row.charge_id)) payRows.push(row) // resolution=ignore-duplicates
+    return new Response(null, { status: 201 })
+  }
+  if (u.includes('/rest/v1/organizations') && init?.method === 'PATCH') {
     const body = JSON.parse(init.body)
-    patches.push({ url: String(url), body })
-    const q = new URL(url).searchParams
-    const ok = [...q.entries()].every(([k, v]) => !v.startsWith('lt.') || (orgRow[k] != null && orgRow[k] < v.slice(3)))
+    patches.push({ url: u, body })
+    const ok = [...new URL(u).searchParams.entries()].every(([k, v]) => cond(k, v))
     if (ok) Object.assign(orgRow, body)
     return new Response(JSON.stringify(ok ? [{ id: 'org_1' }] : []), { status: 200 })
+  }
+  if (u.includes('/rest/v1/organizations') && !init?.method) {
+    const c = (new URL(u).searchParams.get('stripe_customer_id') || '').replace(/^eq\./, '')
+    return new Response(JSON.stringify(orgByCustomer[c] ? [{ id: orgByCustomer[c] }] : []), { status: 200 })
   }
   return new Response('[]', { status: 200 })
 }
@@ -53,7 +78,7 @@ const invoice = (id, subId, price = 'price_pro250') => ({
   lines: { data: [{ amount: 99000, quantity: 1, period: { end: 1795000000 }, pricing: { price_details: { price } } }] },
 })
 
-function fakeStripe({ subs = [], sessions = [], payments = [], configs = [] } = {}) {
+function fakeStripe({ subs = [], sessions = [], payments = [], configs = [], products = {}, customers = {} } = {}) {
   const calls = []
   const refunded = new Set()
   return {
@@ -78,6 +103,13 @@ function fakeStripe({ subs = [], sessions = [], payments = [], configs = [] } = 
       },
     },
     prices: { retrieve: async (id) => PRICE[id] },
+    products: { retrieve: async (id) => { calls.push(['product.retrieve', id]); return products[id] ?? { id, metadata: {} } } },
+    customers: {
+      retrieve: async (id) => {
+        if (!customers[id]) throw Object.assign(new Error('No such customer'), { code: 'resource_missing' })
+        return customers[id]
+      },
+    },
     checkout: {
       sessions: {
         list: async (p) => ({ data: sessions.filter((x) => x.customer === p.customer && x.status === p.status) }),
@@ -430,7 +462,153 @@ const count = (st, name) => st.calls.filter((c) => c[0] === name).length
   eq('Pro ถูกระงับ → ซื้อไม่ได้', ok({ plan: 'pro', sub_status: 'suspended', sub_expires_at: future }), false)
   eq('Pro ตั้งยกเลิกไว้ → ซื้อไม่ได้', ok({ plan: 'pro', sub_status: 'active', sub_expires_at: future, sub_cancel_at_period_end: true }), false)
   eq('Basic ใช้งานอยู่ → ซื้อได้', ok({ plan: 'starter', sub_status: 'active', sub_expires_at: future }), true)
-  eq('Enterprise ใช้งานอยู่ → ซื้อได้', ok({ plan: 'enterprise', sub_status: 'active', sub_expires_at: null }), true)
+  eq('Enterprise → ไม่ต้องซื้อ (ไม่จำกัดที่นั่งอยู่แล้ว)',
+    seatPurchaseBlock({ plan: 'enterprise', sub_status: 'active', sub_expires_at: null })?.includes('ไม่จำกัดที่นั่ง'), true)
+}
+
+// ── 12) ดีล Enterprise จาก Quote: ติดป้าย / ให้สิทธิ์ / ต่ออายุ / ที่นั่ง / กันซื้อ Basic-Pro เอง ──
+{
+  const NOW = Math.floor(Date.now() / 1000)
+  const bkk = (unix) => new Date(unix * 1000 + 7 * 3600e3).toISOString().slice(0, 10)
+  const PRODUCTS = { prod_ent: { id: 'prod_ent', metadata: { kind: 'enterprise' } } }
+  // subscription จาก Quote: ไม่มีป้ายของ HOP · Price ทำในใบเสนอราคา (ไม่มี metadata) · Product = HOP Enterprise
+  const ent = (id, created, o = {}) => ({
+    id, created, customer: o.customer || 'cus_1', status: 'active', collection_method: 'charge_automatically',
+    metadata: { ...(o.metadata || {}) },
+    items: { data: [{ price: { id: 'price_ent', product: 'prod_ent', metadata: o.priceMeta || {}, recurring: { interval: 'year' } }, quantity: 1, current_period_end: o.end ?? NOW + 300 * 86400 }] },
+    ...o.extra,
+  })
+  const entInvoice = (id, subId, end) => ({
+    id, status: 'paid', amount_paid: 12000000,
+    parent: { subscription_details: { subscription: subId } },
+    lines: { data: [{ amount: 12000000, quantity: 1, period: { end }, pricing: { price_details: { price: 'price_ent' } } }] },
+  })
+  const CUS = { cus_1: { id: 'cus_1', metadata: { org_id: 'org_1' } } }
+
+  // a) Price ติด kind=enterprise → ไม่นับเป็น 'plan' ตั้งแต่แรก (ไม่ต้องรอติดป้าย)
+  {
+    const { findLiveSubscription } = await fresh()
+    const st = fakeStripe({ subs: [ent('sub_E', 1000, { priceMeta: { kind: 'enterprise' } })] })
+    eq('Enterprise ไม่ถูกหยิบไปเป็นแพ็กเกจ Basic/Pro (ไม่โดนแก้ราคาในดีล)', await findLiveSubscription(st, 'cus_1', 'plan'), null)
+  }
+
+  // b) เปิดหน้าอัปเกรด (sync) → ติดป้าย Enterprise + เป็นแพ็กเกจหลักแทน Pro ตัวเก่าที่รอหมดรอบ
+  {
+    const { syncFromStripe } = await fresh()
+    const subs = [sub('sub_P', 900, { extra: { cancel_at_period_end: true } }), ent('sub_E', 1000)]
+    const st = fakeStripe({ subs, products: PRODUCTS, customers: CUS })
+    orgRow = {}
+    patches.length = 0
+    await syncFromStripe(st, { org: { stripe_customer_id: 'cus_1' }, orgId: 'org_1', s: S })
+    eq('ติดป้าย kind/org_id ให้ subscription จาก Quote', subs[1].metadata, { kind: 'enterprise', org_id: 'org_1' })
+    eq('แพ็กเกจหลักขององค์กร = Enterprise (ไม่ใช่ Pro ที่ตั้งยกเลิกไว้)',
+      [orgRow.stripe_subscription_id, orgRow.sub_cancel_at_period_end], ['sub_E', false])
+  }
+
+  // c) จ่ายใบแรก (หาองค์กรจาก metadata ของลูกค้า) → แพ็กเกจ enterprise + ต่ออายุ + บันทึกยอด · ไม่ผ่าน RPC Basic/Pro
+  {
+    const { applyInvoice } = await fresh()
+    const end = NOW + 365 * 86400
+    const subs = [ent('sub_E', 1000, { end })]
+    const st = fakeStripe({ subs, products: PRODUCTS, customers: CUS })
+    orgRow = { plan: 'pro', sub_status: 'active', sub_expires_at: '2026-01-01', billing_past_due: 'plan' }
+    rpc.length = 0
+    payRows.length = 0
+    const r = await applyInvoice(st, S, entInvoice('in_E1', 'sub_E', end))
+    eq('จ่ายแล้ว → Enterprise + ต่ออายุถึงสิ้นรอบ + 3 วัน',
+      [r.applied, orgRow.plan, orgRow.sub_status, orgRow.sub_cycle, orgRow.sub_expires_at], [true, 'enterprise', 'active', 'yearly', bkk(end + 3 * 86400)])
+    eq('ผูกลูกค้า/subscription + เลิกเตือนค้างจ่าย', [orgRow.stripe_customer_id, orgRow.stripe_subscription_id, orgRow.billing_past_due], ['cus_1', 'sub_E', null])
+    eq('บันทึกยอดลง payments · ไม่เรียก RPC ของ Basic/Pro',
+      [payRows.length, payRows[0]?.plan, payRows[0]?.months, payRows[0]?.amount, rpc.length], [1, 'enterprise', 12, 120000, 0])
+
+    const before = orgRow.sub_expires_at
+    const r2 = await applyInvoice(st, S, entInvoice('in_E1', 'sub_E', end))
+    eq('webhook ส่งซ้ำ → ไม่ต่อซ้ำ ไม่บันทึกยอดซ้ำ', [r2.applied, orgRow.sub_expires_at, payRows.length], [false, before, 1])
+  }
+
+  // d) ใบเก่าที่สิ้นรอบไปนานแล้ว (เลิกใช้ Enterprise แล้ว) → บันทึกยอดอย่างเดียว ไม่ดึงแพ็กเกจกลับ
+  {
+    const { applyInvoice } = await fresh()
+    const old = NOW - 200 * 86400
+    const st = fakeStripe({ subs: [ent('sub_E', 1000, { end: old, extra: { status: 'canceled' } })], products: PRODUCTS, customers: CUS })
+    orgRow = { plan: 'pro', sub_expires_at: '2099-01-01' }
+    payRows.length = 0
+    const r = await applyInvoice(st, S, entInvoice('in_OLD', 'sub_E', old))
+    eq('ใบเก่า → แพ็กเกจเดิมไม่เปลี่ยน + บันทึกยอด', [r.note, orgRow.plan, payRows.length], ['past-period', 'pro', 1])
+  }
+
+  // e) ลูกค้าไม่มี org_id ใน metadata → หาองค์กรจาก stripe_customer_id ในฐานข้อมูล · หาไม่เจอ = ไม่แตะ
+  {
+    const { applyInvoice } = await fresh()
+    const end = NOW + 365 * 86400
+    const st = fakeStripe({
+      subs: [ent('sub_X', 1000, { customer: 'cus_2', end }), ent('sub_Y', 1000, { customer: 'cus_3', end })],
+      products: PRODUCTS, customers: { cus_2: { id: 'cus_2', metadata: {} }, cus_3: { id: 'cus_3', metadata: {} } },
+    })
+    orgByCustomer = { cus_2: 'org_9' }
+    orgRow = {}
+    const r = await applyInvoice(st, S, entInvoice('in_X', 'sub_X', end))
+    eq('หาองค์กรจาก stripe_customer_id', [r.kind, orgRow.plan], ['enterprise', 'enterprise'])
+    orgRow = {}
+    patches.length = 0
+    const r2 = await applyInvoice(st, S, entInvoice('in_Y', 'sub_Y', end))
+    eq('ลูกค้าไม่ผูกกับองค์กรไหนเลย → ไม่แตะ', [r2.note, patches.length], ['not-hop', 0])
+    orgByCustomer = {}
+  }
+
+  // f) ตัดบัตรต่ออายุ Enterprise ไม่ผ่าน → ขยายวันหมดอายุของแพ็กเกจตามรอบลองตัด
+  {
+    const { extendForRetry } = await fresh()
+    const st = fakeStripe({ subs: [ent('sub_E', 1000)], products: PRODUCTS, customers: CUS })
+    const next = NOW + 5 * 86400
+    orgRow = { sub_expires_at: '2026-01-01' }
+    const r = await extendForRetry(st, S, {
+      id: 'in_R', status: 'open', billing_reason: 'subscription_cycle', collection_method: 'charge_automatically',
+      attempt_count: 1, next_payment_attempt: next, parent: { subscription_details: { subscription: 'sub_E' } },
+    })
+    eq('Enterprise ตัดไม่ผ่าน → ขยาย sub_expires_at', [r.extended, r.kind, orgRow.sub_expires_at], [true, 'enterprise', bkk(next + 86400)])
+  }
+
+  // g) ที่นั่งเพิ่มนับ Enterprise เป็นแพ็กเกจ: ยังใช้งาน = ไม่แตะ · ตั้งยกเลิก = ที่นั่งยกเลิกตาม
+  {
+    const { cascadeSeats } = await fresh()
+    const seat = () => sub('sub_S', 2000, { metadata: { kind: 'seats' }, extra: { items: { data: [{ price: { id: 'price_seat', metadata: { kind: 'seats' } }, quantity: 2, current_period_end: NOW + 400 * 86400 }] } } })
+    let subs = [ent('sub_E', 1000, { metadata: { kind: 'enterprise', org_id: 'org_1' } }), seat()]
+    let st = fakeStripe({ subs })
+    eq('Enterprise ใช้งานอยู่ → ไม่แตะที่นั่ง', [await cascadeSeats(st, subs), count(st, 'sub.update')], [null, 0])
+    subs = [ent('sub_E', 1000, { metadata: { kind: 'enterprise', org_id: 'org_1' }, extra: { cancel_at_period_end: true } }), seat()]
+    st = fakeStripe({ subs })
+    await cascadeSeats(st, subs)
+    eq('Enterprise ตั้งยกเลิก → ที่นั่งยกเลิกตาม', subs[1].metadata.hop_cancel_with_plan, '1')
+  }
+
+  // h) webhook subscription ของ Quote (ยังไม่มีป้าย) → หาองค์กรจากลูกค้า แล้วซิงก์ได้
+  {
+    const { syncSubscription } = await fresh()
+    const subs = [ent('sub_E', 1000)]
+    const st = fakeStripe({ subs, products: PRODUCTS, customers: CUS })
+    orgRow = {}
+    const r = await syncSubscription(st, S, subs[0])
+    eq('webhook ของ Quote → ซิงก์เข้าองค์กร', [r.note ?? null, orgRow.stripe_subscription_id], [null, 'sub_E'])
+  }
+
+  // i) กันซื้อ Basic/Pro เอง: ดีลที่ยอมรับ Quote แล้ว (ยังไม่จ่ายใบแรก) ก็นับ · ตั้งยกเลิกแล้ว = ซื้อเองได้หลังหมดรอบ
+  {
+    const { findLiveEnterprise } = await fresh()
+    let st = fakeStripe({ subs: [ent('sub_E', 1000)], products: PRODUCTS, customers: CUS })
+    eq('มีดีล Enterprise ใช้งาน → เจอ', (await findLiveEnterprise(st, S, 'cus_1', 'org_1'))?.id, 'sub_E')
+    st = fakeStripe({ subs: [ent('sub_E', 1000, { extra: { cancel_at_period_end: true } })], products: PRODUCTS, customers: CUS })
+    eq('ดีลตั้งยกเลิกแล้ว → ไม่กัน', await findLiveEnterprise(st, S, 'cus_1', 'org_1'), null)
+  }
+
+  // j) กติกาฝั่งองค์กร (api/_lib/plan.js) — ตรงกับ enterpriseActive ใน src/lib/plan.ts
+  {
+    const { enterpriseActive } = await import(pathToFileURL(resolve('api/_lib/plan.js')).href)
+    const past = new Date(Date.now() - 2 * 86400e3).toISOString().slice(0, 10)
+    eq('Enterprise ใช้งานอยู่ → ล็อกการซื้อเอง', enterpriseActive({ plan: 'enterprise', sub_status: 'active', sub_expires_at: null }), true)
+    eq('Enterprise หมดอายุ → ซื้อ Basic/Pro เองได้', enterpriseActive({ plan: 'enterprise', sub_status: 'active', sub_expires_at: past }), false)
+    eq('Pro → ไม่เกี่ยว', enterpriseActive({ plan: 'pro', sub_status: 'active' }), false)
+  }
 }
 
 if (fails.length) {
