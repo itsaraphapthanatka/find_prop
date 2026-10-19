@@ -30,17 +30,21 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    # เปิดเฉพาะในเครื่อง (ไว้ทดสอบด้วย curl) — คนภายนอกเข้าผ่าน Cloudflare Tunnel เท่านั้น ไม่ต้องเปิดพอร์ตเราเตอร์
+    # เปิดเฉพาะในเครื่อง — คนภายนอกเข้าผ่าน Cloudflare Tunnel เท่านั้น ไม่ต้องเปิดพอร์ตเราเตอร์
+    # cloudflared ที่รันเป็น service ของเครื่องอยู่แล้ว ชี้ Public Hostname มาที่ http://localhost:${WEB_PORT}
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
     restart: unless-stopped
     logging: *logging
 
+  # ใช้เฉพาะเครื่องที่ยังไม่มี cloudflared — เปิดด้วย COMPOSE_PROFILES=tunnel ใน deploy/.env
+  # (เครื่องที่รัน cloudflared เป็น systemd service อยู่แล้ว ไม่ต้องเปิด — เพิ่ม Public Hostname ใน tunnel เดิมแทน)
   tunnel:
+    profiles: ["tunnel"]
     image: cloudflare/cloudflared:2026.10.0
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?ตั้ง CLOUDFLARE_TUNNEL_TOKEN ใน deploy/.env}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - web
     restart: unless-stopped

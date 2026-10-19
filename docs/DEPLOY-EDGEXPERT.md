@@ -70,13 +70,22 @@ git clone https://github.com/itsaraphapthanatka/find_prop.git ~/hop
 cd ~/hop && git switch deploy/edgexpert
 ```
 
-### 2.4 สร้าง Cloudflare Tunnel
+### 2.4 ต่อ Cloudflare Tunnel
+
+**เครื่องที่มี cloudflared รันเป็น service อยู่แล้ว** (เช็ค: `systemctl is-active cloudflared` ได้ `active` — เช่น edgexpert ที่เข้าผ่าน ssh.appreview.cloud) ใช้ tunnel ตัวเดิม ไม่ต้องสร้างใหม่:
+
+1. Cloudflare → **Zero Trust** → **Networks** → **Tunnels** → เลือก tunnel ที่สถานะ Healthy ของเครื่องนี้ → **Public Hostname** → Add
+2. Subdomain `staging` · Domain `hopai.online` · Service Type `HTTP` · URL `localhost:8080` (ตรงกับ `WEB_PORT`)
+3. ใน `deploy/.env` ปล่อย `COMPOSE_PROFILES` และ `CLOUDFLARE_TUNNEL_TOKEN` ว่างไว้
+
+**เครื่องที่ยังไม่มี tunnel** — สร้างใหม่แล้วให้ compose รัน cloudflared ให้:
 
 1. Cloudflare → **Zero Trust** → **Networks** → **Tunnels** → **Create a tunnel** → เลือก **Cloudflared**
 2. ตั้งชื่อ `hop-edgexpert` → หน้าติดตั้งเลือก **Docker** → คัดลอก **โทเคน** (ข้อความยาวหลัง `--token`) — ไม่ต้องรันคำสั่งที่หน้านั้น compose รันให้แล้ว
 3. แท็บ **Public Hostname** → Add:
    - Subdomain `staging` · Domain `hopai.online`
    - Service Type `HTTP` · URL `web:8080`
+4. ใน `deploy/.env` ตั้ง `COMPOSE_PROFILES=tunnel` และใส่โทเคนที่ `CLOUDFLARE_TUNNEL_TOKEN`
 
 > ⚠️ โทเคนนี้คือกุญแจเข้าเว็บ — ใส่ใน `deploy/.env` บนเครื่องเท่านั้น อย่าวางในแชต/ส่งให้ใคร
 
@@ -100,6 +109,10 @@ chmod 600 deploy/.env
 ```
 
 รอขึ้น `✅ พร้อมใช้งาน` (ครั้งแรกนานหน่อยเพราะ build เว็บ) · ดู log: `docker compose -f deploy/docker-compose.yml logs -f --tail=100`
+
+> ⚠️ **หน่วยความจำ:** GB10 ใช้แรมร่วมกับ GPU — ถ้าโมเดล AI (เช่น ollama) จองแรมไว้เกือบหมด ขั้น build เว็บ (ใช้ราว 1–2GB) อาจล้ม
+> เช็คก่อนด้วย `free -h` (ช่อง available ควรเหลือ ≥ 4GB) และ `ollama ps` · ถ้าไม่พอให้ปลดโมเดลชั่วคราว `ollama stop <ชื่อโมเดล>` แล้วค่อย build
+> ตอนรันจริงเว็บ + API ใช้แรมรวมไม่ถึง 300MB
 
 ### 2.7 เช็คลิสต์ทดสอบที่ https://staging.hopai.online
 
@@ -133,7 +146,7 @@ chmod 600 deploy/.env
 ลำดับสำคัญ — ทำตามนี้ทีละข้อ:
 
 1. **Cloudflare DNS** → ลบ record `A`/`AAAA`/`CNAME` เดิมของ `hopai.online` และ `www` (ถ้ามี)
-2. **Tunnel → Public Hostname** เพิ่ม `hopai.online` → `HTTP` `web:8080` และ `www` → `HTTP` `web:8080`
+2. **Tunnel → Public Hostname** เพิ่ม `hopai.online` และ `www` → URL เดียวกับ staging (`localhost:8080` ถ้าใช้ tunnel เดิมของเครื่อง / `web:8080` ถ้าใช้ tunnel ใน compose)
 3. บนเครื่อง แก้ `deploy/.env`: `PUBLIC_APP_URL=https://hopai.online` · `INVITE_WEB_BASE=https://hopai.online` · `ENABLE_CRON=1` → `./deploy/deploy.sh --no-pull`
 4. เปิด https://hopai.online ทดสอบล็อกอินให้ผ่าน
 5. **Supabase** → URL Configuration → **Site URL** = `https://hopai.online`

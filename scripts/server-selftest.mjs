@@ -257,9 +257,10 @@ try {
 
   const compose = read('deploy/docker-compose.yml')
   check('compose ไม่มีค่าลับฝัง', !/(sk_live_|sk_test_|whsec_|eyJ[A-Za-z0-9_-]{20,})/.test(compose))
-  check('เว็บเปิดพอร์ตเฉพาะในเครื่อง (127.0.0.1) — ภายนอกเข้าผ่าน tunnel เท่านั้น', /"127\.0\.0\.1:8080:8080"/.test(compose) && !/^\s*-\s*"?(0\.0\.0\.0:)?\d+:\d+"?\s*$/m.test(compose))
+  check('เว็บเปิดพอร์ตเฉพาะในเครื่อง (127.0.0.1) — ภายนอกเข้าผ่าน tunnel เท่านั้น', /"127\.0\.0\.1:\$\{WEB_PORT:-8080\}:8080"/.test(compose) && !/^\s*-\s*"?(0\.0\.0\.0:)?\d+:\d+"?\s*$/m.test(compose))
   check('api ไม่เปิดพอร์ตออกนอก docker', !/api:[\s\S]*?ports:[\s\S]*?web:/.test(compose))
   const images = [...compose.matchAll(/image:\s*(\S+)/g), ...read('deploy/api.Dockerfile').matchAll(/^FROM\s+(\S+)/gm), ...read('deploy/web.Dockerfile').matchAll(/^FROM\s+(\S+)/gm)].map((m) => m[1])
+  check('tunnel ใน compose เปิดเฉพาะเมื่อเลือก (เครื่องที่มี cloudflared อยู่แล้วไม่ซ้อน)', /tunnel:\s*\n(?:\s*#.*\n)*\s*profiles: \["tunnel"\]/.test(compose) || /profiles: \["tunnel"\]\s*\n\s*image: cloudflare/.test(compose))
   check('ทุก image ระบุรุ่น (ไม่ใช้ :latest)', images.every((i) => /:[\w.-]+$/.test(i) && !i.endsWith(':latest')), images.join(', '))
 
   const dockerignore = read('.dockerignore')

@@ -21,8 +21,10 @@ docker compose build --pull
 docker compose up -d --remove-orphans
 docker image prune -f >/dev/null
 
+WEB_PORT="$(grep -E '^WEB_PORT=' .env | tail -1 | cut -d= -f2 | tr -d "'\" ")"
+WEB_PORT="${WEB_PORT:-8080}"
 for _ in $(seq 1 45); do
-  if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+  if curl -fsS "http://127.0.0.1:${WEB_PORT}/healthz" >/dev/null 2>&1; then
     echo "✅ พร้อมใช้งาน"
     docker compose ps
     exit 0
