@@ -52,6 +52,12 @@ SRC="$(realpath "${1:?ใช้: ./deploy/media-hls.sh <ไฟล์วิดี
 [ -f "$SRC" ] || { echo "❌ ไม่พบไฟล์ $SRC"; exit 1; }
 [ -f .env ] || { echo "❌ ไม่พบ deploy/.env"; exit 1; }
 mkdir -p "$OUT" 2>/dev/null || true
+if [ ! -w "$OUT" ]; then
+  # docker compose สร้างโฟลเดอร์ที่ต่อเข้าคอนเทนเนอร์ให้เองเป็นของ root (ถ้ายังไม่มีตอน up) — คืนสิทธิ์ด้วยคอนเทนเนอร์ชั่วคราว ไม่ต้อง sudo
+  echo "▶ $MEDIA เป็นของ root — คืนสิทธิ์ให้ $(id -un)"
+  docker run --rm -v "$MEDIA":/m alpine:3.22 chown -R "$(id -u):$(id -g)" /m
+  mkdir -p "$OUT"
+fi
 [ -w "$OUT" ] || { echo "❌ เขียน $OUT ไม่ได้ — แก้ด้วย: sudo chown -R $(id -u):$(id -g) $MEDIA"; exit 1; }
 
 # กุญแจ: ใช้ตัวเดิมถ้ามี (ชิ้นวิดีโอรุ่นก่อนที่ค้างในแคชยังเล่นได้) · ไม่มีก็สุ่มใหม่แล้วจดลง .env (สิทธิ์ 600)
