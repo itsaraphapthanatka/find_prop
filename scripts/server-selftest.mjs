@@ -327,6 +327,12 @@ try {
   const importSh = read('deploy/import-vercel-env.sh')
   check('import-vercel-env.sh ไม่พิมพ์ค่าออกจอ (ไม่มี cat ไฟล์ env มาที่ stdout)', !/cat "\$TMP\/(vercel|import)\.env"(?!\s*>)/.test(importSh) && /trap 'rm -rf "\$TMP"' EXIT/.test(importSh))
   check('import-vercel-env.sh ส่งค่าผ่าน stdin ของ ssh (ไม่ใส่ในคำสั่ง — คนอื่นในเครื่องเห็นผ่าน ps ได้)', /ssh "\$HOST" "\$REMOTE" < "\$TMP\/import\.env"/.test(importSh))
+  const setSh = read('deploy/set-remote-env.sh'), mergeSh = read('deploy/merge-env.remote.sh')
+  check('set-remote-env.sh พิมพ์ค่าแบบซ่อน (read -s) และไม่ echo ค่าออกจอ', /read -r -s/.test(setSh) && !/echo[^\n]*\$VAL/.test(setSh))
+  check('set-remote-env.sh ส่งค่าทาง stdin ของ ssh (printf builtin → ไม่โผล่ใน ps)', /printf "%s='%s'\\n" "\$KEY" "\$VAL" \| ssh "\$HOST"/.test(setSh))
+  check('set-remote-env.sh / import ใช้ตัวรวม .env ตัวเดียวกัน (merge-env.remote.sh)', setSh.includes('deploy/merge-env.remote.sh') && importSh.includes('deploy/merge-env.remote.sh'))
+  check('merge-env: สำรองก่อนแก้ + สิทธิ์ 600 + เก็บสำรองแค่ 5 ไฟล์ล่าสุด', /cp \.env "\$BAK" && chmod 600 "\$BAK"/.test(mergeSh) && /chmod 600 \.env/.test(mergeSh) && /tail -n \+6/.test(mergeSh))
+  check('merge-env: บอกแค่ชื่อค่าที่เปลี่ยน ไม่พิมพ์ค่า', /cut -d= -f1 \.env\.import/.test(mergeSh) && !/cat \.env/.test(mergeSh))
 
   // cron: เครื่องใหม่ต้องยิงเวลาเดียวกับ Vercel และตัวส่งต่อห้ามมี cron (แจ้งเตือนซ้ำ)
   const serverSrc = read('server/index.mjs')

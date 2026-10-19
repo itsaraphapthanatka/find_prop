@@ -25,22 +25,6 @@ vercel env pull "$TMP/vercel.env" --environment=production --yes >/dev/null 2>"$
 node deploy/vercel-env-to-compose.mjs "$TMP/vercel.env" deploy/.env.example > "$TMP/import.env"
 
 echo "▶ ส่งเข้า ~/hop/deploy/.env บน $HOST"
-REMOTE=$(cat <<'EOS'
-set -e
-cd ~/hop/deploy
-[ -f .env ] || { echo "❌ ไม่พบ ~/hop/deploy/.env — cp .env.example .env ก่อน"; exit 1; }
-umask 077
-cat > .env.import
-BAK=".env.bak-$(date +%Y%m%d-%H%M%S)"
-cp .env "$BAK" && chmod 600 "$BAK"
-awk 'NR==FNR { i = index($0, "="); if (i > 1) v[substr($0, 1, i - 1)] = substr($0, i + 1); next }
-     { if (match($0, /^[A-Z0-9_]+=/)) { k = substr($0, 1, RLENGTH - 1); if (k in v) { print k "=" v[k]; done[k] = 1; next } } print }
-     END { for (k in v) if (!(k in done)) print k "=" v[k] }' .env.import .env > .env.new
-mv .env.new .env
-chmod 600 .env
-rm -f .env.import
-echo "✅ อัปเดต .env แล้ว (ของเดิมสำรองไว้ที่ deploy/$BAK)"
-EOS
-)
+REMOTE="$(cat deploy/merge-env.remote.sh)"
 ssh "$HOST" "$REMOTE" < "$TMP/import.env"
 echo "ต่อไป: ssh $HOST 'cd ~/hop && ./deploy/deploy.sh'"

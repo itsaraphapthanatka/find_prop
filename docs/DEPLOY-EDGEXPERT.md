@@ -88,6 +88,16 @@ nano deploy/.env
 chmod 600 deploy/.env
 ```
 
+**ตั้งค่าทีละตัวจาก Mac** (ไม่แสดงค่า · ไม่ต้องเปิด nano · เหมาะกับ JSON ยาวๆ):
+
+```bash
+./deploy/set-remote-env.sh SMTP_PASS                                  # พิมพ์เอง (ตัวอักษรไม่แสดง)
+./deploy/set-remote-env.sh FCM_SERVICE_ACCOUNT ~/Downloads/key.json   # จากไฟล์ JSON (ย่อเป็นบรรทัดเดียวให้)
+./deploy/set-remote-env.sh CRON_SECRET --random                       # สุ่มใหม่
+```
+
+แล้วรัน `ssh ssh.appreview.cloud 'cd ~/hop && ./deploy/deploy.sh --no-pull'` ให้มีผล
+
 **ทางลัด — ดึงจาก Vercel อัตโนมัติ** (รันบน Mac ที่รากโปรเจกต์ · ไม่แสดงค่าออกจอ · ส่งเข้าเครื่องทาง SSH ตรงๆ):
 
 ```bash
