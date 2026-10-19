@@ -9,7 +9,8 @@ HOST="${1:-ssh.appreview.cloud}"
 cd "$(dirname "$0")/.."
 
 command -v vercel >/dev/null || { echo "❌ ไม่พบ vercel CLI — brew install vercel-cli"; exit 1; }
-[ -f .vercel/project.json ] || { echo "❌ ยังไม่ได้ผูกโปรเจกต์ — รัน: vercel login แล้ว vercel link"; exit 1; }
+# vercel link เก็บการผูกได้ 2 แบบ: project.json (ผูกโฟลเดอร์) หรือ repo.json (โหมด "linked by git")
+[ -f .vercel/project.json ] || [ -f .vercel/repo.json ] || { echo "❌ ยังไม่ได้ผูกโปรเจกต์ — รัน: vercel login แล้ว vercel link"; exit 1; }
 
 TMP="$(mktemp -d)"
 chmod 700 "$TMP"
