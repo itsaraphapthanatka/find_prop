@@ -88,6 +88,16 @@ nano deploy/.env
 chmod 600 deploy/.env
 ```
 
+**ทางลัด — ดึงจาก Vercel อัตโนมัติ** (รันบน Mac ที่รากโปรเจกต์ · ไม่แสดงค่าออกจอ · ส่งเข้าเครื่องทาง SSH ตรงๆ):
+
+```bash
+vercel login          # ครั้งแรกครั้งเดียว (เปิดเบราว์เซอร์ให้ล็อกอินเอง)
+vercel link           # ครั้งแรกครั้งเดียว — เลือกโปรเจกต์ของ hob-alpha.vercel.app
+./deploy/import-vercel-env.sh
+```
+
+สคริปต์บอกชื่อค่าที่นำเข้าได้ / ค่าที่ Vercel ให้มาเป็นค่าว่าง (ตั้งเป็น Sensitive — ต้องกรอกเอง) · ไม่ทับค่าของเครื่อง (`WEB_PORT`, `PUBLIC_APP_URL`, `INVITE_WEB_BASE`, `ENABLE_CRON`, tunnel) · สำรอง `.env` เดิมเป็น `.env.bak-<เวลา>` ทุกครั้ง
+
 - ค่าส่วนใหญ่ใช้ชุดเดียวกับ **Vercel → Settings → Environment Variables (Production)**
 - ตัวที่ Vercel ตั้งเป็น *Sensitive* จะเปิดดูไม่ได้ ให้เอาจากต้นทาง: Supabase (service role) · Stripe (secret key — ถ้าไม่ได้เก็บไว้ ให้สร้างคีย์ใหม่ได้ คีย์เดิมยังใช้ได้คู่กัน · webhook secret เปิดดูได้เสมอ) · Gmail App Password (สร้างใหม่ได้)
 - `CRON_SECRET` สุ่มใหม่ได้: `openssl rand -hex 32`

@@ -17,3 +17,5 @@ scratch-shots/
 
 # ค่าลับของเครื่อง msi-edgexpert-04dc (ดู deploy/.env.example)
 deploy/.env
+deploy/.env.*
+!deploy/.env.example

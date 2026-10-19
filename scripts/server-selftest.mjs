@@ -294,6 +294,32 @@ try {
   check('.dockerignore ไม่ตัด android/app/build.gradle (update-zip อ่าน versionName)', !/^android\/?$|^android\/\*\*?$|^android\/app\/?$/m.test(dockerignore))
   check('deploy/.env อยู่ใน .gitignore', spawnSync('git', ['check-ignore', '-q', 'deploy/.env']).status === 0)
 
+  check('ไฟล์สำรอง deploy/.env.bak-* ไม่เข้า git', spawnSync('git', ['check-ignore', '-q', 'deploy/.env.bak-20261019-120000']).status === 0)
+  check('deploy/.env.example ยังอยู่ใน git', spawnSync('git', ['check-ignore', '-q', 'deploy/.env.example']).status !== 0)
+
+  // นำเข้า env จาก Vercel (deploy/import-vercel-env.sh → vercel-env-to-compose.mjs)
+  const { convert, BOX_ONLY } = await import('../deploy/vercel-env-to-compose.mjs')
+  const fakeVercel = [
+    '# Created by Vercel CLI', 'VERCEL="1"', 'VERCEL_ENV="production"',
+    'STRIPE_SECRET_KEY="fake_value"', 'SUPABASE_SERVICE_ROLE_KEY=""', 'SMTP_PASS="a$b$c"',
+    'FCM_SERVICE_ACCOUNT="{"type":"service_account","private_key":"-----BEGIN-----\\nAAA\\n-----END-----\\n"}"', // \\n = แบ็กสแลช+n ตรงตัวแบบที่ Vercel เขียน
+    'AI_MODEL="it\'s"', 'PUBLIC_APP_URL="https://hob-alpha.vercel.app"', 'ENABLE_CRON="1"',
+  ].join('\n')
+  const conv = convert(fakeVercel, envExample)
+  const line = (k) => conv.lines.find((l) => l.startsWith(`${k}=`))
+  check('นำเข้า: ครอบ \'...\' (compose ไม่แปล $)', line('SMTP_PASS') === "SMTP_PASS='a$b$c'")
+  check('นำเข้า: JSON ของ FCM คง \\n ตรงตัว (JSON.parse แล้วได้ private_key หลายบรรทัด)', (() => {
+    const v = line('FCM_SERVICE_ACCOUNT')?.slice('FCM_SERVICE_ACCOUNT='.length + 1, -1)
+    try { return JSON.parse(v).private_key.split('\n').length === 4 } catch { return false }
+  })())
+  check('นำเข้า: ค่าว่าง (Sensitive) ไม่ทับค่าที่กรอกเองบนเครื่อง', conv.empty.includes('SUPABASE_SERVICE_ROLE_KEY') && !line('SUPABASE_SERVICE_ROLE_KEY'))
+  check('นำเข้า: ค่าที่มี \' ให้กรอกเอง (ครอบ \'...\' ไม่ได้)', conv.manual.includes('AI_MODEL') && !line('AI_MODEL'))
+  check('นำเข้า: ไม่ทับค่าของเครื่อง (PUBLIC_APP_URL, ENABLE_CRON ฯลฯ)', !line('PUBLIC_APP_URL') && !line('ENABLE_CRON') && BOX_ONLY.has('WEB_PORT'))
+  check('นำเข้า: ไม่ลาก VERCEL_* มาด้วย', !conv.lines.some((l) => l.startsWith('VERCEL')))
+  const importSh = read('deploy/import-vercel-env.sh')
+  check('import-vercel-env.sh ไม่พิมพ์ค่าออกจอ (ไม่มี cat ไฟล์ env มาที่ stdout)', !/cat "\$TMP\/(vercel|import)\.env"(?!\s*>)/.test(importSh) && /trap 'rm -rf "\$TMP"' EXIT/.test(importSh))
+  check('import-vercel-env.sh ส่งค่าผ่าน stdin ของ ssh (ไม่ใส่ในคำสั่ง — คนอื่นในเครื่องเห็นผ่าน ps ได้)', /ssh "\$HOST" "\$REMOTE" < "\$TMP\/import\.env"/.test(importSh))
+
   // cron: เครื่องใหม่ต้องยิงเวลาเดียวกับ Vercel และตัวส่งต่อห้ามมี cron (แจ้งเตือนซ้ำ)
   const serverSrc = read('server/index.mjs')
   for (const c of vercel.crons || []) {
