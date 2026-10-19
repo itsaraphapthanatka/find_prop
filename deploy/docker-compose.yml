@@ -18,6 +18,8 @@ services:
     env_file: .env
     environment:
       PORT: "3000"
+      # deploy.sh ใส่ลายนิ้วมือของ .env — .env เปลี่ยน = api ถูกสร้างใหม่ให้อ่านค่าล่าสุด
+      HOP_ENV_HASH: ${HOP_ENV_HASH:-}
     # เครื่องใช้ร่วมกับบริการอื่น — จำกัดไว้ไม่ให้ HOP กินแรมคนอื่น (ใช้จริงราว 100MB)
     mem_limit: 512m
     restart: unless-stopped

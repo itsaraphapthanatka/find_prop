@@ -24,9 +24,12 @@ if [ "$PULL_GIT" = 1 ]; then
   git -C .. pull --ff-only
 fi
 
-export GIT_SHA HOP_TAG
+export GIT_SHA HOP_TAG HOP_ENV_HASH
 GIT_SHA="$(git -C .. rev-parse HEAD)"
 HOP_TAG="$GIT_SHA"
+# ลายนิ้วมือของ .env (ไม่รวมบรรทัด HOP_TAG) — ส่งเข้า api เป็น env → แก้ .env เมื่อไร compose เห็นว่าค่าเปลี่ยน
+# และสร้างคอนเทนเนอร์ใหม่แน่นอน (ไม่ต้องพึ่งการตรวจจับ env_file ของ compose — เคยค้างค่าเก่าหลัง set-remote-env)
+HOP_ENV_HASH="$(grep -v '^HOP_TAG=' .env | sha256sum | cut -c1-16)"
 
 if [ "$MODE" = build ]; then
   echo "▶ build ในเครื่อง commit ${GIT_SHA:0:7}"

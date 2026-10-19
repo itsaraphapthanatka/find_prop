@@ -282,6 +282,7 @@ try {
   const composeBuild = read('deploy/docker-compose.build.yml')
   check('compose หลักไม่มีส่วน build (คำสั่ง compose ใดๆ ไม่ build บนเครื่องเอง — แรมไม่พอ)', !/^\s+build:/m.test(compose))
   check('build เองได้ผ่านไฟล์แยก docker-compose.build.yml (deploy.sh --build)', /api:\s*\n\s+build:/.test(composeBuild) && /web:\s*\n\s+build:/.test(composeBuild) && deploySh.includes('-f docker-compose.build.yml'))
+  check('แก้ .env แล้ว deploy.sh สร้าง api ใหม่แน่นอน (HOP_ENV_HASH)', /HOP_ENV_HASH="\$\(grep -v '\^HOP_TAG=' \.env \| sha256sum/.test(deploySh) && compose.includes('HOP_ENV_HASH: ${HOP_ENV_HASH:-}'))
   check('deploy.sh จดแท็กที่ deploy ลง .env (คำสั่ง compose ที่พิมพ์เองใช้ image เดียวกัน)', /echo "HOP_TAG=\$HOP_TAG"/.test(deploySh) && /chmod 600 \.env/.test(deploySh))
   check('CI build บน runner ARM64 แบบ native', /runs-on: ubuntu-24\.04-arm/.test(wf) && (wf.match(/platforms: linux\/arm64/g) || []).length === 2)
   check('CI ติดแท็ก commit sha ให้ทั้งสอง image (deploy.sh ดึงตาม commit)',

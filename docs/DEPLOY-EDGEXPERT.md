@@ -96,7 +96,7 @@ chmod 600 deploy/.env
 ./deploy/set-remote-env.sh CRON_SECRET --random                       # สุ่มใหม่
 ```
 
-แล้วรัน `ssh ssh.appreview.cloud 'cd ~/hop && ./deploy/deploy.sh --no-pull'` ให้มีผล
+แล้วรัน `ssh ssh.appreview.cloud 'cd ~/hop && ./deploy/deploy.sh --no-pull'` ให้มีผล (deploy.sh สร้าง api ใหม่ทุกครั้งที่ `.env` เปลี่ยน)
 
 **ทางลัด — ดึงจาก Vercel อัตโนมัติ** (รันบน Mac ที่รากโปรเจกต์ · ไม่แสดงค่าออกจอ · ส่งเข้าเครื่องทาง SSH ตรงๆ):
 
