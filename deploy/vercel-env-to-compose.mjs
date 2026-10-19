@@ -7,6 +7,10 @@
 // แล้วครอบด้วย '...' ซึ่ง compose อ่านตรงตัว (ไม่แปล $ ไม่แปล \n)
 import fs from 'node:fs'
 
+// ตัวแปรที่ตั้งเป็น Sensitive ใน Vercel: CLI รุ่นเก่าคืนค่าว่าง รุ่นใหม่ (≥ 64) คืนข้อความแทนที่ "[SENSITIVE]"
+// — ทั้งสองแบบแปลว่า "ดึงค่าจริงไม่ได้" ห้ามเอาไปทับค่าบนเครื่อง (เคยทับจน API ใช้ไม่ได้ 2026-10-19)
+export const isPlaceholder = (v) => v === '' || /^\[[A-Z_ ]{3,20}\]$/.test(v)
+
 // ค่าที่เป็นของเครื่องนี้ (ช่วง staging/ย้ายจริงตั้งต่างจาก Vercel) — ไม่ทับ
 export const BOX_ONLY = new Set(['WEB_PORT', 'COMPOSE_PROFILES', 'CLOUDFLARE_TUNNEL_TOKEN', 'ENABLE_CRON', 'PUBLIC_APP_URL', 'INVITE_WEB_BASE'])
 
@@ -24,7 +28,7 @@ export function convert(vercelText, exampleText) {
   for (const key of wanted) {
     if (!found.has(key)) { missing.push(key); continue }
     const v = found.get(key)
-    if (v === '') { empty.push(key); continue }
+    if (isPlaceholder(v)) { empty.push(key); continue }
     if (v.includes("'") || v.includes('\r')) { manual.push(key); continue }
     if (v.trimStart().startsWith('{')) {
       try { JSON.parse(v) } catch { manual.push(key); continue } // JSON หลายบรรทัด → Vercel ทำให้กำกวม กรอกเองปลอดภัยกว่า
@@ -43,9 +47,12 @@ if (isMain) {
   process.stdout.write(r.lines.join('\n') + (r.lines.length ? '\n' : ''))
   const say = (icon, title, keys) => keys.length && console.error(`${icon} ${title}: ${keys.join(', ')}`)
   say('✅', 'นำเข้า', r.imported)
-  say('⬜', 'ใน Vercel เป็นค่าว่าง (น่าจะตั้งเป็น Sensitive) — กรอกเองบนเครื่อง', r.empty)
+  say('⬜', 'Vercel ไม่ยอมให้ดึง (ตั้งเป็น Sensitive) — กรอกเองบนเครื่อง', r.empty)
   say('✍️', 'รูปแบบพิเศษ (มี \' หรือ JSON หลายบรรทัด) — กรอกเองบนเครื่อง', r.manual)
   say('➖', 'ไม่มีใน Vercel (ไม่ใช้ก็ปล่อยว่างได้)', r.missing)
   console.error(`ไม่ทับค่าของเครื่อง: ${[...BOX_ONLY].join(', ')}`)
-  if (!r.lines.length) process.exit(1)
+  if (!r.lines.length) {
+    console.error('❌ ไม่มีค่าที่ดึงได้จริงเลย — ไม่แตะ .env บนเครื่อง (ต้องกรอกเองด้วย nano)')
+    process.exit(1)
+  }
 }

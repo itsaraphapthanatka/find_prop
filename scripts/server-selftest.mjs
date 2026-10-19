@@ -304,6 +304,7 @@ try {
     'STRIPE_SECRET_KEY="fake_value"', 'SUPABASE_SERVICE_ROLE_KEY=""', 'SMTP_PASS="a$b$c"',
     'FCM_SERVICE_ACCOUNT="{"type":"service_account","private_key":"-----BEGIN-----\\nAAA\\n-----END-----\\n"}"', // \\n = แบ็กสแลช+n ตรงตัวแบบที่ Vercel เขียน
     'AI_MODEL="it\'s"', 'PUBLIC_APP_URL="https://hob-alpha.vercel.app"', 'ENABLE_CRON="1"',
+    'AI_API_KEY="[SENSITIVE]"', // Vercel CLI ≥ 64 คืนข้อความนี้แทนค่าจริงของตัวแปร Sensitive
   ].join('\n')
   const conv = convert(fakeVercel, envExample)
   const line = (k) => conv.lines.find((l) => l.startsWith(`${k}=`))
@@ -313,6 +314,9 @@ try {
     try { return JSON.parse(v).private_key.split('\n').length === 4 } catch { return false }
   })())
   check('นำเข้า: ค่าว่าง (Sensitive) ไม่ทับค่าที่กรอกเองบนเครื่อง', conv.empty.includes('SUPABASE_SERVICE_ROLE_KEY') && !line('SUPABASE_SERVICE_ROLE_KEY'))
+  check('นำเข้า: "[SENSITIVE]" จาก Vercel CLI รุ่นใหม่ ไม่ทับค่าบนเครื่อง', conv.empty.includes('AI_API_KEY') && !line('AI_API_KEY'))
+  const allSensitive = convert('A="[SENSITIVE]"\nSTRIPE_SECRET_KEY="[SENSITIVE]"\nVITE_SUPABASE_URL="[SENSITIVE]"', envExample)
+  check('นำเข้า: ถ้าทุกค่าเป็น [SENSITIVE] → ไม่มีบรรทัดส่งไปเครื่องเลย (สคริปต์หยุดก่อน ssh)', allSensitive.lines.length === 0)
   check('นำเข้า: ค่าที่มี \' ให้กรอกเอง (ครอบ \'...\' ไม่ได้)', conv.manual.includes('AI_MODEL') && !line('AI_MODEL'))
   check('นำเข้า: ไม่ทับค่าของเครื่อง (PUBLIC_APP_URL, ENABLE_CRON ฯลฯ)', !line('PUBLIC_APP_URL') && !line('ENABLE_CRON') && BOX_ONLY.has('WEB_PORT'))
   check('นำเข้า: ไม่ลาก VERCEL_* มาด้วย', !conv.lines.some((l) => l.startsWith('VERCEL')))

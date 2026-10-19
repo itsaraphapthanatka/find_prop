@@ -96,7 +96,9 @@ vercel link           # ครั้งแรกครั้งเดียว �
 ./deploy/import-vercel-env.sh
 ```
 
-สคริปต์บอกชื่อค่าที่นำเข้าได้ / ค่าที่ Vercel ให้มาเป็นค่าว่าง (ตั้งเป็น Sensitive — ต้องกรอกเอง) · ไม่ทับค่าของเครื่อง (`WEB_PORT`, `PUBLIC_APP_URL`, `INVITE_WEB_BASE`, `ENABLE_CRON`, tunnel) · สำรอง `.env` เดิมเป็น `.env.bak-<เวลา>` ทุกครั้ง
+> ⚠️ ใช้ได้เฉพาะตัวแปรที่**ไม่ได้**ตั้งเป็น Sensitive ใน Vercel — โปรเจกต์ finprop ตั้งเป็น Sensitive ทุกตัว (CLI ส่ง `[SENSITIVE]` แทนค่าจริง) จึงต้องกรอกเองด้วย nano · สคริปต์ตรวจจับแล้วจะไม่ทับค่าบนเครื่อง
+
+สคริปต์บอกชื่อค่าที่นำเข้าได้ / ค่าที่ Vercel ไม่ยอมให้ดึง (Sensitive — ต้องกรอกเอง) · ไม่ทับค่าของเครื่อง (`WEB_PORT`, `PUBLIC_APP_URL`, `INVITE_WEB_BASE`, `ENABLE_CRON`, tunnel) · สำรอง `.env` เดิมเป็น `.env.bak-<เวลา>` ทุกครั้ง
 
 - ค่าส่วนใหญ่ใช้ชุดเดียวกับ **Vercel → Settings → Environment Variables (Production)**
 - ตัวที่ Vercel ตั้งเป็น *Sensitive* จะเปิดดูไม่ได้ ให้เอาจากต้นทาง: Supabase (service role) · Stripe (secret key — ถ้าไม่ได้เก็บไว้ ให้สร้างคีย์ใหม่ได้ คีย์เดิมยังใช้ได้คู่กัน · webhook secret เปิดดูได้เสมอ) · Gmail App Password (สร้างใหม่ได้)
