@@ -8,7 +8,7 @@ import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/native'
 import {
   fetchReferralSetting, DEFAULT_REFERRAL, onTrial,
-  activeExtraSeats, baseSeats, effectivePlan, seatLimit, seatShortfall,
+  activeExtraSeats, baseSeats, effectivePlan, seatLimit, seatShortfall, seatBlock,
 } from '../lib/plan'
 import { DEFAULT_SEAT_SETTING, fetchSeatSetting, type SeatSetting } from '../lib/payments'
 
@@ -477,12 +477,15 @@ export default function TeamPage() {
             )}
             {seat.limit !== null && (
               <div className="org-row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
-                <Link
-                  className={`btn ${seatFull ? 'primary' : ''}`}
-                  to={seatOver > 0 ? `/upgrade?seats=${seatOver}#seats` : '/upgrade#seats'}
-                >
-                  ซื้อที่นั่งเพิ่ม{seatOver > 0 && ` ${seatOver} ที่นั่ง`}
-                </Link>
+                {/* ที่นั่งเพิ่มผูกกับแพ็กเกจที่จ่ายเงิน — Free/ทดลอง/หมดอายุ/ตั้งยกเลิก ซื้อไม่ได้ เหลือแค่ปุ่มอัปเกรด */}
+                {!seatBlock(org) && (
+                  <Link
+                    className={`btn ${seatFull ? 'primary' : ''}`}
+                    to={seatOver > 0 ? `/upgrade?seats=${seatOver}#seats` : '/upgrade#seats'}
+                  >
+                    ซื้อที่นั่งเพิ่ม{seatOver > 0 && ` ${seatOver} ที่นั่ง`}
+                  </Link>
+                )}
                 <Link className="btn" to="/upgrade">อัปเกรดแพ็กเกจ</Link>
               </div>
             )}
@@ -502,7 +505,9 @@ export default function TeamPage() {
             }}>
               {seatFree
                 ? <>🔒 แพ็กเกจ Free ไม่รองรับลูกทีม — อัปเกรดเป็น Basic/Pro เพื่อเพิ่มทีม</>
-                : <>🔒 ที่นั่งเต็ม (ใช้ {seat?.used} จาก {seat?.limit}) — <Link to="/upgrade#seats">ซื้อที่นั่งเพิ่ม</Link> หรืออัปเกรดระดับแพ็กเกจ</>}
+                : seatBlock(org)
+                  ? <>🔒 ที่นั่งเต็ม (ใช้ {seat?.used} จาก {seat?.limit}) — <Link to="/upgrade">ต่ออายุ/อัปเกรดแพ็กเกจ</Link> ก่อนซื้อที่นั่งเพิ่ม</>
+                  : <>🔒 ที่นั่งเต็ม (ใช้ {seat?.used} จาก {seat?.limit}) — <Link to="/upgrade#seats">ซื้อที่นั่งเพิ่ม</Link> หรืออัปเกรดระดับแพ็กเกจ</>}
             </div>
           )}
           <p className="plan-line" style={{ marginTop: 0, marginBottom: 10 }}>

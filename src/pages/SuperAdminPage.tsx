@@ -73,6 +73,8 @@ export default function SuperAdminPage() {
   const [error, setError] = useState<string | null>(null)
   // ค่าที่แก้ค้างไว้ต่อองค์กร (ยังไม่บันทึก)
   const [edits, setEdits] = useState<Record<string, { plan: string; sub_expires_at: string }>>({})
+  // ID องค์กร — ทีมงานใช้ใส่ metadata org_id ของลูกค้า Stripe ตอนทำ Quote ดีล Enterprise
+  const [copiedId, setCopiedId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [enteringId, setEnteringId] = useState<string | null>(null)
   const [fOrg, setFOrg] = useState<string | null>(null)
@@ -1254,7 +1256,13 @@ export default function SuperAdminPage() {
                           <span className="tag org">กำลังใช้สิทธิ์</span>
                         )}
                         <div className="td-sub">
-                          สร้าง {formatDate(o.created_at)} · คลิกชื่อเพื่อเข้าใช้สิทธิ์แทน
+                          สร้าง {formatDate(o.created_at)} · คลิกชื่อเพื่อเข้าใช้สิทธิ์แทน ·{' '}
+                          <button
+                            type="button" className="linklike" title={o.id}
+                            onClick={() => { void navigator.clipboard.writeText(o.id).then(() => setCopiedId(o.id)) }}
+                          >
+                            {copiedId === o.id ? 'คัดลอก ID แล้ว ✓' : 'คัดลอก ID'}
+                          </button>
                         </div>
                       </td>
                       <td data-label="สมาชิก">{o.member_count}</td>

@@ -12,9 +12,13 @@
 
 import { cors, requireOrgOwner, patchOrg } from './_lib/auth.js'
 import {
-  stripeClient, appUrl, ensurePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
-  finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription,
+  stripeClient, appUrl, ensurePrice, samePrice, ensureCustomer, findLiveSubscription, applyInvoice, syncFromStripe, openInvoiceUrl,
+  finalizeIfDraft, discardIfNeverPaid, startInvoiceSubscription, expireOpenCheckouts, ensurePortalConfig, resumeSeatsWithPlan,
+  findLiveEnterprise,
 } from './_lib/stripe.js'
+import { seatPurchaseBlock, enterpriseActive } from './_lib/plan.js'
+
+const ENTERPRISE_LOCKED = 'องค์กรนี้ใช้แพ็กเกจ Enterprise (ดีลกับทีมงาน) — ถ้าต้องการเปลี่ยนแพ็กเกจ ติดต่อทีมงาน'
 import { fetchPlanPrices, TIERS } from './_lib/prices.js'
 import { fetchSeatPrice, MAX_SEAT_QTY } from './_lib/seats.js'
 import { promptpayEnabled } from './_lib/settings.js'
@@ -70,6 +74,8 @@ async function checkout(req, res, stripe, a, body) {
   let qty = 1
   let amount
   if (kind === 'plan') {
+    // Enterprise เปลี่ยนเป็น Basic/Pro เองไม่ได้ — ไม่งั้นไปแก้ราคาใน subscription ของดีล (หน้าเว็บซ่อนปุ่มอยู่แล้ว ที่นี่บังคับซ้ำ)
+    if (enterpriseActive(a.org)) return res.status(409).json({ error: ENTERPRISE_LOCKED })
     plan = body.plan
     tier = Number(body.tier)
     if (!['starter', 'pro'].includes(plan)) return res.status(400).json({ error: 'แพ็กเกจไม่ถูกต้อง (starter|pro)' })
@@ -79,6 +85,9 @@ async function checkout(req, res, stripe, a, body) {
     const p = (await fetchPlanPrices(a.s.url, a.s.anonKey))[plan][tier]
     amount = cycle === 'yearly' ? p.yearly : p.monthly
   } else {
+    // ที่นั่งเพิ่มผูกกับแพ็กเกจที่จ่ายเงิน — Free/ทดลองใช้/แพ็กเกจหมดหรือตั้งยกเลิกไว้ ซื้อไม่ได้ (หน้าเว็บซ่อนปุ่มอยู่แล้ว ที่นี่บังคับซ้ำ)
+    const blocked = seatPurchaseBlock(a.org)
+    if (blocked) return res.status(409).json({ error: blocked })
     // qty = จำนวนที่นั่งเพิ่ม "ทั้งหมด" ที่ต้องการ (subscription เดียว ปรับจำนวนได้)
     qty = Math.floor(Number(body.qty))
     if (!(qty >= 1 && qty <= MAX_SEAT_QTY)) {
@@ -88,8 +97,16 @@ async function checkout(req, res, stripe, a, body) {
     amount = cycle === 'yearly' ? sp.yearly : sp.monthly
   }
 
-  const priceId = await ensurePrice(stripe, { kind, plan, tier, cycle, amount })
+  const price = await ensurePrice(stripe, { kind, plan, tier, cycle, amount })
+  const priceId = price.id
   const customer = await ensureCustomer(stripe, a)
+  // ดีล Enterprise ที่ยอมรับ Quote แล้วแต่ยังไม่จ่ายใบแรก (องค์กรยังไม่เป็น enterprise ในระบบ) ก็ห้ามเหมือนกัน
+  if (kind === 'plan' && await findLiveEnterprise(stripe, a.s, customer, a.orgId)) {
+    return res.status(409).json({ error: ENTERPRISE_LOCKED })
+  }
+  // ปิดหน้าจ่ายบัตรที่เปิดค้างไว้แท็บอื่นก่อนทุกครั้ง (จ่ายครบทั้งสองแท็บ = subscription ซ้ำ ตัดเงินสองทาง)
+  // ทำก่อนแยกทาง: มี subscription แล้วแต่ยังมีแท็บ Checkout ค้าง ก็จ่ายซ้อนได้เหมือนกัน
+  await expireOpenCheckouts(stripe, customer, kind)
   let live = await findLiveSubscription(stripe, customer, kind)
   // เคยกดจ่าย PromptPay แต่ไม่ได้สแกนจ่ายเลย → ทิ้งของค้าง เริ่มใหม่ (จะเลือกบัตรหรือ PromptPay รอบนี้ก็ได้)
   if (live && await discardIfNeverPaid(stripe, live)) live = null
@@ -110,7 +127,8 @@ async function checkout(req, res, stripe, a, body) {
     }
     const item = live.items.data[0]
     const scheduledCancel = Boolean(live.cancel_at_period_end || live.cancel_at)
-    const same = item.price.id === priceId && (item.quantity ?? 1) === qty
+    // เทียบตามความหมาย (แพ็กเกจ/ระดับ/รอบ/ยอด) — ลูกค้าเดิมอาจยังอยู่บน Price เก่าก่อนย้าย Product
+    const same = samePrice(item.price, price) && (item.quantity ?? 1) === qty
 
     if (same && !scheduledCancel) {
       return res.status(409).json({
@@ -119,8 +137,15 @@ async function checkout(req, res, stripe, a, body) {
     }
     // เคยกดยกเลิกต่ออายุไว้ → กดซื้ออีกครั้ง = กลับมาต่ออายุตามเดิม
     if (scheduledCancel) {
-      await stripe.subscriptions.update(live.id, live.cancel_at_period_end ? { cancel_at_period_end: false } : { cancel_at: '' })
-      if (kind === 'plan') await patchOrg(a.s, a.orgId, { sub_cancel_at_period_end: false })
+      // ล้างป้าย "ยกเลิกตามแพ็กเกจ" ด้วย — ต่ออายุเองแล้ว ภายหลังลูกค้ากดยกเลิกเองระบบจะได้ไม่ดึงกลับมา
+      await stripe.subscriptions.update(live.id, {
+        ...(live.cancel_at_period_end ? { cancel_at_period_end: false } : { cancel_at: '' }),
+        ...(live.metadata?.hop_cancel_with_plan ? { metadata: { hop_cancel_with_plan: '' } } : {}),
+      })
+      if (kind === 'plan') {
+        await patchOrg(a.s, a.orgId, { sub_cancel_at_period_end: false })
+        await resumeSeatsWithPlan(stripe, customer) // ที่นั่งที่ระบบตั้งยกเลิกตามแพ็กเกจ → กลับมาต่ออายุด้วย
+      }
       if (same) return res.status(200).json({ updated: true, resumed: true, kind })
     }
 
@@ -219,7 +244,9 @@ async function confirm(res, stripe, a, body) {
   if (!invoiceId) return res.status(200).json({ paid: false, status: 'no-invoice', kind })
   const invoice = await stripe.invoices.retrieve(invoiceId)
   const r = await applyInvoice(stripe, a.s, invoice, a.orgId)
-  return res.status(200).json({ paid: r.paid, applied: r.applied, expires: r.expires ?? null, kind, qty: r.qty ?? null })
+  return res.status(200).json({
+    paid: r.paid, applied: r.applied, duplicate: r.duplicate === true, expires: r.expires ?? null, kind, qty: r.qty ?? null,
+  })
 }
 
 /** ใบแจ้งหนี้ PromptPay: ต้องเป็นของ subscription ขององค์กรนี้ · ยังไม่จ่าย = บอกสถานะ (open/void) */
@@ -240,8 +267,14 @@ async function portal(req, res, stripe, a, body) {
   const customer = a.org.stripe_customer_id
   if (!customer) return res.status(400).json({ error: 'องค์กรนี้ยังไม่เคยชำระเงินผ่านบัตร' })
   const base = appUrl(req)
+  // configuration ของ HOP (ปิดเปลี่ยนแพ็กเกจใน Portal) — สร้างไม่สำเร็จ = ใช้ Default ใน Dashboard ไปก่อน ปุ่มยังใช้ได้
+  const configuration = await ensurePortalConfig(stripe).catch((e) => {
+    console.error('[stripe] portal configuration', e?.raw?.message || e?.message || e)
+    return undefined
+  })
   const session = await stripe.billingPortal.sessions.create({
     customer,
+    configuration,
     locale: 'th',
     return_url: body.native === true ? `${base}/pay-done.html?s=portal` : `${base}/#/upgrade`,
   })

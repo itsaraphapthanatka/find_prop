@@ -52,6 +52,30 @@ export function seatShortfall(used: number, limit: number | null): number {
   return Math.max(0, used - limit)
 }
 
+/**
+ * องค์กรใช้แพ็กเกจ Enterprise อยู่ (ดีลผ่านทีมงาน) — ตรงกับ enterpriseActive ใน api/_lib/plan.js
+ * true = สมัคร/เปลี่ยน Basic/Pro เองไม่ได้ ต้องติดต่อทีมงาน · หมดอายุแล้ว = false (กลับมาเลือกเองได้)
+ */
+export function enterpriseActive(org?: Organization | null): boolean {
+  if (org?.plan !== 'enterprise' || org.sub_status !== 'active') return false
+  return !org.sub_expires_at || org.sub_expires_at >= new Date().toISOString().slice(0, 10)
+}
+
+/**
+ * ซื้อ/ปรับที่นั่งเพิ่มไม่ได้เพราะอะไร (null = ซื้อได้) — ตรงกับ seatPurchaseBlock ใน api/_lib/plan.js
+ * ที่นั่งผูกกับแพ็กเกจที่จ่ายเงิน: 'free' = ยังไม่ได้จ่ายแพ็กเกจ (รวมช่วงทดลอง) · 'expired' = แพ็กเกจหมดอายุ
+ * · 'enterprise' = ไม่จำกัดที่นั่งอยู่แล้ว · 'canceling' = ตั้งยกเลิกแพ็กเกจไว้ (ที่นั่งเพิ่มยกเลิกตามอัตโนมัติ)
+ */
+export type SeatBlock = 'free' | 'expired' | 'enterprise' | 'canceling' | null
+export function seatBlock(org?: Organization | null): SeatBlock {
+  if (!org || !['starter', 'pro', 'enterprise'].includes(org.plan ?? '')) return 'free'
+  const today = new Date().toISOString().slice(0, 10)
+  if (org.sub_status !== 'active' || (org.sub_expires_at && org.sub_expires_at < today)) return 'expired'
+  if (org.plan === 'enterprise') return 'enterprise'
+  if (org.sub_cancel_at_period_end) return 'canceling'
+  return null
+}
+
 /** ที่นั่งที่ซื้อเพิ่มและยังไม่หมดอายุ */
 export function activeExtraSeats(org?: Organization | null): number {
   const qty = org?.extra_seats ?? 0

@@ -25,7 +25,8 @@
     "test:shortlist": "node scripts/shortlist-selftest.mjs",
     "test:upload": "node scripts/upload-selftest.mjs",
     "test:lightbox": "node scripts/lightbox-ui-test.mjs",
-    "test:server": "node scripts/server-selftest.mjs"
+    "test:server": "node scripts/server-selftest.mjs",
+    "test:stripe": "node scripts/stripe-selftest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",

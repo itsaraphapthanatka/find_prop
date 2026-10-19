@@ -2,7 +2,7 @@
 //
 // ตั้งใน Stripe Dashboard → Developers → Webhooks → Add endpoint
 //   URL: https://<โดเมน>/api/stripe-webhook
-//   Events: checkout.session.completed, invoice.paid,
+//   Events: checkout.session.completed, invoice.paid, invoice.payment_failed, invoice.updated, invoice.upcoming,
 //           customer.subscription.updated, customer.subscription.deleted
 //   แล้วนำ Signing secret (whsec_...) ไปใส่ env STRIPE_WEBHOOK_SECRET ใน Vercel
 //
@@ -11,7 +11,7 @@
 // ตอบ 5xx เมื่อบันทึกไม่สำเร็จ → Stripe ส่งซ้ำให้เองภายหลัง (สูงสุด ~3 วัน)
 
 import { supa } from './_lib/auth.js'
-import { stripeClient, applyInvoice, syncSubscription, invoiceSubscriptionId } from './_lib/stripe.js'
+import { stripeClient, applyInvoice, syncSubscription, invoiceSubscriptionId, extendForRetry } from './_lib/stripe.js'
 
 export const config = { api: { bodyParser: false } }
 
@@ -63,7 +63,19 @@ export default async function handler(req, res) {
         out = await syncSubscription(stripe, s, obj)
         break
       case 'invoice.payment_failed': {
-        // ปกติ customer.subscription.updated (→ past_due) ครอบอยู่แล้ว — รองรับไว้เผื่อติ๊ก event นี้ด้วย
+        // แถบเตือน Owner (past_due) + ขยายสิทธิ์ถึงวันที่ Stripe จะลองตัดซ้ำครั้งถัดไป (Smart Retries)
+        const subId = invoiceSubscriptionId(obj)
+        if (subId) out = await syncSubscription(stripe, s, await stripe.subscriptions.retrieve(subId))
+        out = { ...out, grace: await extendForRetry(stripe, s, obj) }
+        break
+      }
+      case 'invoice.updated':
+        // บัญชีที่ใช้ Billing Automations: next_payment_attempt มากับ event นี้ (ไม่มาใน payment_failed)
+        // เช็กเงื่อนไขจากตัว event ก่อนเรียก Stripe — ใบทั่วไปที่ไม่ได้ค้างจ่ายจะจบทันที
+        out = { grace: await extendForRetry(stripe, s, obj) }
+        break
+      case 'invoice.upcoming': {
+        // ก่อนตัดรอบใหม่ไม่กี่วัน → ตรวจซ้ำว่าแพ็กเกจยังอยู่ (ไม่อยู่ = ที่นั่งเพิ่มยกเลิกตาม ไม่ตัดค่าที่นั่ง)
         const subId = invoiceSubscriptionId(obj)
         if (subId) out = await syncSubscription(stripe, s, await stripe.subscriptions.retrieve(subId))
         break
