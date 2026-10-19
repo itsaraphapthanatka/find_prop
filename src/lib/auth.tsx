@@ -187,7 +187,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!userId || !supabaseConfigured) return
     return watchDeviceSession(userId, () => {
-      void supabase.auth.signOut().finally(() => {
+      // scope 'local' = ออกเฉพาะเครื่องนี้ · ค่าเริ่มต้น 'global' ยกเลิก session ทุกเครื่อง รวมถึงเครื่องใหม่
+      // ที่เพิ่งล็อกอิน → เครื่องใหม่หน้าเว็บยังดูล็อกอินอยู่ แต่ API ตอบ "เซสชันไม่ถูกต้อง" (เจอ 2026-10-19)
+      void supabase.auth.signOut({ scope: 'local' }).finally(() => {
         alert('บัญชีนี้ถูกเข้าสู่ระบบบนเครื่องอื่น ระบบจึงออกจากระบบเครื่องนี้ให้\n(บัญชีหนึ่งใช้งานได้ทีละเครื่อง)')
       })
     })
