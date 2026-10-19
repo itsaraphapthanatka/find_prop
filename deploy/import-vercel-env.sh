@@ -10,7 +10,10 @@ cd "$(dirname "$0")/.."
 
 command -v vercel >/dev/null || { echo "❌ ไม่พบ vercel CLI — brew install vercel-cli"; exit 1; }
 # vercel link เก็บการผูกได้ 2 แบบ: project.json (ผูกโฟลเดอร์) หรือ repo.json (โหมด "linked by git")
-[ -f .vercel/project.json ] || [ -f .vercel/repo.json ] || { echo "❌ ยังไม่ได้ผูกโปรเจกต์ — รัน: vercel login แล้ว vercel link"; exit 1; }
+# ไม่หยุดตรงนี้ — ให้ vercel env pull ตัดสินเอง (บางรุ่นของ CLI เขียน/ย้ายไฟล์ผูกเองระหว่างทำงาน)
+if [ ! -f .vercel/project.json ] && [ ! -f .vercel/repo.json ]; then
+  echo "⚠️ ไม่เห็นไฟล์ผูกโปรเจกต์ใน $(pwd)/.vercel — จะลองดึงต่อ (ถ้าไม่ได้ ให้รัน vercel link ที่โฟลเดอร์นี้)"
+fi
 
 TMP="$(mktemp -d)"
 chmod 700 "$TMP"
@@ -18,7 +21,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 echo "▶ ดึง env (Production) จาก Vercel"
 vercel env pull "$TMP/vercel.env" --environment=production --yes >/dev/null 2>"$TMP/err" \
-  || { echo "❌ vercel env pull ไม่สำเร็จ:"; tail -3 "$TMP/err"; exit 1; }
+  || { echo "❌ vercel env pull ไม่สำเร็จ (โฟลเดอร์: $(pwd)):"; tail -3 "$TMP/err"; ls -la .vercel 2>&1 | tail -3; exit 1; }
 node deploy/vercel-env-to-compose.mjs "$TMP/vercel.env" deploy/.env.example > "$TMP/import.env"
 
 echo "▶ ส่งเข้า ~/hop/deploy/.env บน $HOST"
