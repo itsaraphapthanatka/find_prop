@@ -16,6 +16,8 @@ import FollowUpPage from './pages/FollowUpPage'
 
 // โหลดเมื่อเข้าใช้เท่านั้น — หน้านำเข้าลาก SheetJS (~ตัวใหญ่) มาด้วย ไม่ควรอยู่ใน bundle หลัก
 const ImportPage = lazy(() => import('./pages/ImportPage'))
+// วิดีโอสอนใช้งาน — ลาก hls.js มาด้วย โหลดเฉพาะตอนเปิดหน้า
+const TutorialPage = lazy(() => import('./pages/TutorialPage'))
 import LoginPage, { CreateOrgScreen, JoinOrgScreen, PendingScreen, ResetPasswordScreen, SuspendedScreen } from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
 import SharePage from './pages/SharePage'
@@ -314,6 +316,9 @@ export default function App() {
                 >
                   คู่มือใช้งาน (ฉบับเต็ม)
                 </a>
+                <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/tutorial') }}>
+                  วิดีโอสอนใช้งาน
+                </button>
                 <button role="menuitem" className="danger" onClick={() => { setMenuOpen(false); void signOut() }}>
                   ออกจากระบบ
                 </button>
@@ -359,6 +364,14 @@ export default function App() {
           <Routes>
             <Route path="/" element={<ListPage search={search} />} />
             <Route path="/me" element={<ProfilePage />} />
+            <Route
+              path="/tutorial"
+              element={
+                <Suspense fallback={<div className="loading">กำลังโหลด…</div>}>
+                  <TutorialPage />
+                </Suspense>
+              }
+            />
             <Route path="/upgrade" element={<UpgradePage />} />
             <Route path="/dashboard" element={access.dashboard ? <DashboardPage /> : <UpgradeNotice feature="สรุปภาพรวม" />} />
             <Route path="/map" element={<MapPage />} />

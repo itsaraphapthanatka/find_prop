@@ -34,6 +34,9 @@ services:
     # (8080/3000 บนเครื่อง edgexpert มีบริการอื่นใช้อยู่ จึงใช้ WEB_PORT ค่าเริ่ม 8098)
     ports:
       - "127.0.0.1:${WEB_PORT:-8098}:8080"
+    # วิดีโอสอนใช้งาน (HLS เข้ารหัส) อยู่บนเครื่อง ไม่อยู่ใน image — สร้างด้วย deploy/media-hls.sh
+    volumes:
+      - ${HOP_MEDIA_DIR:-../../hop-media}:/srv/media:ro
     mem_limit: 256m
     restart: unless-stopped
     logging: *logging

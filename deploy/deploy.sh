@@ -24,6 +24,10 @@ if [ "$PULL_GIT" = 1 ]; then
   git -C .. pull --ff-only
 fi
 
+# โฟลเดอร์วิดีโอสอนใช้งาน (compose ต่อเข้า web แบบอ่านอย่างเดียว) — สร้างเองก่อน ไม่งั้น docker สร้างเป็นของ root
+MEDIA_DIR="$(grep -E '^HOP_MEDIA_DIR=' .env | tail -1 | cut -d= -f2- | tr -d "'\" " || true)"
+mkdir -p "${MEDIA_DIR:-../../hop-media}"
+
 export GIT_SHA HOP_TAG HOP_ENV_HASH
 GIT_SHA="$(git -C .. rev-parse HEAD)"
 HOP_TAG="$GIT_SHA"

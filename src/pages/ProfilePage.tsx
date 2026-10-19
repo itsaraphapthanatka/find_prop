@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ROLE_INFO, roleName, rolePerm, type Role } from '../lib/roles'
 import { TRAINING_DOC } from '../lib/docs'
 import { startTour } from '../lib/tour'
@@ -198,12 +199,13 @@ export default function ProfilePage() {
         <section className="form-card">
           <h3>คู่มือใช้งาน</h3>
           <p className="plan-line" style={{ marginTop: 0 }}>
-            อ่านวิธีใช้ทั้งระบบตั้งแต่ลงทรัพย์ ค้นหา แผนที่ ทีม ไปจนถึงแพ็กเกจและคำถามที่พบบ่อย
+            อ่านหรือดูวิดีโอวิธีใช้ทั้งระบบตั้งแต่ลงทรัพย์ ค้นหา แผนที่ ทีม ไปจนถึงแพ็กเกจและคำถามที่พบบ่อย
           </p>
           <div className="org-row" style={{ flexWrap: 'wrap' }}>
             <a className="btn primary" href={TRAINING_DOC} target="_blank" rel="noreferrer">
               เปิดคู่มือใช้งาน
             </a>
+            <Link className="btn" to="/tutorial">ดูวิดีโอสอนใช้งาน</Link>
             <button className="btn" onClick={() => startTour()}>ทัวร์แนะนำในหน้าจอ</button>
           </div>
         </section>

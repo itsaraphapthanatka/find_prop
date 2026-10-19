@@ -8,7 +8,7 @@ export function cors(req, res) {
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
     res.setHeader('Vary', 'Origin')
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     res.setHeader('Access-Control-Max-Age', '86400')
   }
@@ -28,16 +28,10 @@ export function supa() {
 // ทั้งแถว (ฝั่งเซิร์ฟเวอร์เท่านั้น) — ไม่ระบุคอลัมน์ เพื่อไม่ให้ทั้งระบบจ่ายเงินล่มช่วงที่ deploy โค้ดก่อนรัน SQL รุ่นใหม่
 const ORG_COLS = '*'
 
-/**
- * ยืนยันผู้เรียก = Owner ที่ active ขององค์กร (super ที่สวมสิทธิ์องค์กรนั้นก็ได้)
- * คืน { ok: true, uid, email, orgId, org, s } หรือ { ok: false, status, error }
- */
-export async function requireOrgOwner(req) {
-  const s = supa()
-  if (!s) return { ok: false, status: 500, error: 'เซิร์ฟเวอร์ยังตั้งค่า Supabase ไม่ครบ' }
+/** ตรวจ token ของผู้เรียกกับ Supabase · คืน { ok: true, user } หรือ { ok: false, status, error } */
+async function authUser(s, req) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
   if (!token) return { ok: false, status: 401, error: 'ต้องเข้าสู่ระบบก่อน' }
-
   let user
   try {
     const u = await fetch(`${s.url}/auth/v1/user`, { headers: { apikey: s.anonKey, Authorization: `Bearer ${token}` } })
@@ -47,6 +41,40 @@ export async function requireOrgOwner(req) {
     return { ok: false, status: 502, error: 'ตรวจสอบเซสชันไม่สำเร็จ' }
   }
   if (!user?.id) return { ok: false, status: 401, error: 'เซสชันไม่ถูกต้อง' }
+  return { ok: true, user }
+}
+
+/**
+ * ยืนยันผู้เรียก = สมาชิกที่ล็อกอินและบัญชียังใช้งานอยู่ (active) — super ผ่านเสมอ
+ * คืน { ok: true, uid, email } หรือ { ok: false, status, error }
+ */
+export async function requireActiveUser(req) {
+  const s = supa()
+  if (!s) return { ok: false, status: 500, error: 'เซิร์ฟเวอร์ยังตั้งค่า Supabase ไม่ครบ' }
+  const a = await authUser(s, req)
+  if (!a.ok) return a
+  try {
+    const pRes = await fetch(`${s.url}/rest/v1/profiles?id=eq.${a.user.id}&select=active,is_super`, { headers: s.svc })
+    const prof = ((await pRes.json().catch(() => [])) || [])[0]
+    if (!(prof?.active === true || prof?.is_super)) {
+      return { ok: false, status: 403, error: 'บัญชียังไม่เปิดใช้งาน — ติดต่อผู้ดูแลองค์กร' }
+    }
+  } catch {
+    return { ok: false, status: 502, error: 'ตรวจสอบสิทธิ์ไม่สำเร็จ' }
+  }
+  return { ok: true, uid: a.user.id, email: a.user.email || null }
+}
+
+/**
+ * ยืนยันผู้เรียก = Owner ที่ active ขององค์กร (super ที่สวมสิทธิ์องค์กรนั้นก็ได้)
+ * คืน { ok: true, uid, email, orgId, org, s } หรือ { ok: false, status, error }
+ */
+export async function requireOrgOwner(req) {
+  const s = supa()
+  if (!s) return { ok: false, status: 500, error: 'เซิร์ฟเวอร์ยังตั้งค่า Supabase ไม่ครบ' }
+  const a = await authUser(s, req)
+  if (!a.ok) return a
+  const user = a.user
 
   try {
     const pRes = await fetch(

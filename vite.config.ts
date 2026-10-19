@@ -111,6 +111,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // hls.js (~185KB gzip) ใช้แค่หน้าวิดีโอสอนใช้งาน ซึ่งต้องออนไลน์ขอกุญแจอยู่แล้ว — ไม่ต้องให้ทุกคนดาวน์โหลดล่วงหน้า
+        globIgnores: ['**/node_modules/**/*', '**/hls-*.js'],
         navigateFallback: '/index.html',
         // หน้าเอกสาร static ต้องไม่ถูก SW ดักพาเข้า SPA
         // + /docs/* (คู่มือ + ไฟล์ตัวอย่าง .xlsx) /stats /presentation — แอปใช้ HashRouter ไม่มี path ของ SPA ชนแน่นอน

@@ -26,7 +26,8 @@
     "test:upload": "node scripts/upload-selftest.mjs",
     "test:lightbox": "node scripts/lightbox-ui-test.mjs",
     "test:server": "node scripts/server-selftest.mjs",
-    "test:stripe": "node scripts/stripe-selftest.mjs"
+    "test:stripe": "node scripts/stripe-selftest.mjs",
+    "test:media": "node scripts/media-selftest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.8",
@@ -41,6 +42,7 @@
     "@supabase/supabase-js": "^2.45.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "hls.js": "1.7.3",
     "leaflet": "^1.9.4",
     "nodemailer": "^9.0.3",
     "react": "^18.3.1",
