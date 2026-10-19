@@ -18,4 +18,9 @@ scratch-shots/
 # ค่าลับของเครื่อง msi-edgexpert-04dc (ดู deploy/.env.example)
 deploy/.env
 deploy/.env.*
+
+# Vercel CLI (vercel link) — ไฟล์ผูกโปรเจกต์ + env ที่ดึงมา
+.vercel
+.env*
+# ต้องอยู่หลัง .env* — แม่แบบค่าลับ (ไม่มีค่าจริง) ต้องเข้า git
 !deploy/.env.example
