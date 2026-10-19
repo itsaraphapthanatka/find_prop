@@ -1,6 +1,8 @@
-# HOP บนเครื่อง edgexpert (ARM64, ใช้ร่วมกับบริการอื่นหลายสิบตัว) — รันผ่าน ./deploy/deploy.sh เท่านั้น
+# HOP บนเครื่อง edgexpert (ARM64, ใช้ร่วมกับบริการอื่นหลายสิบตัว) — อัปเดตผ่าน ./deploy/deploy.sh
 # image ถูก build บน GitHub Actions (.github/workflows/deploy-images.yml) แล้วเครื่องแค่ pull
-#   → ไม่ต้อง build บนเครื่อง (แรมเกือบทั้งหมดถูก vLLM จองไว้ build เว็บอาจทำให้ OOM ไปโดนบริการอื่น)
+#   → ไฟล์นี้ไม่มีส่วน build โดยตั้งใจ: คำสั่ง docker compose ใดๆ จะไม่ build บนเครื่องเอง
+#     (แรมเกือบทั้งหมดถูก vLLM จองไว้ build เว็บอาจทำให้ OOM ไปโดนบริการอื่น) · build เอง = deploy.sh --build
+# HOP_TAG = commit ที่ deploy ล่าสุด — deploy.sh เขียนลง deploy/.env ให้ (คำสั่ง compose ที่พิมพ์เองจึงใช้ image ตัวเดียวกัน)
 # ค่าลับทั้งหมดอยู่ใน deploy/.env (คัดลอกจาก .env.example) — ห้าม commit
 name: hop
 
@@ -12,11 +14,7 @@ x-logging: &logging
 
 services:
   api:
-    image: ghcr.io/itsaraphapthanatka/hop-api:${HOP_TAG:-main}
-    # สำรอง: ./deploy/deploy.sh --build (build ในเครื่อง — ดูแรมก่อน)
-    build:
-      context: ..
-      dockerfile: deploy/api.Dockerfile
+    image: ghcr.io/itsaraphapthanatka/hop-api:${HOP_TAG:?ยังไม่มี HOP_TAG — รัน ./deploy/deploy.sh ก่อน}
     env_file: .env
     environment:
       PORT: "3000"
@@ -26,14 +24,7 @@ services:
     logging: *logging
 
   web:
-    image: ghcr.io/itsaraphapthanatka/hop-web:${HOP_TAG:-main}
-    build:
-      context: ..
-      dockerfile: deploy/web.Dockerfile
-      args:
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?ตั้ง VITE_SUPABASE_URL ใน deploy/.env}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:?ตั้ง VITE_SUPABASE_ANON_KEY ใน deploy/.env}
-        GIT_SHA: ${GIT_SHA:-dev}
+    image: ghcr.io/itsaraphapthanatka/hop-web:${HOP_TAG:?ยังไม่มี HOP_TAG — รัน ./deploy/deploy.sh ก่อน}
     depends_on:
       api:
         condition: service_healthy

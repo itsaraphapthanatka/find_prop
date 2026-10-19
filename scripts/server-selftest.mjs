@@ -277,8 +277,12 @@ try {
   // image ของ HOP: CI build (ARM64) → เครื่อง pull ตาม commit ที่ checkout อยู่ (ไม่ build บนเครื่อง — แรมไม่พอ)
   const wf = read('.github/workflows/deploy-images.yml')
   const deploySh = read('deploy/deploy.sh')
-  check('compose ใช้ image hop-api / hop-web จาก ghcr ตามแท็ก HOP_TAG',
-    compose.includes('image: ghcr.io/itsaraphapthanatka/hop-api:${HOP_TAG:-main}') && compose.includes('image: ghcr.io/itsaraphapthanatka/hop-web:${HOP_TAG:-main}'))
+  check('compose ใช้ image hop-api / hop-web จาก ghcr ตามแท็ก HOP_TAG (ไม่มีค่าเริ่มที่อาจไม่มีอยู่จริง)',
+    /image: ghcr\.io\/itsaraphapthanatka\/hop-api:\$\{HOP_TAG:\?/.test(compose) && /image: ghcr\.io\/itsaraphapthanatka\/hop-web:\$\{HOP_TAG:\?/.test(compose))
+  const composeBuild = read('deploy/docker-compose.build.yml')
+  check('compose หลักไม่มีส่วน build (คำสั่ง compose ใดๆ ไม่ build บนเครื่องเอง — แรมไม่พอ)', !/^\s+build:/m.test(compose))
+  check('build เองได้ผ่านไฟล์แยก docker-compose.build.yml (deploy.sh --build)', /api:\s*\n\s+build:/.test(composeBuild) && /web:\s*\n\s+build:/.test(composeBuild) && deploySh.includes('-f docker-compose.build.yml'))
+  check('deploy.sh จดแท็กที่ deploy ลง .env (คำสั่ง compose ที่พิมพ์เองใช้ image เดียวกัน)', /echo "HOP_TAG=\$HOP_TAG"/.test(deploySh) && /chmod 600 \.env/.test(deploySh))
   check('CI build บน runner ARM64 แบบ native', /runs-on: ubuntu-24\.04-arm/.test(wf) && (wf.match(/platforms: linux\/arm64/g) || []).length === 2)
   check('CI ติดแท็ก commit sha ให้ทั้งสอง image (deploy.sh ดึงตาม commit)',
     wf.includes('/hop-api:${{ github.sha }}') && wf.includes('/hop-web:${{ github.sha }}') && /HOP_TAG="\$GIT_SHA"/.test(deploySh))

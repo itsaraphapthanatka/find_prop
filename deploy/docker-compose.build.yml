@@ -1,0 +1,15 @@
+# สำรอง: build image บนเครื่องเอง — ใช้ผ่าน ./deploy/deploy.sh --build เท่านั้น
+# ⚠️ บน edgexpert เช็ค free -h ก่อน (available ควร ≥ 4GB) — ปกติใช้ image จาก GitHub Actions
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?ตั้ง VITE_SUPABASE_URL ใน deploy/.env}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:?ตั้ง VITE_SUPABASE_ANON_KEY ใน deploy/.env}
+        GIT_SHA: ${GIT_SHA:-dev}

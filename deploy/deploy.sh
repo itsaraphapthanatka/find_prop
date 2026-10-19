@@ -30,7 +30,7 @@ HOP_TAG="$GIT_SHA"
 
 if [ "$MODE" = build ]; then
   echo "▶ build ในเครื่อง commit ${GIT_SHA:0:7}"
-  docker compose build --pull api web
+  docker compose -f docker-compose.yml -f docker-compose.build.yml build --pull api web
 else
   echo "▶ รอ image ของ commit ${GIT_SHA:0:7} จาก GitHub Actions (สูงสุด 15 นาที)"
   for i in $(seq 1 90); do
@@ -50,6 +50,10 @@ else
     sleep 10
   done
 fi
+
+# จดแท็กที่ deploy ไว้ใน .env — คำสั่ง docker compose ที่พิมพ์เองภายหลังจะใช้ image ตัวเดียวกัน (ไม่หลุดไปหาแท็กอื่น)
+umask 077
+{ grep -v '^HOP_TAG=' .env; echo "HOP_TAG=$HOP_TAG"; } > .env.tag-tmp && mv .env.tag-tmp .env && chmod 600 .env
 
 docker compose up -d --no-build --remove-orphans
 docker image prune -f >/dev/null

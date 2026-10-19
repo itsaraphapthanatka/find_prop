@@ -188,12 +188,14 @@ vercel link           # ครั้งแรกครั้งเดียว �
 ## คำสั่งที่ใช้บ่อย (บนเครื่อง ในโฟลเดอร์ `~/hop`)
 
 ```bash
-./deploy/deploy.sh                                        # ดึงโค้ดล่าสุด + pull image + รันใหม่
+./deploy/deploy.sh                                        # ดึงโค้ดล่าสุด + pull image + รันใหม่ (จด HOP_TAG ลง .env ให้)
 docker compose -f deploy/docker-compose.yml ps            # สถานะ (เฉพาะของ HOP)
 docker compose -f deploy/docker-compose.yml logs -f api   # log ของ API
 docker compose -f deploy/docker-compose.yml restart       # รีสตาร์ทเฉพาะ HOP
 docker stats --no-stream hop-api-1 hop-web-1             # แรม/CPU ที่ HOP ใช้
 curl -s http://127.0.0.1:8098/healthz                     # เช็คในเครื่อง (ไม่ผ่าน Cloudflare)
 ```
+
+> คำสั่ง `docker compose` ที่พิมพ์เองใช้ image ตาม `HOP_TAG` ใน `deploy/.env` (deploy.sh เขียนให้) และ**ไม่มีวัน build บนเครื่องเอง** — ไฟล์ compose หลักไม่มีส่วน build (build เองต้องสั่ง `./deploy/deploy.sh --build` ซึ่งใช้ `docker-compose.build.yml`)
 
 ทดสอบส่งแจ้งเตือน: `curl "https://hopai.online/api/push-cron?test=1" -H "Authorization: Bearer <CRON_SECRET>"` (พิมพ์ค่าเองบนเครื่อง อย่าวางในแชต)

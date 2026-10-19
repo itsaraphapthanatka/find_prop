@@ -12,7 +12,7 @@ import fs from 'node:fs'
 export const isPlaceholder = (v) => v === '' || /^\[[A-Z_ ]{3,20}\]$/.test(v)
 
 // ค่าที่เป็นของเครื่องนี้ (ช่วง staging/ย้ายจริงตั้งต่างจาก Vercel) — ไม่ทับ
-export const BOX_ONLY = new Set(['WEB_PORT', 'COMPOSE_PROFILES', 'CLOUDFLARE_TUNNEL_TOKEN', 'ENABLE_CRON', 'PUBLIC_APP_URL', 'INVITE_WEB_BASE'])
+export const BOX_ONLY = new Set(['HOP_TAG', 'WEB_PORT', 'COMPOSE_PROFILES', 'CLOUDFLARE_TUNNEL_TOKEN', 'ENABLE_CRON', 'PUBLIC_APP_URL', 'INVITE_WEB_BASE'])
 
 export function convert(vercelText, exampleText) {
   const wanted = new Set([...exampleText.matchAll(/^([A-Z0-9_]+)=/gm)].map((m) => m[1]).filter((k) => !BOX_ONLY.has(k)))
