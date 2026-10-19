@@ -103,16 +103,16 @@
 
 <!-- ═══════════════ 1 ═══════════════ -->
 <h2 id="arch">1. ภาพรวมสถาปัตยกรรม</h2>
-<p>HOP เป็น Single Page Application ที่ฝั่งหน้าบ้านคุยกับ Supabase โดยตรง (ผ่าน Row Level Security) และมี Vercel Serverless Functions เป็นหลังบ้านเฉพาะงานที่ต้องใช้ความลับฝั่งเซิร์ฟเวอร์ เช่น การเงิน อีเมล และ AI</p>
+<p>HOP เป็น Single Page Application ที่ฝั่งหน้าบ้านคุยกับ Supabase โดยตรง (ผ่าน Row Level Security) และมี API server ของเราเอง (โฟลเดอร์ <code>api/</code> รันด้วย <code>server/index.mjs</code> บนเครื่อง msi-edgexpert-04dc) เป็นหลังบ้านเฉพาะงานที่ต้องใช้ความลับฝั่งเซิร์ฟเวอร์ เช่น การเงิน อีเมล และ AI · ทางเข้า: Cloudflare → Cloudflare Tunnel → Caddy → API (ดู <code>docs/DEPLOY-EDGEXPERT.md</code>)</p>
 
 <div class="arch">
   <div class="tier"><b>ผู้ใช้เข้าถึงผ่าน</b>
-    <div class="items"><span>เว็บ hop-property.vercel.app (PWA ติดตั้งได้)</span><span>แอป Android — Capacitor (APK)</span></div>
+    <div class="items"><span>เว็บ hopai.online (PWA ติดตั้งได้)</span><span>แอป Android — Capacitor (APK)</span></div>
   </div>
   <div class="tier"><b>Frontend — React 18 + Vite + TypeScript</b>
-    <div class="items"><span>react-router (HashRouter)</span><span>Leaflet (แผนที่)</span><span>xlsx (นำเข้า Excel)</span><span>Service Worker / PWA (เว็บเท่านั้น)</span><span>Vercel Analytics + Speed Insights</span></div>
+    <div class="items"><span>react-router (HashRouter)</span><span>Leaflet (แผนที่)</span><span>xlsx (นำเข้า Excel)</span><span>Service Worker / PWA (เว็บเท่านั้น)</span><span>Cloudflare Web Analytics</span></div>
   </div>
-  <div class="tier"><b>Vercel Serverless (โฟลเดอร์ api/)</b>
+  <div class="tier"><b>API server (โฟลเดอร์ api/ + server/index.mjs · Docker บน msi-edgexpert-04dc)</b>
     <div class="items"><span>ai.js</span><span>stripe.js</span><span>stripe-webhook.js</span><span>send-invite.js</span><span>create-member.js</span><span>push-cron.js</span></div>
   </div>
   <div class="tier"><b>Supabase</b>
@@ -133,7 +133,7 @@
 <tr><td><code>src/components/</code></td><td>ชิ้นส่วน UI ใช้ซ้ำ เช่น PropertyDetail (หน้ารายละเอียดทรัพย์), LocationPicker, Combo, FollowUpSection</td></tr>
 <tr><td><code>src/lib/</code></td><td>ตรรกะกลาง — auth, plan (สิทธิ์ตามแพ็กเกจ), payments, deviceSession (ล็อกอินทีละเครื่อง), push, review, image (บีบอัดรูป), thaiLocations (จังหวัด/เขต/แขวง), activityLog, appUpdate (live-update แอป), ai, native</td></tr>
 <tr><td><code>src/hooks/useProperties.ts</code></td><td>โหลดรายการทรัพย์ + จับคู่ชื่อองค์กร/ชื่อคนลงข้อมูล</td></tr>
-<tr><td><code>api/</code></td><td>Vercel Serverless Functions (ดูหัวข้อ 14)</td></tr>
+<tr><td><code>api/</code></td><td>ฟังก์ชันหลังบ้าน — รันด้วย <code>server/index.mjs</code> (ดูหัวข้อ 14)</td></tr>
 <tr><td><code>supabase/*.sql</code></td><td>สคริปต์ฐานข้อมูลทั้งหมด — รันใน SQL Editor เป็นก้อน idempotent (รันซ้ำได้)</td></tr>
 <tr><td><code>android/</code> + <code>capacitor.config.ts</code></td><td>โปรเจกต์แอปมือถือ (appId <code>com.hobproperty.app</code>)</td></tr>
 <tr><td><code>scripts/</code></td><td>สคริปต์ทดสอบอัตโนมัติ (Playwright) — ฟอร์ม, แก้ไข, นำเข้า, สลับองค์กร, พิกัด</td></tr>
@@ -333,7 +333,7 @@
 <h2 id="notify">10. การแจ้งเตือน</h2>
 <ul>
 <li><b>ช่องทาง: Web Push เท่านั้น</b> (ยังไม่มี LINE bot) — ผู้ใช้กดอนุญาตรับแจ้งเตือน เครื่องถูกจดในตาราง <code>device_tokens</code></li>
-<li><b>ตัวส่ง:</b> <code>api/push-cron.js</code> ถูกเรียกตามเวลา (Vercel Cron) — กวาดหาเรื่องที่ต้องแจ้งแล้วยิง push</li>
+<li><b>ตัวส่ง:</b> <code>api/push-cron.js</code> ถูกเรียกตามเวลา (ตัวตั้งเวลาใน <code>server/index.mjs</code> ทุกวัน 07:00 เวลาไทย) — กวาดหาเรื่องที่ต้องแจ้งแล้วยิง push</li>
 <li><b>สัญญาเช่าใกล้หมด:</b> แจ้งล่วงหน้าตามเกณฑ์ (มาตรฐาน 60 และ 30 วัน) — แอดมินแต่ละองค์กรตั้งเกณฑ์เองได้ (<code>organizations.contract_alert_days</code>) ไม่ตั้งใช้ค่ากลางจาก app_settings</li>
 <li><b>นัดติดตามถึงกำหนด:</b> แจ้งเจ้าของนัด</li>
 <li>ในแอปมือถือใช้ Capacitor Push Notifications (FCM)</li>
@@ -352,9 +352,9 @@
 <table>
 <tr><th>ประเภทอีเมล</th><th>ผู้ส่ง</th><th>ตั้งค่าที่</th></tr>
 <tr><td>ยืนยันสมัคร / ลืมรหัสผ่าน</td><td>Supabase Auth ผ่าน SMTP</td><td>Supabase Dashboard → Authentication → SMTP Settings</td></tr>
-<tr><td>เชิญลูกทีม</td><td><code>api/send-invite.js</code> — ลอง SMTP ก่อน → Resend → ถ้าไม่มีทั้งคู่คืนลิงก์ให้คัดลอกส่งเอง</td><td>Vercel env: <code>SMTP_HOST/USER/PASS</code> หรือ <code>RESEND_API_KEY</code> + <code>INVITE_FROM</code></td></tr>
+<tr><td>เชิญลูกทีม</td><td><code>api/send-invite.js</code> — ลอง SMTP ก่อน → Resend → ถ้าไม่มีทั้งคู่คืนลิงก์ให้คัดลอกส่งเอง</td><td>env (<code>deploy/.env</code>): <code>SMTP_HOST/USER/PASS</code> หรือ <code>RESEND_API_KEY</code> + <code>INVITE_FROM</code></td></tr>
 </table>
-<div class="note">⚠️ Gmail App Password มี 2 ที่ต้องอัปเดตให้ตรงกัน (Supabase + Vercel) · รหัส 16 ตัวห้ามมีเว้นวรรค · Google เพิกถอนอัตโนมัติเมื่อเปลี่ยนรหัสผ่านบัญชี · เปลี่ยน env ใน Vercel แล้วต้องกด Redeploy · ระยะยาวแนะนำย้ายไป Resend (ต้องมีโดเมนของตัวเอง)</div>
+<div class="note">⚠️ Gmail App Password มี 2 ที่ต้องอัปเดตให้ตรงกัน (Supabase + <code>deploy/.env</code>) · รหัส 16 ตัวห้ามมีเว้นวรรค · Google เพิกถอนอัตโนมัติเมื่อเปลี่ยนรหัสผ่านบัญชี · เปลี่ยน env แล้วต้องรัน <code>./deploy/deploy.sh --no-pull</code> · ระยะยาวแนะนำย้ายไป Resend (ต้องมีโดเมนของตัวเอง)</div>
 
 <!-- ═══════════════ 13 ═══════════════ -->
 <h2 id="mobile">13. แอปมือถือ (Capacitor)</h2>
@@ -363,7 +363,7 @@
 <li>แอป Android ห่อเว็บด้วย Capacitor — appId <code>com.hobproperty.app</code> (ห้ามเปลี่ยนหลังขึ้น store)</li>
 <li>APK build ผ่าน GitHub Actions (ไม่ฝัง secret ใด ๆ ในแอป)</li>
 <li><b>Live-update:</b> แอปตามเว็บ production อัตโนมัติผ่าน <code>@capgo/capacitor-updater</code> — แก้เว็บแล้วผู้ใช้แอปได้ของใหม่โดยไม่ต้องลง APK ใหม่ (เปิดแอปใหม่หนึ่งครั้ง)</li>
-<li>ในแอป<b>ไม่ลงทะเบียน Service Worker</b> (สาเหตุคลาสสิกของจอขาว) และไม่โหลด Vercel Analytics</li>
+<li>ในแอป<b>ไม่ลงทะเบียน Service Worker</b> (สาเหตุคลาสสิกของจอขาว) </li>
 <li>ปลั๊กอินที่ใช้: Camera (ถ่าย/เลือกรูป), Geolocation (ตำแหน่งปัจจุบัน), Push Notifications, Browser (Google login), App (deep link)</li>
 </ul>
 
@@ -406,7 +406,7 @@
 <li><b>RLS เป็นด่านจริง:</b> สิทธิ์ทุกอย่างบังคับที่ฐานข้อมูล — ต่อให้เรียก API ตรงด้วย anon key ก็เห็น/แก้ได้เท่าที่ policy อนุญาต</li>
 <li><b>งานที่ต้องข้าม RLS ใช้ RPC แบบ SECURITY DEFINER</b> ที่ตรวจสิทธิ์เองในฟังก์ชัน (เช่น switch_org, create_team_invite, apply_payment, claim_device_session, org_member_names, my_seat_usage)</li>
 <li><b>การปิดข้อมูลระดับฟิลด์ปิดจริงตั้งแต่ DB:</b> ตาราง properties ถูกถอนสิทธิ์ select — ผู้ใช้อ่านได้เฉพาะผ่าน view <code>properties_view</code> ที่ปิดข้อมูลติดต่อ/พิกัดตามบทบาท ต่อให้เรียก REST API ตรงก็เห็นเป็น null</li>
-<li><b>ความลับอยู่ฝั่งเซิร์ฟเวอร์เท่านั้น:</b> <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, <code>AI_API_KEY</code>, SMTP — เก็บใน Vercel env ไม่เคยลง repo/client</li>
+<li><b>ความลับอยู่ฝั่งเซิร์ฟเวอร์เท่านั้น:</b> <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, <code>AI_API_KEY</code>, SMTP — เก็บใน <code>deploy/.env</code> บนเครื่องเซิร์ฟเวอร์ (chmod 600) ไม่เคยลง repo/client</li>
 <li><b>.env / .env.local ถูก gitignore</b> — client มีแค่ URL + anon key ของ Supabase</li>
 <li><b>ราคา/โควตาตัดสินที่เซิร์ฟเวอร์:</b> api/stripe.js คำนวณราคาเอง, trigger กันเพิ่มทรัพย์เกินลิมิต, RPC ตรวจ admin ก่อนเชิญสมาชิก</li>
 <li><b>webhook ตรวจลายเซ็น</b> ก่อนเชื่อผลการจ่ายเงิน · trigger ฝั่ง DB ยกเว้น service_role เพื่อให้ระบบหลังบ้านทำงานได้</li>
@@ -416,12 +416,14 @@
 <!-- ═══════════════ 17 ═══════════════ -->
 <h2 id="deploy">17. การ Deploy และงานดูแลระบบ</h2>
 <ul>
-<li><b>เว็บ:</b> push ขึ้น GitHub (branch main) → Vercel build + deploy อัตโนมัติ → แอปมือถือได้ของใหม่ตามผ่าน live-update</li>
+<li><b>เว็บ + API:</b> push ขึ้น GitHub (branch main) → บนเครื่อง msi-edgexpert-04dc รัน <code>./deploy/deploy.sh</code> (ดึงโค้ด → build Docker → รันใหม่ → รอจน <code>/healthz</code> ตอบ) → แอปมือถือได้ของใหม่ตามผ่าน live-update · ขั้นตอนเต็มอยู่ที่ <code>docs/DEPLOY-EDGEXPERT.md</code></li>
+<li><b>Vercel เหลือหน้าที่ส่งต่อ:</b> แอปตัวเก่ายังเรียก <code>hob-alpha.vercel.app</code> — <code>deploy/vercel-forwarder</code> ส่งต่อ API/อัปเดตแอปไป hopai.online และ redirect หน้าเว็บ (ห้ามลบโปรเจกต์ Vercel จนกว่าทุกเครื่องอัปเดต)</li>
 <li><b>ฐานข้อมูล:</b> รันสคริปต์จาก <code>supabase/*.sql</code> ใน SQL Editor — <b>ต้องรันก่อน deploy โค้ดที่พึ่งพาสคริปต์นั้น</b></li>
 <li><b>ตรวจก่อน push:</b> <code>npx tsc -p tsconfig.app.json --noEmit && npx vite build</code> + สคริปต์ทดสอบใน <code>scripts/</code> (Playwright)</li>
-<li><b>เปลี่ยน env ใน Vercel</b> → ต้องกด Redeploy ถึงจะมีผล</li>
+<li><b>เปลี่ยน env</b> ใน <code>deploy/.env</code> → รัน <code>./deploy/deploy.sh --no-pull</code> ถึงจะมีผล</li>
 <li><b>เช็คลิสต์ก่อนเปิดตัวจริง:</b> เปลี่ยน <code>STRIPE_SECRET_KEY</code>/<code>STRIPE_WEBHOOK_SECRET</code> จากโหมดทดสอบเป็นคีย์จริง (webhook ต้องสร้างแยกในโหมด live) · บันทึกตั้งค่า Customer Portal ในโหมด live · กรอกช่องทางติดต่อจริง (LINE OA/โทร/อีเมล) ในหน้า Super Admin</li>
-<li><b>วัดผล:</b> Vercel Speed Insights (ความเร็ว Core Web Vitals) + Web Analytics (ยอดเข้าชม) — เฉพาะเว็บ production</li>
+<li><b>วัดผล:</b> Cloudflare Web Analytics (เปิดในแดชบอร์ด Cloudflare ไม่ต้องแก้โค้ด) · Vercel Analytics โหลดเฉพาะตอนเว็บอยู่บน *.vercel.app</li>
+<li><b>เฝ้าระบบ:</b> ตั้ง uptime monitor ยิง <code>https://hopai.online/healthz</code> (ครอบ tunnel + เว็บ + API) · เครื่องควรต่อ UPS</li>
 </ul>
 
 <footer>เอกสารภายในทีม HOP — สร้างจากโค้ดจริงของระบบ · อัปเดตเมื่อระบบเปลี่ยน</footer>

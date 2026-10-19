@@ -1,0 +1,16 @@
+{
+  "name": "hop-api-server",
+  "private": true,
+  "type": "module",
+  "description": "รัน api/*.js เดิมนอก Vercel (เครื่อง msi-edgexpert-04dc) — ใช้แค่ไลบรารีที่ handler import",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "nodemailer": "9.0.3",
+    "stripe": "23.0.0"
+  }
+}

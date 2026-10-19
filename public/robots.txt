@@ -35,4 +35,4 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-Sitemap: https://hop-property.vercel.app/geo-sitemap.xml
+Sitemap: https://hopai.online/geo-sitemap.xml

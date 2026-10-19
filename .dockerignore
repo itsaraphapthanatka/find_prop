@@ -1,0 +1,34 @@
+# ไฟล์ที่ไม่ต้องส่งเข้า docker build (ดู deploy/*.Dockerfile)
+# ⚠️ .env* ต้องอยู่นอก build เสมอ — Vite อ่าน .env.local อัตโนมัติ ถ้าหลุดเข้าไปค่าจะฝังในบันเดิล
+.env
+.env.*
+deploy/.env
+**/.env
+**/.env.*
+!deploy/.env.example
+
+.git
+.github
+.claude
+.idea
+.vscode
+.DS_Store
+**/.DS_Store
+node_modules
+**/node_modules
+dist
+scratch-shots
+test-results
+playwright-report
+*.tsbuildinfo
+
+# เอกสารภายใน (มีใน .gitignore อยู่แล้ว — กันไว้เผื่อ build จากเครื่องที่มีไฟล์นี้)
+docs/COSTS.md
+docs/COSTS.html
+
+# แอปมือถือ: เก็บ android/app/build.gradle ไว้ (update-zip.mjs อ่าน versionName) ตัดของหนักออก
+ios
+android/.gradle
+android/build
+android/app/build
+android/app/src/main/assets/public

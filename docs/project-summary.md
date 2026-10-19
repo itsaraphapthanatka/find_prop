@@ -177,7 +177,7 @@ TeamPage, SuperAdminPage, lib/supabase.ts, lib/auth.tsx, styles.css — ยั�
 
 ## สถานะปัจจุบัน / งานที่ยังไม่เสร็จ
 
-- **Deploy**: เว็บ production อยู่ที่ `hob-alpha.vercel.app` (อ้างอิงจาก CI ของ Android)
+- **Deploy**: เว็บ production ย้ายไป `hopai.online` บนเครื่อง msi-edgexpert-04dc (ดู `docs/DEPLOY-EDGEXPERT.md`) · `hob-alpha.vercel.app` เหลือเป็นตัวส่งต่อ
   — ปัญหา env vars/deployment protection ที่เคยพบก่อนหน้านี้ (ตอนยังชื่อ finprop-alpha)
   ควรตรวจซ้ำว่ายังอยู่หรือแก้ไปแล้ว
 - **Push notification บนแอป Android**: รอผู้ใช้ตั้งค่า Firebase project เอง (ต้องใช้บัญชี Google

@@ -1,0 +1,99 @@
+# เว็บ HOP บนเครื่อง msi-edgexpert-04dc — แปลงกฎจาก vercel.json มาเป็น Caddy
+# ทางเข้า: Cloudflare (HTTPS) → cloudflared tunnel → Caddy :8080 (HTTP ภายใน) → ไฟล์ static / api:3000
+# ⚠️ แก้กฎใน vercel.json เมื่อไร ต้องแก้ที่นี่ด้วย (npm run test:server ตรวจว่าครบ)
+{
+	auto_https off
+	admin off
+	servers {
+		# รับ X-Forwarded-* จาก cloudflared (อยู่ในเครือข่าย docker ภายใน)
+		trusted_proxies static private_ranges
+	}
+}
+
+:8080 {
+	encode zstd gzip
+
+	# www.hopai.online → hopai.online (ที่อยู่เดียว ล็อกอินไม่หลุด)
+	@www host www.hopai.online
+	redir @www https://hopai.online{uri} 308
+
+	# ── redirects (307 เหมือน "permanent": false) ──
+	# ใช้ path_regexp เพราะ matcher `path` ของ Caddy ไม่สนตัวพิมพ์เล็ก-ใหญ่
+	# (ถ้าใช้ path /Guide.html จะจับ /guide.html ด้วย → วนไม่รู้จบ)
+	@guide path_regexp ^/(Guide|GUIDE)\.html$
+	redir @guide /guide.html 307
+	@flow path_regexp ^/(Flow|FLOW)\.html$
+	redir @flow /flow.html 307
+	@flowInternal path_regexp ^/Flow-internal\.html$
+	redir @flowInternal /flow-internal.html 307
+	@features path_regexp ^/(Features|FEATURES)\.html$
+	redir @features /features.html 307
+	@qaReview path_regexp ^/(Qa|QA)-review\.html$
+	redir @qaReview /qa-review.html 307
+	@docsTraining path_regexp ^/docs(/index\.html|/TRAINING\.html|/training\.html)?$
+	redir @docsTraining /docs/training 307
+	@docsSystem path_regexp ^/docs/(SYSTEM|system)\.html$
+	redir @docsSystem /docs/system 307
+	@docsFeatures path_regexp ^/docs/(FEATURES|features)\.html$
+	redir @docsFeatures /docs/features 307
+	@presentation path_regexp ^/(presentation|PRESENTATION)\.html$
+	redir @presentation /presentation 307
+
+	# ── rewrites (URL บนแถบที่อยู่ไม่เปลี่ยน) — Caddy รัน redir ก่อน rewrite เสมอ จึงไม่วนกลับ ──
+	rewrite /docs/training /docs/training.html
+	rewrite /docs/system /docs/system.html
+	rewrite /docs/features /docs/features.html
+	rewrite /stats /stats.html
+	rewrite /presentation /presentation.html
+
+	# ── API → คอนเทนเนอร์ api (server/index.mjs) ──
+	handle /api/* {
+		reverse_proxy api:3000 {
+			transport http {
+				# AI/cron เคยตั้ง maxDuration 60s บน Vercel — เผื่อสองเท่า
+				response_header_timeout 120s
+			}
+		}
+	}
+	# health check ภายนอก (เช่น UptimeRobot → https://hopai.online/healthz) ครอบทั้ง tunnel + เว็บ + api
+	handle /healthz {
+		reverse_proxy api:3000
+	}
+
+	# ── GEO (ส่งต่อไปบริการภายนอก เหมือน rewrite ใน vercel.json) ──
+	handle /geo {
+		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/a/
+		reverse_proxy https://geo.appreview.cloud
+	}
+	handle_path /geo/* {
+		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/a{path}
+		reverse_proxy https://geo.appreview.cloud
+	}
+	handle /llms.txt {
+		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/llms.txt
+		reverse_proxy https://geo.appreview.cloud
+	}
+	handle /geo-sitemap.xml {
+		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/sitemap.xml
+		reverse_proxy https://geo.appreview.cloud
+	}
+
+	# ── ไฟล์เว็บ (dist) ──
+	handle {
+		root * /srv/dist
+
+		# ค่าเริ่มต้นแบบ Vercel: ให้เบราว์เซอร์ถามใหม่ทุกครั้ง (index.html / sw.js ต้องสดเสมอ ไม่งั้นค้างเวอร์ชันเก่า)
+		# `?` = ตั้งเฉพาะเมื่อกฎที่เจาะจงกว่าด้านล่างยังไม่ได้ตั้ง (Caddy รันกฎ path เจาะจงก่อนกฎที่ไม่มี matcher)
+		header ?Cache-Control "public, max-age=0, must-revalidate"
+		# ไฟล์ใน /assets มี hash ในชื่อ — แคชได้ยาว
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		# live-update ของแอปมือถือ (ดู src/lib/appUpdate.ts)
+		header /app-update.json {
+			Access-Control-Allow-Origin *
+			Cache-Control no-store
+		}
+		header /app-update.zip Access-Control-Allow-Origin *
+
+		file_server
+	}
+}

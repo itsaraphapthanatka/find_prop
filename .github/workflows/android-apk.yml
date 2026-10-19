@@ -37,8 +37,8 @@ jobs:
       - name: Extract public config from production bundle
         run: |
           set -euo pipefail
-          BUNDLE=$(curl -fsS https://hob-alpha.vercel.app/ | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)
-          curl -fsS "https://hob-alpha.vercel.app/$BUNDLE" -o /tmp/bundle.js
+          BUNDLE=$(curl -fsS https://hopai.online/ | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+          curl -fsS "https://hopai.online/$BUNDLE" -o /tmp/bundle.js
           URL=$(grep -oE 'https://[a-z0-9]+\.supabase\.co' /tmp/bundle.js | head -1)
           KEY=$(grep -oE 'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' /tmp/bundle.js | head -1)
           test -n "$URL" && test -n "$KEY"
@@ -49,7 +49,7 @@ jobs:
       - name: Build web
         run: npm run build
         env:
-          VITE_API_BASE: https://hob-alpha.vercel.app
+          VITE_API_BASE: https://hopai.online
 
       - name: Sync Capacitor
         run: npx cap sync android

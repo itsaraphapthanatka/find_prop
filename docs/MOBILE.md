@@ -75,7 +75,7 @@ bundle ได้ ด่านความปลอดภัยจริงคื
 ทดสอบยิงทันที (หลังตั้ง env + มีเครื่องล็อกอิน+อนุญาตแจ้งเตือนแล้ว):
 
 ```
-curl "https://hob-alpha.vercel.app/api/push-cron?test=1" -H "Authorization: Bearer <CRON_SECRET>"
+curl "https://hopai.online/api/push-cron?test=1" -H "Authorization: Bearer <CRON_SECRET>"
 ```
 
 ## iOS (โปรเจกต์ `ios/`)

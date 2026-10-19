@@ -20,14 +20,17 @@ if (!Capacitor.isNativePlatform()) {
   } else {
     registerSW({ immediate: true })
   }
-  // Vercel Speed Insights + Web Analytics — เก็บ Core Web Vitals และยอดเข้าชมจากผู้ใช้จริง
-  // (เว็บเท่านั้น — ในแอป Capacitor ไม่มี Vercel อยู่เบื้องหลัง ส่งข้อมูลไม่ได้)
-  void import('@vercel/speed-insights')
-    .then((m) => m.injectSpeedInsights({ framework: 'react' }))
-    .catch(() => {})
-  void import('@vercel/analytics')
-    .then((m) => m.inject())
-    .catch(() => {})
+  // Vercel Speed Insights + Web Analytics — ทำงานเฉพาะตอนเว็บอยู่บน Vercel (*.vercel.app)
+  // บนเครื่องของเราเอง (hopai.online) ไม่มีปลายทาง /_vercel/* ให้ส่ง — ใช้ Cloudflare Web Analytics แทน
+  // (ในแอป Capacitor ก็ไม่มี Vercel อยู่เบื้องหลังเช่นกัน)
+  if (location.hostname.endsWith('.vercel.app')) {
+    void import('@vercel/speed-insights')
+      .then((m) => m.injectSpeedInsights({ framework: 'react' }))
+      .catch(() => {})
+    void import('@vercel/analytics')
+      .then((m) => m.inject())
+      .catch(() => {})
+  }
 } else {
   // ในแอปใช้ live-update แทน SW: ตามเว็บ prod อัตโนมัติโดยไม่ต้องลง APK ใหม่ (ดู lib/appUpdate.ts)
   void import('./lib/appUpdate')

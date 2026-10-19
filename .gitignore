@@ -14,3 +14,6 @@ nul
 
 # ภาพหน้าจอจาก scripts/form-ui-test.mjs
 scratch-shots/
+
+# ค่าลับของเครื่อง msi-edgexpert-04dc (ดู deploy/.env.example)
+deploy/.env

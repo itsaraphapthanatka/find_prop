@@ -102,7 +102,7 @@ HOP คือฐานข้อมูลทรัพย์ให้เช่า/
 
 ## Evidence on Hand
 
-- **แอปที่ใช้งานจริง** — production ที่ `https://hob-alpha.vercel.app` มีผู้ใช้จริงและเก็บเงินจริง
+- **แอปที่ใช้งานจริง** — production ที่ `https://hopai.online` (เดิม `hob-alpha.vercel.app`) มีผู้ใช้จริงและเก็บเงินจริง
 - **ภาพหน้าจอจริงในโปรเจกต์** — `public/app-mobile.jpg`, `public/app-dashboard.jpg`,
   `public/app-mobile-dash.jpg` ใช้อยู่บนหน้า landing
 - **เอกสารของจริง** — `docs/FEATURES.md` · `GUIDE.md` · `MOBILE.md` · `roles-spec.md` ·

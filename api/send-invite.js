@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   }
   if (!inviteToken) return res.status(500).json({ error: 'ไม่ได้รับรหัสคำเชิญ' })
 
-  const webBase = process.env.INVITE_WEB_BASE || 'https://hob-alpha.vercel.app'
+  const webBase = process.env.INVITE_WEB_BASE || 'https://hopai.online'
   const link = `${webBase}/#/login?invite=${inviteToken}`
 
   // ชื่อองค์กร (ใส่ในอีเมล)

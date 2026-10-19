@@ -1,0 +1,47 @@
+# HOP บนเครื่อง msi-edgexpert-04dc (ARM64) — รันด้วย ./deploy.sh (หรือ docker compose up -d --build ในโฟลเดอร์นี้)
+# ค่าลับทั้งหมดอยู่ใน deploy/.env (คัดลอกจาก .env.example) — ห้าม commit
+name: hop
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    env_file: .env
+    environment:
+      PORT: "3000"
+    restart: unless-stopped
+    logging: *logging
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?ตั้ง VITE_SUPABASE_URL ใน deploy/.env}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:?ตั้ง VITE_SUPABASE_ANON_KEY ใน deploy/.env}
+        GIT_SHA: ${GIT_SHA:-dev}
+    depends_on:
+      api:
+        condition: service_healthy
+    # เปิดเฉพาะในเครื่อง (ไว้ทดสอบด้วย curl) — คนภายนอกเข้าผ่าน Cloudflare Tunnel เท่านั้น ไม่ต้องเปิดพอร์ตเราเตอร์
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    logging: *logging
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.0
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?ตั้ง CLOUDFLARE_TUNNEL_TOKEN ใน deploy/.env}
+    depends_on:
+      - web
+    restart: unless-stopped
+    logging: *logging

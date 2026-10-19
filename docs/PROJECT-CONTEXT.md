@@ -59,7 +59,7 @@ Owner(s): `itsaraphap <itsaraphap.top@gmail.com>` (263 commits ทั้งห�
 
 ## Environments
 
-- **Production**: `https://hob-alpha.vercel.app` (เป็น fallback ที่ hard-code ไว้ใน `src/lib/native.ts` และ `api/send-invite.js`) · ฐานข้อมูลคือ Supabase project ที่โฮสต์ไว้ **Agents never call, deploy to, or migrate production.**
+- **Production**: `https://hopai.online` บนเครื่อง msi-edgexpert-04dc (Docker + Cloudflare Tunnel — ดู `docs/DEPLOY-EDGEXPERT.md`; เป็น fallback ที่ hard-code ไว้ใน `src/lib/native.ts` และ `api/send-invite.js`) · `hob-alpha.vercel.app` เหลือเป็นตัวส่งต่อให้แอปตัวเก่า (`deploy/vercel-forwarder`) · ฐานข้อมูลคือ Supabase project ที่โฮสต์ไว้ **Agents never call, deploy to, or migrate production.**
 
 - **Local dev**: `npm run dev` → Vite ที่ **http://localhost:5173** · ฮาร์เนสของฟอร์มสำหรับเทสต์ UI อยู่ที่ `dev/form-harness.html` · ตอนเขียนไฟล์นี้ไม่มี service ใดรันค้างอยู่
 

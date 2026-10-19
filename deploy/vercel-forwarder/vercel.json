@@ -1,0 +1,23 @@
+{
+  "redirects": [
+    {
+      "source": "/((?!api/|app-update\\.).*)",
+      "destination": "https://hopai.online/$1",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://hopai.online/api/:path*"
+    },
+    {
+      "source": "/app-update.json",
+      "destination": "https://hopai.online/app-update.json"
+    },
+    {
+      "source": "/app-update.zip",
+      "destination": "https://hopai.online/app-update.zip"
+    }
+  ]
+}

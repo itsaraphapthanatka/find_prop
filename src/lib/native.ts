@@ -13,12 +13,14 @@ export const isNativeApp = Capacitor.isNativePlatform()
 export const platform = Capacitor.getPlatform()
 
 /** ฐาน URL ของเว็บ prod สำหรับเรียก API / เช็คอัปเดตจากในแอป
-    ⚠️ ในแอปห้ามปล่อยว่างเด็ดขาด: bundle ที่ถูก live-update มาจากเว็บถูก build บน Vercel
+    ⚠️ ในแอปห้ามปล่อยว่างเด็ดขาด: bundle ที่ถูก live-update มาจากเว็บถูก build บนเซิร์ฟเวอร์
     ซึ่งไม่มีค่า VITE_API_BASE — ถ้าไม่มี fallback แอปจะหยุดเช็คอัปเดตถาวร (ค้างกับ
-    bundle เก่าตลอดกาล — เกิดขึ้นจริง 2026-07-19) และ AI จะเรียก /api/ai ไม่ได้ */
+    bundle เก่าตลอดกาล — เกิดขึ้นจริง 2026-07-19) และ AI จะเรียก /api/ai ไม่ได้
+    ย้ายจาก hob-alpha.vercel.app มาเครื่อง msi-edgexpert-04dc (docs/DEPLOY-EDGEXPERT.md) —
+    แอปตัวเก่ายังเรียก Vercel อยู่ จึงต้องคง deploy/vercel-forwarder ไว้จนทุกเครื่องอัปเดตแล้ว */
 export const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ||
-  (isNativeApp ? 'https://hob-alpha.vercel.app' : '')
+  (isNativeApp ? 'https://hopai.online' : '')
 
 /** true เมื่อรัน "แบบแอปที่ติดตั้งไว้" — แอป Capacitor หรือ PWA ที่ปักหน้าจอโฮม (standalone)
     ใช้ตัดหน้า landing: คนที่ติดตั้งถึงขั้นนี้คือทีมงาน ไม่ใช่ลูกค้าที่เพิ่งหลงเข้ามาดูเว็บ */
