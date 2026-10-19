@@ -166,7 +166,7 @@ try {
     const put = (p, body = `<!-- /${p} -->`) => { fs.mkdirSync(path.dirname(path.join(dist, p)), { recursive: true }); fs.writeFileSync(path.join(dist, p), body) }
     for (const p of ['index.html', 'sw.js', 'guide.html', 'flow.html', 'flow-internal.html', 'features.html', 'qa-review.html',
       'stats.html', 'presentation.html', 'docs/training.html', 'docs/system.html', 'docs/features.html', 'assets/index-abc123.js',
-      'app-update.json', 'app-update.zip']) put(p)
+      'app-update.json', 'app-update.zip', 'registerSW.js', 'workbox-abc123.js', 'manifest.webmanifest']) put(p)
 
     const webPort = await freePort()
     const local = caddyfile
@@ -201,9 +201,14 @@ try {
     check('app-update.zip: CORS *', r.headers.get('access-control-allow-origin') === '*')
     r = await fetch(`${W}/assets/index-abc123.js`)
     check('/assets/* แคชยาว immutable', (r.headers.get('cache-control') || '').includes('immutable'))
-    for (const p of ['/', '/sw.js', '/index.html']) {
+    for (const p of ['/', '/index.html']) {
       r = await fetch(W + p)
       check(`${p} ต้องสดเสมอ (max-age=0) ไม่งั้นค้างเวอร์ชันเก่า`, r.status === 200 && (r.headers.get('cache-control') || '').includes('max-age=0'), r.headers.get('cache-control'))
+    }
+    // Cloudflare ทับ max-age=0 ของ .js/.zip เป็น 4 ชม. → ไฟล์ชื่อคงที่ที่เปลี่ยนทุก build ต้องเป็น no-cache
+    for (const p of ['/sw.js', '/registerSW.js', '/workbox-abc123.js', '/app-update.zip', '/manifest.webmanifest']) {
+      r = await fetch(W + p)
+      check(`${p} เป็น no-cache (Cloudflare ทับ max-age=0 ได้ แต่ไม่ทับ no-cache)`, r.status === 200 && r.headers.get('cache-control') === 'no-cache', r.headers.get('cache-control'))
     }
     r = await fetch(`${W}/nope.html`); check('ไฟล์ที่ไม่มี → 404', r.status === 404)
 

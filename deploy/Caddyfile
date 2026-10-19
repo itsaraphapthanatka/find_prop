@@ -85,6 +85,11 @@
 		# ค่าเริ่มต้นแบบ Vercel: ให้เบราว์เซอร์ถามใหม่ทุกครั้ง (index.html / sw.js ต้องสดเสมอ ไม่งั้นค้างเวอร์ชันเก่า)
 		# `?` = ตั้งเฉพาะเมื่อกฎที่เจาะจงกว่าด้านล่างยังไม่ได้ตั้ง (Caddy รันกฎ path เจาะจงก่อนกฎที่ไม่มี matcher)
 		header ?Cache-Control "public, max-age=0, must-revalidate"
+		# ไฟล์ที่ชื่อคงที่แต่เนื้อเปลี่ยนทุกรอบ build → no-cache (ตรวจกับเซิร์ฟเวอร์ทุกครั้ง)
+		# ใช้ no-cache แทน max-age=0 เพราะ Browser Cache TTL ของ Cloudflare (ค่าเริ่ม 4 ชม.) ทับ max-age=0
+		# ของไฟล์นามสกุล .js/.zip — เจอจริงบน staging: แอปอาจได้ app-update.zip เก่าจากแคชนาน 4 ชม.
+		@fresh path /sw.js /registerSW.js /workbox-*.js /app-update.zip /manifest.webmanifest
+		header @fresh Cache-Control no-cache
 		# ไฟล์ใน /assets มี hash ในชื่อ — แคชได้ยาว
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
 		# live-update ของแอปมือถือ (ดู src/lib/appUpdate.ts)
