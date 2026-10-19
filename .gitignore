@@ -1,5 +1,7 @@
 node_modules
 dist
+# บันเดิลชั่วคราวของ scripts/prerender.mjs
+dist-ssr
 .env
 .env.local
 *.local

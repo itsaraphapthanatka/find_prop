@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/update-zip.mjs",
+    "build": "tsc -b && vite build && node scripts/prerender.mjs && node scripts/update-zip.mjs",
     "preview": "vite preview",
     "test:draft": "node scripts/draft-selftest.mjs",
     "test:ui": "node scripts/form-ui-test.mjs",
