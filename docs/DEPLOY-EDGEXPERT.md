@@ -154,31 +154,56 @@ vercel link           # ครั้งแรกครั้งเดียว �
 
 ---
 
-## ขั้นที่ 4 — ย้ายจริง (ประมาณ 30 นาที เลือกช่วงคนใช้น้อย)
+## ขั้นที่ 4 — ย้ายจริง (ราว 30–45 นาที)
 
-ลำดับสำคัญ — ทำตามนี้ทีละข้อ:
+**เวลา:** ช่วงคนใช้น้อย และ**ก่อน 07:00** ของวันถัดไป (push-cron ยิงตอน 07:00 เวลาไทย — ต้องปิด cron ของ Vercel ก่อนรอบนั้น ไม่งั้นแจ้งเตือนซ้ำ)
+**คนทำ:** 👤 = เจ้าของบัญชี (แดชบอร์ด/รันคำสั่งบน Mac) · 🤖 = Claude (ตรวจจากข้างนอก / git)
 
-1. **Cloudflare DNS** → ลบ record `A`/`AAAA`/`CNAME` เดิมของ `hopai.online` และ `www` (ถ้ามี)
-2. **Tunnel ของ appreview → Public Hostname** เพิ่ม `hopai.online` และ `www` → `HTTP` `localhost:8098` (ไม่ต้องรีสตาร์ทอะไร)
-3. บนเครื่อง แก้ `deploy/.env`: `PUBLIC_APP_URL=https://hopai.online` · `INVITE_WEB_BASE=https://hopai.online` · `ENABLE_CRON=1` → `./deploy/deploy.sh --no-pull`
-4. เปิด https://hopai.online ทดสอบล็อกอินให้ผ่าน
-5. **Supabase** → URL Configuration → **Site URL** = `https://hopai.online`
-6. **Stripe (Live)** → Developers → Webhooks → endpoint เดิม → **แก้ URL** เป็น `https://hopai.online/api/stripe-webhook` (แก้ URL อย่างเดียว ความลับเดิมยังใช้ได้ ไม่ต้องเปลี่ยน `STRIPE_WEBHOOK_SECRET`)
-7. **merge `deploy/edgexpert` → main** แล้วบนเครื่อง: `git switch main && ./deploy/deploy.sh`
-   — CI build image ของ main ให้ และ build APK ใหม่ที่ชี้ hopai.online อัตโนมัติ
-8. **Vercel** → Settings → Build and Deployment → **Root Directory** = `deploy/vercel-forwarder` · Framework Preset = **Other** · ไม่ต้องมี Build Command → **Redeploy**
-9. ตรวจตัวส่งต่อ:
-   - `curl -sI https://hob-alpha.vercel.app/guide.html` → `308` ไป `https://hopai.online/guide.html`
-   - `curl -s https://hob-alpha.vercel.app/app-update.json` → JSON จากเครื่องใหม่ (version = commit ล่าสุด)
-   - หน้า Vercel → Settings → Cron Jobs ต้องว่าง (ไม่งั้นแจ้งเตือนซ้ำ)
-10. แจ้งทีม: **ผู้ใช้เว็บต้องล็อกอินใหม่หนึ่งครั้ง** (โดเมนใหม่ = ที่เก็บข้อมูลเบราว์เซอร์ใหม่) · แอปมือถือไม่ต้องล็อกอินใหม่ อัปเดตตัวเองตอนเปิดแอปครั้งถัดไป
-11. เปลี่ยน uptime monitor เป็น `https://hopai.online/healthz`
+### ก่อนเริ่ม (เช็ค 5 นาที)
 
-### ถ้ามีปัญหา — ถอยกลับ
+- [ ] 🤖 รวม main ล่าสุดเข้า `deploy/edgexpert` · CI build image ผ่าน · staging ใช้ commit ล่าสุด
+- [ ] 👤 Cloudflare: Bot Fight Mode ปิด · Always Use HTTPS เปิด · Browser Cache TTL = Respect Existing Headers (✅ ตั้งแล้ว)
+- [ ] 👤 Supabase → Authentication → URL Configuration → Redirect URLs มี `https://hopai.online/**`
+- [ ] 👤 เปิดแท็บค้างไว้: Cloudflare (DNS + Zero Trust → Tunnels) · Supabase (URL Configuration) · Stripe Live (Webhooks) · Vercel (finprop → Settings)
 
-- Vercel → Root Directory กลับเป็นค่าว่าง (รากโปรเจกต์) → Redeploy → `hob-alpha.vercel.app` กลับมาเป็นเว็บเต็มเหมือนเดิม
-- Stripe webhook URL กลับเป็น `https://hob-alpha.vercel.app/api/stripe-webhook` · Supabase Site URL กลับ
-- แอปที่ได้ bundle ใหม่แล้วจะเรียก hopai.online — ถ้าเครื่องเสียนาน ให้เพิ่มโดเมน `hopai.online` ในโปรเจกต์ Vercel แล้วเปลี่ยน DNS ใน Cloudflare เป็น CNAME ไปที่ Vercel ชั่วคราว
+### ย้าย (ทำตามลำดับ)
+
+1. 👤 **Cloudflare DNS** (hopai.online) → ลบ record `A`/`AAAA` ของ `hopai.online` และ `www` (ตอนนี้ตอบ 404 ไม่มีอะไรอยู่)
+2. 👤 **Zero Trust → Tunnels → tunnel ของ appreview → Public Hostname** เพิ่ม 2 รายการ:
+   `hopai.online` → `HTTP` `localhost:8098` · `www.hopai.online` → `HTTP` `localhost:8098`
+3. 👤 **ค่าบนเครื่อง** (Mac ในโฟลเดอร์โปรเจกต์):
+   ```bash
+   ./deploy/set-remote-env.sh PUBLIC_APP_URL     # พิมพ์ https://hopai.online
+   ./deploy/set-remote-env.sh INVITE_WEB_BASE    # พิมพ์ https://hopai.online
+   ./deploy/set-remote-env.sh ENABLE_CRON        # พิมพ์ 1
+   ssh ssh.appreview.cloud 'cd ~/hop && ./deploy/deploy.sh --no-pull'
+   ```
+4. 🤖 ตรวจ `https://hopai.online` จากข้างนอก (หน้าเว็บ · /healthz · API · redirect · www → apex) · 👤 ลองล็อกอินจริง 1 ครั้ง
+5. 👤 **Supabase** → URL Configuration → **Site URL** = `https://hopai.online`
+6. 👤 **Stripe (Live)** → Developers → Webhooks → endpoint เดิม → **แก้แค่ URL** เป็น `https://hopai.online/api/stripe-webhook` (ความลับเดิม ไม่ต้องเปลี่ยน)
+   → เปิด event ล่าสุดประเภท `customer.subscription.updated` → **Resend** → ต้องได้ 200
+7. 🤖 **merge `deploy/edgexpert` → main** และ push (Vercel build รอบสุดท้าย · CI build APK ใหม่ที่ชี้ hopai.online · CI build image แท็ก main)
+8. 👤 เครื่องเปลี่ยนไปตาม main:
+   ```bash
+   ssh ssh.appreview.cloud 'cd ~/hop && git switch main && git pull --ff-only && ./deploy/deploy.sh'
+   ```
+9. 👤 **Vercel** → finprop → Settings → Build and Deployment → **Root Directory** = `deploy/vercel-forwarder` · Framework Preset = **Other** · Build Command ปล่อยว่าง → Save → Deployments → **Redeploy** (Production)
+10. 🤖 ตรวจตัวส่งต่อทั้ง 3 โดเมน (`hob-alpha` / `hop-property` / `finprop-alpha`):
+    หน้าเว็บ → `308` ไป hopai.online · `/app-update.json` → JSON จากเครื่องใหม่ · `/api/stats` → ส่งต่อได้ · `vercel crons ls` ต้องว่าง
+11. 👤 เปลี่ยน uptime monitor เป็น `https://hopai.online/healthz` · แจ้งทีม: **เว็บต้องล็อกอินใหม่ 1 ครั้ง** ส่วนแอปมือถือไม่ต้อง (อัปเดตตัวเองตอนเปิดแอป)
+
+### หลังย้าย 24 ชม.
+
+- 07:00 เช้าถัดไป: `ssh ssh.appreview.cloud 'cd ~/hop && docker compose -f deploy/docker-compose.yml logs api | grep cron'` ต้องเห็น `[cron] push-cron 200` (และไม่มีจาก Vercel)
+- Stripe → Webhooks: การส่งทุกครั้งได้ 200
+- error ฝั่ง API: `... logs api | grep -E " 5[0-9][0-9] "` ต้องว่าง
+
+### ถ้ามีปัญหา — ถอยกลับ (≈ 5 นาที)
+
+1. Vercel → Root Directory กลับเป็นค่าว่าง (`.`) · Framework = Vite → Redeploy → `hob-alpha.vercel.app` กลับเป็นเว็บเต็ม (cron กลับมาเอง)
+2. Stripe webhook URL กลับเป็น `https://hob-alpha.vercel.app/api/stripe-webhook` · Supabase Site URL กลับ
+3. บนเครื่อง `ENABLE_CRON=0` (กันแจ้งเตือนซ้ำกับ Vercel)
+4. แอปที่ได้ bundle ใหม่แล้วจะเรียก hopai.online — ถ้าเครื่องเสียนาน ให้เพิ่มโดเมน `hopai.online` ในโปรเจกต์ Vercel แล้วเปลี่ยน DNS ใน Cloudflare เป็น CNAME ไปที่ Vercel ชั่วคราว
 
 ---
 
