@@ -85,8 +85,9 @@ docker run --rm --memory 1g --cpus 4 \
   -v "$(dirname "$SRC")":/in:ro -v "$TMP":/k:ro -v "$OUT":/out \
   alpine:3.22 sh -euc '
     apk add --no-cache ffmpeg >/dev/null
-    V=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "/in/$SRC_NAME")
-    A=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "/in/$SRC_NAME")
+    # default=nw=1:nk=1 ได้ชื่อเปล่าๆ (csv=p=0 บางไฟล์ได้ "h264," มีจุลภาคท้าย → เคยแปลงไฟล์ใหม่ทั้งที่ไม่จำเป็น)
+    V=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "/in/$SRC_NAME" | head -1)
+    A=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "/in/$SRC_NAME" | head -1)
     if [ "$V" = h264 ] && [ "$A" = aac ]; then
       CODEC="-c copy"; echo "  ภาพ/เสียงเดิม (h264/aac) เล่นบนเบราว์เซอร์ได้อยู่แล้ว — ไม่ต้องแปลง"
     else
