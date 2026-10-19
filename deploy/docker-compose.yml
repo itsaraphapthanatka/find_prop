@@ -45,8 +45,8 @@ services:
     restart: unless-stopped
     logging: *logging
 
-  # tunnel ของ HOP เอง (สร้างในแดชบอร์ด Cloudflare) — แยกจาก cloudflared ตัวเดิมของเครื่อง
-  # จะได้ไม่ต้องแก้ config.yml / รีสตาร์ท tunnel ที่เว็บอื่นใช้ร่วม · เปิดด้วย COMPOSE_PROFILES=tunnel
+  # tunnel ของ HOP เอง — ใช้เฉพาะเครื่องที่ยังไม่มี tunnel (เปิดด้วย COMPOSE_PROFILES=tunnel)
+  # บน edgexpert ไม่ใช้: ต่อผ่าน tunnel ของเว็บ appreview (คอนเทนเนอร์ cloudflared โหมด host) → localhost:${WEB_PORT}
   tunnel:
     profiles: ["tunnel"]
     image: cloudflare/cloudflared:2026.10.0

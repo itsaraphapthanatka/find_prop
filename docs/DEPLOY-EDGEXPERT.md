@@ -7,12 +7,12 @@
 ## ภาพรวม
 
 ```
-ผู้ใช้ ─HTTPS─▶ Cloudflare (hopai.online) ─tunnel─▶ cloudflared (hop) ─▶ Caddy ─┬─▶ ไฟล์เว็บ (dist)
+ผู้ใช้ ─HTTPS─▶ Cloudflare (hopai.online) ─tunnel─▶ cloudflared (appreview) ─▶ Caddy 127.0.0.1:8098 ─┬─▶ ไฟล์เว็บ (dist)
                                                                             ├─▶ /api/* → server/index.mjs :3000 (api/*.js เดิม)
 แอปตัวเก่า ─▶ hob-alpha.vercel.app ─(ส่งต่อ)──────────────────────────────────┘    └─▶ /geo, /llms.txt → geo.appreview.cloud
 ```
 
-- **ไม่ต้องเปิดพอร์ตเราเตอร์ / ไม่ต้องมี IP จริง** เพราะ cloudflared ต่อออกไปหา Cloudflare เอง — HOP มี tunnel ของตัวเอง แยกจาก tunnel เดิมของเครื่อง
+- **ไม่ต้องเปิดพอร์ตเราเตอร์ / ไม่ต้องมี IP จริง** เพราะ cloudflared ต่อออกไปหา Cloudflare เอง — HOP ใช้ tunnel ตัวเดียวกับเว็บ appreview (จัดการจากแดชบอร์ด)
 - **ไม่ build บนเครื่อง:** แรมเครื่องถูก vLLM (`aunjai-vllm`) จองไว้เกือบหมด (เหลือว่างราว 2GB) — GitHub Actions build image ARM64 ให้ (`.github/workflows/deploy-images.yml`) เครื่องแค่ pull · แต่ละคอนเทนเนอร์จำกัดแรมไว้ (รวม ≤ 900MB ใช้จริงราว 150MB)
 - `server/index.mjs` โหลด `api/*.js` ตัวเดิมโดยไม่แก้โค้ด (เลียนแบบ Vercel) และยิง push-cron เองทุกวันตอน 07:00 เวลาไทย
 - `deploy/Caddyfile` แปลงกฎ redirect/rewrite/header จาก `vercel.json` มาครบ → ตรวจด้วย `npm run test:server`
@@ -63,15 +63,22 @@ cd ~/hop && git switch deploy/edgexpert
 
 GitHub → โปรไฟล์ → **Packages** → `hop-api` → **Package settings** → Danger Zone → **Change visibility → Public** (ทำซ้ำกับ `hop-web`)
 
-### 2.4 สร้าง Cloudflare Tunnel ของ HOP
+### 2.4 ต่อ Cloudflare Tunnel (ใช้ตัวเดียวกับเว็บ appreview)
 
-tunnel เดิมของเครื่อง (`/etc/cloudflared/config.yml`) ตั้งค่าแบบไฟล์ และเว็บอื่นใช้ร่วมกันอยู่ — ถ้าเพิ่มโดเมนต้องแก้ไฟล์แล้วรีสตาร์ท ซึ่งทำให้เว็บอื่นสะดุด จึงสร้าง tunnel แยกให้ HOP (จัดการจากแดชบอร์ด เพิ่มโดเมนทีหลังไม่ต้องรีสตาร์ทอะไร):
+เครื่องนี้มี cloudflared 3 ตัว:
 
-1. Cloudflare → **Zero Trust** → **Networks** → **Tunnels** → **Create a tunnel** → **Cloudflared**
-2. ตั้งชื่อ `hop` → หน้าติดตั้งเลือก **Docker** → คัดลอก **โทเคน** (ข้อความยาวหลัง `--token`) — ไม่ต้องรันคำสั่งที่หน้านั้น compose รันให้
-3. **Public Hostname** → Add: Subdomain `staging` · Domain `hopai.online` · Service Type `HTTP` · URL `web:8080`
+| ตัว | จัดการแบบ | หน้าที่ | HOP ใช้? |
+|---|---|---|---|
+| systemd `cloudflared` (`/etc/cloudflared/config.yml`) | ไฟล์ | SSH เท่านั้น (`ssh.appreview.cloud`, `ssh2.appreview.cloud`) | ❌ **ห้ามแตะ** — แก้พลาดแล้วเข้าเครื่องจากข้างนอกไม่ได้ทั้ง 2 เครื่อง |
+| คอนเทนเนอร์ `cloudflared` (โหมด host) | แดชบอร์ด (โทเคน) | เว็บ appreview และอื่นๆ | ✅ ใช้ตัวนี้ |
+| คอนเทนเนอร์ `cloudflared-sethai` (โหมด host) | แดชบอร์ด (โทเคน) | งานของ sethai | ❌ |
 
-> ⚠️ โทเคนนี้คือกุญแจเข้าเว็บ — ใส่ใน `deploy/.env` บนเครื่องเท่านั้น อย่าวางในแชต/ส่งให้ใคร
+1. Cloudflare → **Zero Trust** → **Networks** → **Tunnels** → เลือก tunnel ที่มี Public Hostname ของ **appreview.cloud** อยู่
+2. **Public Hostname** → Add: Subdomain `staging` · Domain `hopai.online` · Service Type `HTTP` · URL `localhost:8098` (ตรงกับ `WEB_PORT`)
+   — คอนเทนเนอร์ cloudflared ใช้เครือข่ายโหมด host จึงเห็นพอร์ต 127.0.0.1 ของเครื่องได้ · กดบันทึกแล้วมีผลทันที ไม่ต้องรีสตาร์ท เว็บอื่นไม่สะดุด
+3. ใน `deploy/.env` ปล่อย `COMPOSE_PROFILES=` และ `CLOUDFLARE_TUNNEL_TOKEN=` ว่างไว้
+
+> ถ้าในรายการโดเมนตอนเพิ่ม Public Hostname ไม่มี `hopai.online` ให้เลือก แปลว่าโดเมนอยู่คนละบัญชี Cloudflare กับ tunnel — ต้องย้ายโดเมนมาบัญชีเดียวกัน หรือสร้าง tunnel ใหม่ในบัญชีของ hopai.online (ตั้ง `COMPOSE_PROFILES=tunnel` + โทเคน · Public Hostname ชี้ `web:8080`)
 
 ### 2.5 กรอกค่าลับ
 
@@ -84,7 +91,7 @@ chmod 600 deploy/.env
 - ค่าส่วนใหญ่ใช้ชุดเดียวกับ **Vercel → Settings → Environment Variables (Production)**
 - ตัวที่ Vercel ตั้งเป็น *Sensitive* จะเปิดดูไม่ได้ ให้เอาจากต้นทาง: Supabase (service role) · Stripe (secret key — ถ้าไม่ได้เก็บไว้ ให้สร้างคีย์ใหม่ได้ คีย์เดิมยังใช้ได้คู่กัน · webhook secret เปิดดูได้เสมอ) · Gmail App Password (สร้างใหม่ได้)
 - `CRON_SECRET` สุ่มใหม่ได้: `openssl rand -hex 32`
-- `COMPOSE_PROFILES=tunnel` + `CLOUDFLARE_TUNNEL_TOKEN=<โทเคนจากข้อ 2.4>` · `WEB_PORT=8098` (8080/3000 มีบริการอื่นใช้แล้ว — เช็คว่าว่าง: `ss -ltn | grep :8098` ต้องไม่มีผลลัพธ์)
+- `COMPOSE_PROFILES=` และ `CLOUDFLARE_TUNNEL_TOKEN=` ว่างไว้ (ใช้ tunnel ของ appreview) · `WEB_PORT=8098` (8080/3000 มีบริการอื่นใช้แล้ว — เช็คว่าว่าง: `ss -ltn | grep :8098` ต้องไม่มีผลลัพธ์)
 - **ช่วงทดสอบ:** `PUBLIC_APP_URL=https://staging.hopai.online` · `INVITE_WEB_BASE=https://staging.hopai.online` · `ENABLE_CRON=0` (Vercel ยังยิง cron อยู่ กันแจ้งเตือนซ้ำ)
 
 ### 2.6 รัน
@@ -130,7 +137,7 @@ chmod 600 deploy/.env
 ลำดับสำคัญ — ทำตามนี้ทีละข้อ:
 
 1. **Cloudflare DNS** → ลบ record `A`/`AAAA`/`CNAME` เดิมของ `hopai.online` และ `www` (ถ้ามี)
-2. **Tunnel `hop` → Public Hostname** เพิ่ม `hopai.online` และ `www` → `HTTP` `web:8080` (ไม่ต้องรีสตาร์ทอะไร)
+2. **Tunnel ของ appreview → Public Hostname** เพิ่ม `hopai.online` และ `www` → `HTTP` `localhost:8098` (ไม่ต้องรีสตาร์ทอะไร)
 3. บนเครื่อง แก้ `deploy/.env`: `PUBLIC_APP_URL=https://hopai.online` · `INVITE_WEB_BASE=https://hopai.online` · `ENABLE_CRON=1` → `./deploy/deploy.sh --no-pull`
 4. เปิด https://hopai.online ทดสอบล็อกอินให้ผ่าน
 5. **Supabase** → URL Configuration → **Site URL** = `https://hopai.online`
@@ -173,7 +180,7 @@ chmod 600 deploy/.env
 docker compose -f deploy/docker-compose.yml ps            # สถานะ (เฉพาะของ HOP)
 docker compose -f deploy/docker-compose.yml logs -f api   # log ของ API
 docker compose -f deploy/docker-compose.yml restart       # รีสตาร์ทเฉพาะ HOP
-docker stats --no-stream hop-api-1 hop-web-1 hop-tunnel-1 # แรม/CPU ที่ HOP ใช้
+docker stats --no-stream hop-api-1 hop-web-1             # แรม/CPU ที่ HOP ใช้
 curl -s http://127.0.0.1:8098/healthz                     # เช็คในเครื่อง (ไม่ผ่าน Cloudflare)
 ```
 
