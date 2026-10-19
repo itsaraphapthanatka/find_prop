@@ -26,10 +26,10 @@
     { "source": "/docs/features", "destination": "/docs/features.html" },
     { "source": "/stats", "destination": "/stats.html" },
     { "source": "/presentation", "destination": "/presentation.html" },
-    { "source": "/geo",        "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/a/" },
-    { "source": "/geo/:path*", "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/a/:path*" },
-    { "source": "/llms.txt",   "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/llms.txt" },
-    { "source": "/geo-sitemap.xml", "destination": "https://geo.appreview.cloud/e/ttIAGK8p25tQNRuVleq3Ug/sitemap.xml" }
+    { "source": "/geo",        "destination": "https://geo.appreview.cloud/e/c0Yp5I0nOTdWGqWnD9OhpQ/a/" },
+    { "source": "/geo/:path*", "destination": "https://geo.appreview.cloud/e/c0Yp5I0nOTdWGqWnD9OhpQ/a/:path*" },
+    { "source": "/llms.txt",   "destination": "https://geo.appreview.cloud/e/c0Yp5I0nOTdWGqWnD9OhpQ/llms.txt" },
+    { "source": "/geo-sitemap.xml", "destination": "https://geo.appreview.cloud/e/c0Yp5I0nOTdWGqWnD9OhpQ/sitemap.xml" }
   ],
   "functions": {
     "api/ai.js": {
