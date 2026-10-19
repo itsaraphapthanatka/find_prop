@@ -1,4 +1,6 @@
-# HOP บนเครื่อง msi-edgexpert-04dc (ARM64) — รันด้วย ./deploy.sh (หรือ docker compose up -d --build ในโฟลเดอร์นี้)
+# HOP บนเครื่อง edgexpert (ARM64, ใช้ร่วมกับบริการอื่นหลายสิบตัว) — รันผ่าน ./deploy/deploy.sh เท่านั้น
+# image ถูก build บน GitHub Actions (.github/workflows/deploy-images.yml) แล้วเครื่องแค่ pull
+#   → ไม่ต้อง build บนเครื่อง (แรมเกือบทั้งหมดถูก vLLM จองไว้ build เว็บอาจทำให้ OOM ไปโดนบริการอื่น)
 # ค่าลับทั้งหมดอยู่ใน deploy/.env (คัดลอกจาก .env.example) — ห้าม commit
 name: hop
 
@@ -10,16 +12,21 @@ x-logging: &logging
 
 services:
   api:
+    image: ghcr.io/itsaraphapthanatka/hop-api:${HOP_TAG:-main}
+    # สำรอง: ./deploy/deploy.sh --build (build ในเครื่อง — ดูแรมก่อน)
     build:
       context: ..
       dockerfile: deploy/api.Dockerfile
     env_file: .env
     environment:
       PORT: "3000"
+    # เครื่องใช้ร่วมกับบริการอื่น — จำกัดไว้ไม่ให้ HOP กินแรมคนอื่น (ใช้จริงราว 100MB)
+    mem_limit: 512m
     restart: unless-stopped
     logging: *logging
 
   web:
+    image: ghcr.io/itsaraphapthanatka/hop-web:${HOP_TAG:-main}
     build:
       context: ..
       dockerfile: deploy/web.Dockerfile
@@ -30,15 +37,16 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    # เปิดเฉพาะในเครื่อง — คนภายนอกเข้าผ่าน Cloudflare Tunnel เท่านั้น ไม่ต้องเปิดพอร์ตเราเตอร์
-    # cloudflared ที่รันเป็น service ของเครื่องอยู่แล้ว ชี้ Public Hostname มาที่ http://localhost:${WEB_PORT}
+    # เปิดเฉพาะในเครื่องไว้ทดสอบด้วย curl — คนภายนอกเข้าผ่าน Cloudflare Tunnel เท่านั้น
+    # (8080/3000 บนเครื่อง edgexpert มีบริการอื่นใช้อยู่ จึงใช้ WEB_PORT ค่าเริ่ม 8098)
     ports:
-      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+      - "127.0.0.1:${WEB_PORT:-8098}:8080"
+    mem_limit: 256m
     restart: unless-stopped
     logging: *logging
 
-  # ใช้เฉพาะเครื่องที่ยังไม่มี cloudflared — เปิดด้วย COMPOSE_PROFILES=tunnel ใน deploy/.env
-  # (เครื่องที่รัน cloudflared เป็น systemd service อยู่แล้ว ไม่ต้องเปิด — เพิ่ม Public Hostname ใน tunnel เดิมแทน)
+  # tunnel ของ HOP เอง (สร้างในแดชบอร์ด Cloudflare) — แยกจาก cloudflared ตัวเดิมของเครื่อง
+  # จะได้ไม่ต้องแก้ config.yml / รีสตาร์ท tunnel ที่เว็บอื่นใช้ร่วม · เปิดด้วย COMPOSE_PROFILES=tunnel
   tunnel:
     profiles: ["tunnel"]
     image: cloudflare/cloudflared:2026.10.0
@@ -47,5 +55,6 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - web
+    mem_limit: 128m
     restart: unless-stopped
     logging: *logging

@@ -257,11 +257,31 @@ try {
 
   const compose = read('deploy/docker-compose.yml')
   check('compose ไม่มีค่าลับฝัง', !/(sk_live_|sk_test_|whsec_|eyJ[A-Za-z0-9_-]{20,})/.test(compose))
-  check('เว็บเปิดพอร์ตเฉพาะในเครื่อง (127.0.0.1) — ภายนอกเข้าผ่าน tunnel เท่านั้น', /"127\.0\.0\.1:\$\{WEB_PORT:-8080\}:8080"/.test(compose) && !/^\s*-\s*"?(0\.0\.0\.0:)?\d+:\d+"?\s*$/m.test(compose))
+  check('เว็บเปิดพอร์ตเฉพาะในเครื่อง (127.0.0.1) — ภายนอกเข้าผ่าน tunnel เท่านั้น', /"127\.0\.0\.1:\$\{WEB_PORT:-8098\}:8080"/.test(compose) && !/^\s*-\s*"?(0\.0\.0\.0:)?\d+:\d+"?\s*$/m.test(compose))
   check('api ไม่เปิดพอร์ตออกนอก docker', !/api:[\s\S]*?ports:[\s\S]*?web:/.test(compose))
   const images = [...compose.matchAll(/image:\s*(\S+)/g), ...read('deploy/api.Dockerfile').matchAll(/^FROM\s+(\S+)/gm), ...read('deploy/web.Dockerfile').matchAll(/^FROM\s+(\S+)/gm)].map((m) => m[1])
+  check('ไม่ชนพอร์ตที่บริการอื่นบนเครื่อง edgexpert ใช้อยู่ (8080, 3000)', !/127\.0\.0\.1:\$\{WEB_PORT:-(8080|3000)\}/.test(compose) && /^WEB_PORT=8098$/m.test(envExample))
+  for (const svc of ['api', 'web', 'tunnel']) {
+    const block = compose.split(/\n  (?=[a-z]+:\n)/).find((b) => b.startsWith(`${svc}:`)) || ''
+    check(`compose: ${svc} จำกัดแรม (เครื่องใช้ร่วมกับบริการอื่น)`, /mem_limit: \d+m/.test(block))
+  }
   check('tunnel ใน compose เปิดเฉพาะเมื่อเลือก (เครื่องที่มี cloudflared อยู่แล้วไม่ซ้อน)', /tunnel:\s*\n(?:\s*#.*\n)*\s*profiles: \["tunnel"\]/.test(compose) || /profiles: \["tunnel"\]\s*\n\s*image: cloudflare/.test(compose))
-  check('ทุก image ระบุรุ่น (ไม่ใช้ :latest)', images.every((i) => /:[\w.-]+$/.test(i) && !i.endsWith(':latest')), images.join(', '))
+  const ours = (i) => i.startsWith('ghcr.io/itsaraphapthanatka/hop-')
+  check('ทุก image ภายนอกระบุรุ่น (ไม่ใช้ :latest)', images.filter((i) => !ours(i)).every((i) => /:[\w.-]+$/.test(i) && !i.endsWith(':latest')), images.join(', '))
+
+  // image ของ HOP: CI build (ARM64) → เครื่อง pull ตาม commit ที่ checkout อยู่ (ไม่ build บนเครื่อง — แรมไม่พอ)
+  const wf = read('.github/workflows/deploy-images.yml')
+  const deploySh = read('deploy/deploy.sh')
+  check('compose ใช้ image hop-api / hop-web จาก ghcr ตามแท็ก HOP_TAG',
+    compose.includes('image: ghcr.io/itsaraphapthanatka/hop-api:${HOP_TAG:-main}') && compose.includes('image: ghcr.io/itsaraphapthanatka/hop-web:${HOP_TAG:-main}'))
+  check('CI build บน runner ARM64 แบบ native', /runs-on: ubuntu-24\.04-arm/.test(wf) && (wf.match(/platforms: linux\/arm64/g) || []).length === 2)
+  check('CI ติดแท็ก commit sha ให้ทั้งสอง image (deploy.sh ดึงตาม commit)',
+    wf.includes('/hop-api:${{ github.sha }}') && wf.includes('/hop-web:${{ github.sha }}') && /HOP_TAG="\$GIT_SHA"/.test(deploySh))
+  check('CI build ทุก commit ของ main + deploy/edgexpert (ไม่ข้ามไฟล์ใด ไม่งั้น deploy.sh รอ image ไม่มีวันมา)',
+    /branches: \[main, deploy\/edgexpert\]/.test(wf) && !/paths(-ignore)?:/.test(wf))
+  check('CI ใช้แค่ GITHUB_TOKEN (ไม่มี secret อื่น)', [...wf.matchAll(/secrets\.(\w+)/g)].every((m) => m[1] === 'GITHUB_TOKEN'))
+  check('CI ส่ง GIT_SHA ให้ web (buildId ของ live-update ตรง commit)', wf.includes('GIT_SHA=${{ github.sha }}'))
+  check('deploy.sh รันด้วย image ที่ pull มา ไม่ build เอง (เว้นสั่ง --build)', deploySh.includes('up -d --no-build') && deploySh.includes('--build) MODE=build'))
 
   const dockerignore = read('.dockerignore')
   for (const p of ['.env', '.env.*', '.git', '.claude', 'node_modules', 'dist', 'docs/COSTS.html', 'docs/COSTS.md'])
@@ -291,7 +311,7 @@ try {
   const native = read('src/lib/native.ts')
   check('แอปมือถือ (bundle ใหม่) เรียก API ที่ hopai.online', /isNativeApp \? 'https:\/\/hopai\.online' : ''/.test(native) && !/'https:\/\/hob-alpha\.vercel\.app'/.test(native))
   check('ลิงก์เชิญลูกทีมใช้ hopai.online เป็นค่าเริ่มต้น', read('api/send-invite.js').includes("|| 'https://hopai.online'"))
-  check('APK ใหม่ build ชี้ hopai.online', !read('.github/workflows/android-apk.yml').includes('hob-alpha.vercel.app'))
+  check('APK ใหม่ build ชี้ hopai.online', /VITE_API_BASE: https:\/\/hopai\.online\s*$/m.test(read('.github/workflows/android-apk.yml')))
   check('Vercel Analytics โหลดเฉพาะบนโดเมน vercel.app', /vercel\.app/.test(read('src/main.tsx')))
 } finally {
   for (const c of children) c.kill('SIGTERM')
