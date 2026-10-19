@@ -542,6 +542,8 @@ export default function LandingPage() {
 
       <footer className="ld-footer">
         <span>© {new Date().getFullYear()} HOP — แพลตฟอร์มบริหารทรัพย์</span>
+        {/* ลิงก์จริง (ไม่ใช่ Link ของ router) — /geo ถูก Caddy ส่งต่อไปหน้าบทความ GEO ก่อนถึง SPA */}
+        <a className="linklike" href="/geo">บทความและคู่มือทรัพย์</a>
         <button className="linklike" onClick={goLogin}>ลูกค้าปัจจุบัน: เข้าสู่ระบบ</button>
       </footer>
     </div>

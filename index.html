@@ -19,9 +19,28 @@
       content="HOP — หาโกดัง โรงงาน โชว์รูม ออฟฟิศ ให้เช่าและขาย ทำเลกรุงเทพฯ ตะวันออก–สมุทรปราการ บริการฟรี คัดทรัพย์ตรงความต้องการ พาชมถึงที่ ดูแลจนจบดีล"
     />
     <title>HOP — ฐานข้อมูลทรัพย์ให้เช่า/ขาย</title>
+    <!-- GEO: ข้อมูลองค์กรให้บอท/AI อ่านได้โดยไม่ต้องรัน JavaScript · บทความอยู่ที่ /geo, llms.txt, geo-sitemap.xml (Caddy ส่งต่อให้เจอ.AI) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "RealEstateAgent",
+      "name": "HOP",
+      "url": "https://hopai.online",
+      "description": "หาโกดัง โรงงาน โชว์รูม ออฟฟิศ ให้เช่าและขาย ทำเลกรุงเทพฯ ตะวันออก–สมุทรปราการ บริการฟรี คัดทรัพย์ตรงความต้องการ พาชมถึงที่ ดูแลจนจบดีล",
+      "areaServed": ["กรุงเทพมหานคร", "สมุทรปราการ"],
+      "knowsAbout": ["โกดังให้เช่า", "โรงงานให้เช่า", "โชว์รูมให้เช่า", "ออฟฟิศให้เช่า"],
+      "hasPart": { "@type": "CollectionPage", "name": "บทความและคู่มือทรัพย์", "url": "https://hopai.online/geo" }
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- เนื้อหาตั้งต้นใน HTML ก่อน React จะมาแทนที่ — บอทที่ไม่รัน JS (และตัวตรวจสุขภาพ GEO) เห็นลิงก์ไปบทความ -->
+    <div id="root">
+      <div class="geo-shell">
+        <p>HOP — หาโกดัง โรงงาน โชว์รูม ออฟฟิศ ให้เช่าและขาย ทำเลกรุงเทพฯ ตะวันออก–สมุทรปราการ</p>
+        <p><a href="/geo">บทความและคู่มือทรัพย์</a> · <a href="/llms.txt">llms.txt</a></p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

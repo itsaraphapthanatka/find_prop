@@ -62,19 +62,19 @@
 
 	# ── GEO (ส่งต่อไปบริการภายนอก เหมือน rewrite ใน vercel.json) ──
 	handle /geo {
-		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/a/
+		rewrite * /e/c0Yp5I0nOTdWGqWnD9OhpQ/a/
 		reverse_proxy https://geo.appreview.cloud
 	}
 	handle_path /geo/* {
-		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/a{path}
+		rewrite * /e/c0Yp5I0nOTdWGqWnD9OhpQ/a{path}
 		reverse_proxy https://geo.appreview.cloud
 	}
 	handle /llms.txt {
-		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/llms.txt
+		rewrite * /e/c0Yp5I0nOTdWGqWnD9OhpQ/llms.txt
 		reverse_proxy https://geo.appreview.cloud
 	}
 	handle /geo-sitemap.xml {
-		rewrite * /e/ttIAGK8p25tQNRuVleq3Ug/sitemap.xml
+		rewrite * /e/c0Yp5I0nOTdWGqWnD9OhpQ/sitemap.xml
 		reverse_proxy https://geo.appreview.cloud
 	}
 

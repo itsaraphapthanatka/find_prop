@@ -1631,6 +1631,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 }
 .linklike { background: none; border: none; padding: 0; color: var(--ld-dim); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
 .linklike:hover { color: var(--purple); }
+/* เปลือกตั้งต้นใน index.html ก่อน React mount — เรียบ ๆ ไม่กระพริบ */
+.geo-shell { padding: 24px; font: 14px/1.6 "IBM Plex Sans Thai", system-ui, sans-serif; color: #555; }
+.geo-shell a { color: inherit; }
 
 /* ── โหลดแบบ staggered reveal ── */
 @media (prefers-reduced-motion: no-preference) {
