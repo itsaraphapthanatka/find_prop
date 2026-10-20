@@ -82,6 +82,10 @@ function enhance(req, res, url) {
   }
 }
 
+// สถานะตัวตั้งเวลา — โชว์ใน /healthz ให้ตรวจจากข้างนอกได้ว่ารอบล่าสุดยิงสำเร็จไหม (log หายเมื่อสร้างคอนเทนเนอร์ใหม่)
+// ไม่มีข้อมูลส่วนตัว: แค่เวลา สถานะ และจำนวนที่ส่ง
+const cron = { enabled: false, next: null, last: null }
+
 const sendJson = (res, status, obj) => {
   res.statusCode = status
   res.setHeader('content-type', 'application/json; charset=utf-8')
@@ -96,7 +100,7 @@ export const server = http.createServer(async (req, res) => {
     if (url.pathname !== '/healthz') console.log(`${req.method} ${url.pathname} ${res.statusCode} ${Date.now() - t0}ms`)
   })
 
-  if (url.pathname === '/healthz') return sendJson(res, 200, { ok: true, uptime: Math.round(process.uptime()) })
+  if (url.pathname === '/healthz') return sendJson(res, 200, { ok: true, uptime: Math.round(process.uptime()), cron })
 
   const m = /^\/api\/([^/]+?)\/?$/.exec(url.pathname)
   if (!m) return sendJson(res, 404, { error: 'Not found' })
@@ -126,8 +130,12 @@ function scheduleDailyUtc(hour, job) {
   const now = new Date()
   const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, 0, 0))
   if (next <= now) next.setUTCDate(next.getUTCDate() + 1)
+  cron.next = next.toISOString()
   setTimeout(async () => {
-    try { await job() } catch (e) { console.error('[cron]', e) }
+    try { await job() } catch (e) {
+      cron.last = { at: new Date().toISOString(), status: 0, error: true }
+      console.error('[cron]', e)
+    }
     scheduleDailyUtc(hour, job)
   }, next - now).unref()
 }
@@ -137,9 +145,12 @@ if (isMain) {
   server.requestTimeout = 120_000 // AI/cron เคยตั้ง maxDuration 60s บน Vercel — เผื่อไว้สองเท่า
   server.listen(PORT, () => console.log(`HOP API พร้อมที่พอร์ต ${PORT} (api: ${API_DIR})`))
   if (process.env.CRON_SECRET && process.env.ENABLE_CRON !== '0') {
+    cron.enabled = true
     scheduleDailyUtc(0, async () => {
       const r = await fetch(`http://127.0.0.1:${PORT}/api/push-cron`, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } })
-      console.log('[cron] push-cron', r.status)
+      const out = await r.json().catch(() => ({}))
+      cron.last = { at: new Date().toISOString(), status: r.status, sent: out.sent ?? null, jobs: out.jobs ?? null }
+      console.log('[cron] push-cron', r.status, `sent=${out.sent ?? '-'} jobs=${out.jobs ?? '-'}`)
     })
     console.log('ตั้งเวลา push-cron ทุกวัน 00:00 UTC (07:00 เวลาไทย) แล้ว')
   }

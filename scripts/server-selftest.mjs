@@ -78,6 +78,7 @@ try {
 
   let r = await fetch(`${B}/healthz`); let j = await r.json()
   check('/healthz ตอบ ok', r.status === 200 && j.ok === true)
+  check('/healthz บอกสถานะ cron (ตรวจจากข้างนอกได้ว่ารอบล่าสุดยิงไหม)', j.cron && j.cron.enabled === false && j.cron.last === null, JSON.stringify(j.cron))
 
   r = await fetch(`${B}/api/echo?a=1&b=%E0%B8%81`); j = await r.json()
   check('GET: req.query อ่านค่าได้ (รวมภาษาไทย)', j.query.a === '1' && j.query.b === 'ก', JSON.stringify(j.query))
