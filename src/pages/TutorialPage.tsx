@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type Hls from 'hls.js'
-import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { API_BASE } from '../lib/native'
 
 // วิดีโอสอนใช้งาน — HLS เข้ารหัส AES-128 จาก /media/tutorial (ไฟล์อยู่บนเครื่องเซิร์ฟเวอร์ ดู deploy/media-hls.sh)
 // กันดาวน์โหลด: ไม่มีไฟล์ .mp4 ให้บันทึก · ทุกชิ้นเข้ารหัส กุญแจขอจาก /api/media-key พร้อม token (เฉพาะสมาชิกที่ล็อกอิน)
-// · ซ่อนปุ่มดาวน์โหลด/คลิกขวา/ภาพซ้อนภาพ · ลายน้ำอีเมลผู้ชมลอยบนวิดีโอ (เต็มจอก็ยังอยู่ เพราะขยายทั้งกรอบ ไม่ใช่แค่ <video>)
-// กัน 100% ไม่ได้ (อัดหน้าจอได้เสมอ) — ลายน้ำทำให้รู้ว่าใครเอาไปเผยแพร่
+// · ซ่อนปุ่มดาวน์โหลด/คลิกขวา/ภาพซ้อนภาพ · ลายน้ำแบรนด์ HOPAI.ONLINE ลอยบนวิดีโอ (เต็มจอก็ยังอยู่ เพราะขยายทั้งกรอบ ไม่ใช่แค่ <video>)
+// กัน 100% ไม่ได้ (อัดหน้าจอได้เสมอ) — เดิมลายน้ำเป็นอีเมลผู้ชม เจ้าของสั่งเปลี่ยนเป็นชื่อแบรนด์ (2026-10-20)
 
 const MEDIA = `${API_BASE}/media/tutorial`
+const WATERMARK = 'HOPAI.ONLINE'
 const POS_KEY = 'hop_tutorial_pos'
 
 type Chapter = { t: number; title: string }
@@ -22,7 +22,6 @@ function savedPosition(): number {
 }
 
 export default function TutorialPage() {
-  const { session, profile } = useAuth()
   const videoRef = useRef<HTMLVideoElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [manifest, setManifest] = useState<Manifest | null>(null)
@@ -30,7 +29,6 @@ export default function TutorialPage() {
   const [now, setNow] = useState(0)
   const [mark, setMark] = useState({ x: 6, y: 8 })
   const [fullscreen, setFullscreen] = useState(false)
-  const email = profile?.email || session?.user.email || ''
   const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled
 
   // 1) รุ่นล่าสุด + สารบัญ (current.json ไม่แคช — อัปวิดีโอใหม่แล้วเห็นทันที)
@@ -153,7 +151,6 @@ export default function TutorialPage() {
 
   const chapters = manifest?.chapters || []
   const current = chapters.reduce((idx, c, i) => (c.t <= now ? i : idx), 0)
-  const stamp = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
 
   return (
     <>
@@ -177,13 +174,9 @@ export default function TutorialPage() {
             onLoadedMetadata={onLoadedMetadata}
             onTimeUpdate={onTimeUpdate}
           />
-          {email && (
-            <div className="tutorial-watermark" style={{ left: `${mark.x}%`, top: `${mark.y}%` }} aria-hidden="true">
-              {email}
-              <br />
-              HOP · {stamp}
-            </div>
-          )}
+          <div className="tutorial-watermark" style={{ left: `${mark.x}%`, top: `${mark.y}%` }} aria-hidden="true">
+            {WATERMARK}
+          </div>
           {canFullscreen && !error && (
             <button type="button" className="tutorial-fs" onClick={toggleFullscreen} aria-label={fullscreen ? 'ออกจากเต็มจอ' : 'เต็มจอ'}>
               {fullscreen ? 'ออกจากเต็มจอ' : 'เต็มจอ'}
@@ -193,7 +186,7 @@ export default function TutorialPage() {
         </div>
 
         <p className="tutorial-note">
-          สำหรับสมาชิก HOP เท่านั้น · ไม่อนุญาตให้ดาวน์โหลดหรือเผยแพร่ต่อ (บนวิดีโอมีลายน้ำอีเมลของผู้ชม)
+          สำหรับสมาชิก HOP เท่านั้น · ไม่อนุญาตให้ดาวน์โหลดหรือเผยแพร่ต่อ
         </p>
 
         {chapters.length > 0 && (
