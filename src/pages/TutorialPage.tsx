@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type Hls from 'hls.js'
+import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { API_BASE } from '../lib/native'
 
 // วิดีโอสอนใช้งาน — HLS เข้ารหัส AES-128 จาก /media/tutorial (ไฟล์อยู่บนเครื่องเซิร์ฟเวอร์ ดู deploy/media-hls.sh)
 // กันดาวน์โหลด: ไม่มีไฟล์ .mp4 ให้บันทึก · ทุกชิ้นเข้ารหัส กุญแจขอจาก /api/media-key พร้อม token (เฉพาะสมาชิกที่ล็อกอิน)
-// · ซ่อนปุ่มดาวน์โหลด/คลิกขวา/ภาพซ้อนภาพ · ลายน้ำแบรนด์ HOPAI.ONLINE ลอยบนวิดีโอ (เต็มจอก็ยังอยู่ เพราะขยายทั้งกรอบ ไม่ใช่แค่ <video>)
-// กัน 100% ไม่ได้ (อัดหน้าจอได้เสมอ) — เดิมลายน้ำเป็นอีเมลผู้ชม เจ้าของสั่งเปลี่ยนเป็นชื่อแบรนด์ (2026-10-20)
+// · ซ่อนปุ่มดาวน์โหลด/คลิกขวา/ภาพซ้อนภาพ · ลายน้ำ HOPAI.ONLINE + อีเมลผู้ชม + วันที่ ลอยบนวิดีโอ
+//   (เต็มจอก็ยังอยู่ เพราะขยายทั้งกรอบ ไม่ใช่แค่ <video>)
+// กัน 100% ไม่ได้ (อัดหน้าจอได้เสมอ) — อีเมลบนลายน้ำทำให้รู้ว่าใครเอาไปเผยแพร่
 
 const MEDIA = `${API_BASE}/media/tutorial`
 const WATERMARK = 'HOPAI.ONLINE'
@@ -22,14 +24,17 @@ function savedPosition(): number {
 }
 
 export default function TutorialPage() {
+  const { session, profile } = useAuth()
   const videoRef = useRef<HTMLVideoElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const markRef = useRef<HTMLDivElement>(null)
   const [manifest, setManifest] = useState<Manifest | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(0)
-  const [mark, setMark] = useState({ x: 6, y: 8 })
+  const [mark, setMark] = useState({ x: 12, y: 12 })
   const [fullscreen, setFullscreen] = useState(false)
   const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled
+  const email = profile?.email || session?.user.email || ''
 
   // 1) รุ่นล่าสุด + สารบัญ (current.json ไม่แคช — อัปวิดีโอใหม่แล้วเห็นทันที)
   useEffect(() => {
@@ -124,18 +129,30 @@ export default function TutorialPage() {
     }
   }
 
-  // ลายน้ำย้ายที่ทุก 20 วินาที — ครอปออกยาก
-  useEffect(() => {
-    const id = setInterval(() => setMark({ x: 4 + Math.random() * 56, y: 6 + Math.random() * 74 }), 20000)
-    return () => clearInterval(id)
+  // ลายน้ำย้ายที่ทุก 20 วินาที — ครอปออกยาก · คำนวณจากขนาดจริง (อีเมลยาวบนจอมือถือห้ามล้นขอบ)
+  // และเว้นแถบปุ่มควบคุมด้านล่างของ <video>
+  const moveMark = useCallback(() => {
+    const wrap = wrapRef.current
+    const el = markRef.current
+    if (!wrap || !el) return
+    const maxX = Math.max(0, wrap.clientWidth - el.offsetWidth - 16)
+    const maxY = Math.max(0, wrap.clientHeight - el.offsetHeight - 64)
+    setMark({ x: 8 + Math.random() * maxX, y: 8 + Math.random() * maxY })
   }, [])
+  useEffect(() => {
+    const id = setInterval(moveMark, 20000)
+    return () => clearInterval(id)
+  }, [moveMark])
 
   // เต็มจอทั้งกรอบ (วิดีโอ + ลายน้ำ) — ปุ่มเต็มจอของ <video> ถูกซ่อนไว้ เพราะจะทิ้งลายน้ำไว้ข้างนอก
   useEffect(() => {
-    const onChange = () => setFullscreen(Boolean(document.fullscreenElement))
+    const onChange = () => {
+      setFullscreen(Boolean(document.fullscreenElement))
+      setTimeout(moveMark, 100) // ขนาดกรอบเปลี่ยน — วางลายน้ำใหม่ให้อยู่ในกรอบ
+    }
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [])
+  }, [moveMark])
   function toggleFullscreen() {
     if (document.fullscreenElement) void document.exitFullscreen()
     else void wrapRef.current?.requestFullscreen()
@@ -151,6 +168,7 @@ export default function TutorialPage() {
 
   const chapters = manifest?.chapters || []
   const current = chapters.reduce((idx, c, i) => (c.t <= now ? i : idx), 0)
+  const stamp = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
 
   return (
     <>
@@ -174,8 +192,10 @@ export default function TutorialPage() {
             onLoadedMetadata={onLoadedMetadata}
             onTimeUpdate={onTimeUpdate}
           />
-          <div className="tutorial-watermark" style={{ left: `${mark.x}%`, top: `${mark.y}%` }} aria-hidden="true">
-            {WATERMARK}
+          <div ref={markRef} className="tutorial-watermark" style={{ left: mark.x, top: mark.y }} aria-hidden="true">
+            <strong>{WATERMARK}</strong>
+            <br />
+            {email ? `${email} · ${stamp}` : stamp}
           </div>
           {canFullscreen && !error && (
             <button type="button" className="tutorial-fs" onClick={toggleFullscreen} aria-label={fullscreen ? 'ออกจากเต็มจอ' : 'เต็มจอ'}>
@@ -186,7 +206,7 @@ export default function TutorialPage() {
         </div>
 
         <p className="tutorial-note">
-          สำหรับสมาชิก HOP เท่านั้น · ไม่อนุญาตให้ดาวน์โหลดหรือเผยแพร่ต่อ
+          สำหรับสมาชิก HOP เท่านั้น · ไม่อนุญาตให้ดาวน์โหลดหรือเผยแพร่ต่อ (บนวิดีโอมีลายน้ำอีเมลของผู้ชม)
         </p>
 
         {chapters.length > 0 && (
