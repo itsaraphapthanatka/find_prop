@@ -115,9 +115,11 @@ export default async function handler(req, res) {
     const data = await upstream.json().catch(() => null)
     const content = data?.choices?.[0]?.message?.content
     if (!upstream.ok || typeof content !== 'string') {
+      // Gemini ห่อ error เป็น array [{ error: {...} }] ส่วนเจ้าแบบ OpenAI เป็น { error: {...} }
+      const upstreamError = (Array.isArray(data) ? data[0] : data)?.error?.message
       return res
         .status(upstream.ok ? 502 : upstream.status)
-        .json({ error: data?.error?.message || `AI ตอบกลับผิดพลาด (${upstream.status})` })
+        .json({ error: upstreamError ? `${llm.name}: ${upstreamError}` : `AI ตอบกลับผิดพลาด (${upstream.status})` })
     }
     return res.status(200).json({ content })
   } catch (err) {
