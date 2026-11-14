@@ -2026,3 +2026,194 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   .tutorial-player { border-radius: 0; }
   .tutorial-note, .tutorial-wrap .form-card { margin-left: 12px; margin-right: 12px; }
 }
+
+/* ── ชิ้นส่วนที่ใช้เฉพาะมือถือ — จอคอมซ่อน/คงหน้าตาเดิม ── */
+.filter-toggle, .ic-mob, .detail-quick { display: none; }
+.mob-only { display: none !important; }
+.filter-more { display: contents; }
+.umh-role { font-size: 12px; color: var(--purple); font-weight: 600; margin-top: 4px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ══════════════════════════════════════════════════════
+   มือถือ — ยกเครื่อง 2026-11 "แผงควบคุมภาคสนามในอุ้งมือ" (≤720px)
+   ใช้นิ้วโป้งข้างเดียวที่หน้างาน: แถบบนบาง · ช่องค้นหาเฉพาะหน้ารายการ · แถบล่าง 5 ช่อง
+   + ปุ่มลงทรัพย์วงกลมกลางแถบ · ตัวกรองรองพับเก็บ · การ์ดรูปใหญ่ ราคาสีหมึก (เขียวเก็บไว้บอก "สำเร็จ")
+   · แผงรายละเอียดรูปปัดข้าง ข้อมูลสองคอลัมน์ + ปุ่มลัดติดล่าง · เป้าแตะ ≥44px
+   ประกาศท้ายไฟล์เพื่อทับกฎมือถือรุ่นก่อนในจุดเดียว — จอคอม (≥721px) ไม่โดนอะไรเลย
+   ══════════════════════════════════════════════════════ */
+@keyframes fm-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 720px) {
+  :root { --nav-h: 62px; --gutter: 14px; }
+  ::selection { background: rgba(113, 50, 245, 0.18); }
+  input, textarea { caret-color: var(--purple); }
+  .hide-mob { display: none !important; }
+  .user-menu-pop .mob-only { display: flex !important; }
+
+  /* ── แถบบน: แถวเดียวบางๆ · ค้นหาโผล่เฉพาะหน้ารายการ ── */
+  .topbar { padding: 8px var(--gutter); gap: 8px 10px; min-height: 52px; }
+  .topbar .brand { font-size: 18px; }
+  .user-chip { gap: 6px; }
+  .user-chip .role-badge { display: none; } /* บทบาทย้ายไปบอกในหัวเมนูบัญชี */
+  .user-chip .org-badge, .user-chip .org-switch { height: 34px; border-radius: 999px; max-width: 46vw; }
+  .user-menu-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; }
+  .user-menu-btn svg + svg { display: none; }
+  .user-menu-pop { min-width: min(260px, calc(100vw - 2 * var(--gutter))); }
+  .user-menu-pop button[role="menuitem"], .user-menu-pop a[role="menuitem"] { min-height: 44px; }
+  .app-shell:not([data-route="/"]) .topbar input { display: none; }
+  .topbar input {
+    height: 42px; padding: 0 14px 0 40px; border-radius: 12px;
+    background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='1.9' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center / 18px;
+  }
+
+  /* ── หัวหน้า: ชื่อหน้าใหญ่ชัด ปุ่มรองเป็นไอคอนแตะง่าย ── */
+  .view-header { padding: 10px var(--gutter); min-height: 54px; gap: 8px; row-gap: 8px; }
+  .view-header h1 { font-size: 18px; letter-spacing: -0.4px; }
+  .view-header .btn.mob-icon { width: 42px; height: 42px; padding: 0; border-radius: 12px; }
+  .view-header .btn { min-height: 42px; }
+
+  /* ── แถบล่าง: 5 ช่อง ไอคอนมีแคปซูลบอกหน้าปัจจุบัน + ปุ่มลงทรัพย์ยกลอยกลางแถบ ── */
+  .sidebar {
+    position: relative; z-index: 20; align-items: stretch; gap: 0;
+    height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    border-top: 0; background: #fff;
+    box-shadow: 0 -1px 0 var(--line), 0 -10px 28px rgba(16, 17, 20, 0.06);
+  }
+  .sidebar a {
+    gap: 2px; padding: 4px 0 2px; border-radius: 0; background: none !important;
+    font-size: 12px; font-weight: 500; color: var(--muted);
+  }
+  .sidebar a svg {
+    width: 22px; height: 22px; padding: 4px 16px; box-sizing: content-box;
+    border-radius: 999px; transition: background 0.2s ease-out, color 0.2s ease-out;
+  }
+  .sidebar a.active { color: var(--purple); font-weight: 600; }
+  .sidebar a.active svg { background: var(--purple-subtle); color: var(--purple); }
+  /* ลำดับสำหรับนิ้วโป้ง: รายการ · แผนที่ · [ลงทรัพย์] · แผนเยี่ยม · สรุป — ทีม/Super อยู่ในเมนูบัญชี */
+  .sidebar [data-tour="nav-list"] { order: 1; }
+  .sidebar [data-tour="nav-map"] { order: 2; }
+  .sidebar [data-tour="nav-form"] { order: 3; }
+  .sidebar [data-tour="nav-plans"] { order: 4; }
+  .sidebar [data-tour="nav-dashboard"] { order: 5; }
+  .sidebar [data-tour="nav-team"], .sidebar [data-tour="nav-super"] { display: none; }
+  .sidebar [data-tour="nav-form"] { color: var(--ink); font-weight: 600; }
+  .sidebar [data-tour="nav-form"] .ic-desk { display: none; }
+  .sidebar [data-tour="nav-form"] .ic-mob {
+    display: block; width: 26px; height: 26px; padding: 13px; margin-top: -26px;
+    border-radius: 50%; background: var(--purple); color: #fff;
+    box-shadow: 0 0 0 4px #fff, 0 8px 18px rgba(16, 17, 20, 0.2);
+    transition: transform 0.18s cubic-bezier(0.32, 0.72, 0.33, 1), background 0.15s;
+  }
+  .sidebar [data-tour="nav-form"]:active .ic-mob { transform: scale(0.92); }
+  .sidebar [data-tour="nav-form"].active .ic-mob { background: var(--purple-dark); }
+  .sidebar [data-tour="nav-form"].active { color: var(--purple); }
+
+  /* ── ปุ่มผู้ช่วย AI: ลอยเหนือแถบล่าง เงากลาง (เรืองม่วงสงวนไว้ให้หน้า landing) ── */
+  .assist-fab {
+    width: 50px; height: 50px; right: var(--gutter);
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px);
+    box-shadow: 0 0 0 3px #fff, 0 8px 22px rgba(16, 17, 20, 0.22);
+  }
+
+  /* ── ตัวกรอง: แถวประเภทเลื่อนข้าง + ปุ่ม "ตัวกรอง" กางที่เหลือ ── */
+  .filter-bar { padding: 8px 0 10px; gap: 8px; }
+  .filter-row { padding: 0 var(--gutter); }
+  .filter-bar > .filter-row:first-child { gap: 8px; padding-right: 0; }
+  .filter-bar > .filter-row:first-child > .filter-label { display: none; }
+  .filter-toggle {
+    display: inline-flex; align-items: center; gap: 6px; flex: none; height: 40px; padding: 0 13px;
+    border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink);
+    font-size: 14px; font-weight: 600; box-shadow: var(--shadow);
+  }
+  .filter-toggle.on, .filter-toggle.has { border-color: var(--purple); color: var(--purple); background: var(--purple-tint); }
+  .filter-toggle:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+  .filter-count {
+    min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center;
+    background: var(--purple); color: #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .filter-more { display: none; flex-direction: column; gap: 8px; }
+  .filter-more.open { display: flex; animation: fm-in 0.2s cubic-bezier(0.32, 0.72, 0.33, 1); }
+  .chip-toggle { height: 40px; padding: 0 15px; display: inline-flex; align-items: center; font-size: 14px; }
+
+  /* ── การ์ดทรัพย์: รูปใหญ่ซ้าย ราคาเด่นสีหมึก ปุ่มลัดแถวล่าง (ลบแยกไว้ขวาสุด) ── */
+  .prop-list { padding: 12px var(--gutter) 84px; gap: 12px; } /* ล่างเว้นให้ปุ่ม AI ไม่ทับการ์ดสุดท้าย */
+  .prop-row {
+    display: grid; grid-template-columns: 104px minmax(0, 1fr); grid-template-areas: "thumb info" "act act";
+    gap: 0 12px; padding: 12px 12px 0; border-radius: var(--radius); align-items: start;
+    transition: transform 0.12s ease-out, border-color 0.15s;
+  }
+  .prop-row:hover { transform: none; box-shadow: var(--shadow); border-color: var(--line); }
+  .prop-row:active { transform: scale(0.99); }
+  .prop-row.selected { border-color: var(--purple); background: #fff; }
+  .prop-row .thumb { grid-area: thumb; width: 104px; height: 104px; border-radius: 10px; }
+  .prop-row .info { grid-area: info; display: flex; flex-direction: column; min-width: 0; padding-top: 1px; }
+  .prop-row .title-line { order: 1; gap: 5px; row-gap: 5px; }
+  .prop-row .title { flex-basis: 100%; font-size: 15px; letter-spacing: -0.2px; line-height: 1.3; }
+  .prop-row .tag { font-size: 12px; padding: 1px 8px; }
+  .prop-row .price {
+    order: 2; margin-top: 7px; color: var(--ink); font-size: 15px; font-weight: 700;
+    letter-spacing: -0.2px; font-variant-numeric: tabular-nums;
+  }
+  .prop-row .sub { order: 3; margin-top: 2px; font-size: 13px; line-height: 1.45; }
+  .prop-row .row-actions {
+    grid-area: act; justify-content: flex-start; gap: 2px; width: auto;
+    margin: 12px -12px 0; padding: 4px 6px; border-top: 1px solid var(--line-soft);
+  }
+  .prop-row .row-actions .icon-btn { width: 44px; height: 44px; border-radius: 12px; color: var(--muted); }
+  .prop-row .row-actions .icon-btn.danger { margin-left: auto; opacity: 0.7; }
+
+  /* ── แผงรายละเอียด: แผ่นเลื่อนจากล่าง รูปปัดข้าง ข้อมูลสองคอลัมน์ ปุ่มลัดติดล่าง ── */
+  .detail-pane { top: max(12px, env(safe-area-inset-top)); border-radius: 16px 16px 0 0; }
+  .detail-pane::before {
+    content: ''; position: absolute; top: 7px; left: 50%; width: 38px; height: 4px; margin-left: -19px;
+    border-radius: 999px; background: var(--muted); opacity: 0.3;
+  }
+  .detail-pane .pane-header { padding: 18px 10px 10px var(--gutter); border-bottom: 0; flex-wrap: wrap; row-gap: 6px; }
+  .detail-pane .pane-header h2 { font-size: 18px; letter-spacing: -0.4px; }
+  .detail-pane .pane-header .btn.primary { display: none; } /* "แก้ไข" อยู่ในแถบปุ่มลัดด้านล่างแล้ว */
+  .detail-pane .pane-header .icon-btn { width: 40px; height: 40px; }
+  .detail-body { padding: 0 var(--gutter) 24px; }
+  .detail-gallery {
+    display: flex; gap: 8px; margin: 0 calc(-1 * var(--gutter)) 18px; padding: 0 var(--gutter);
+    overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 var(--gutter);
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .detail-gallery::-webkit-scrollbar { display: none; }
+  .detail-gallery button, .detail-gallery button:first-child { flex: 0 0 86%; grid-column: auto; scroll-snap-align: start; border-radius: 12px; }
+  .detail-gallery button:only-child { flex-basis: 100%; }
+  .detail-gallery img, .detail-gallery button:first-child img { height: min(62vw, 320px); border-radius: 12px; }
+  .field {
+    display: grid; grid-template-columns: minmax(92px, 36%) minmax(0, 1fr); gap: 12px; align-items: baseline;
+    margin: 0; padding: 11px 0; border-bottom: 1px solid var(--line-soft);
+  }
+  .field .label { font-size: 13px; line-height: 1.45; }
+  .field .value { margin: 0; font-size: 14px; line-height: 1.5; }
+  .field .chips { margin-top: 0; }
+  .field .value .icon-btn { width: 40px; height: 40px; }
+  .section-title { margin: 24px 0 0; padding-bottom: 8px; font-size: 14px; }
+  .detail-quick {
+    display: flex; gap: 8px; flex: none;
+    padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
+    background: #fff; border-top: 1px solid var(--line);
+  }
+  .dq-btn {
+    flex: 1; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    border: 1px solid var(--line); border-radius: var(--radius); background: #fff; color: var(--ink);
+    font: inherit; font-size: 12px; font-weight: 600; text-decoration: none;
+    transition: transform 0.12s ease-out, background 0.12s;
+  }
+  .dq-btn svg { color: var(--purple); }
+  .dq-btn:active { transform: scale(0.96); background: var(--purple-tint); }
+  .dq-btn.primary { flex: 1.25; background: var(--purple); border-color: var(--purple); color: #fff; }
+  .dq-btn.primary svg { color: #fff; }
+  .dq-btn.primary:active { background: var(--purple-dark); }
+  .dq-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+  /* ── ฟอร์ม/การ์ดทั่วไป: ขอบ 12px ตามระบบ · ระยะขอบจอเท่ากันทุกหน้า ── */
+  .form-wrap { padding: 14px var(--gutter) 0; }
+  /* ปุ่มบันทึก/ถัดไปที่ติดขอบล่าง ต้องพ้นปุ่ม ＋ ที่ยกลอยเหนือแถบล่าง (สูงเกินแถบ 26px) */
+  .form-actions { padding: 14px 0 26px; }
+  .form-actions .btn { min-height: 48px; }
+  .form-card { border-radius: var(--radius); }
+  .team-wrap, .logs-wrap { padding: 14px var(--gutter) 84px; }
+}

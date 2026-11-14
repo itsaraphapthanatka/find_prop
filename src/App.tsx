@@ -36,7 +36,7 @@ import { isInstalledApp } from './lib/native'
 import {
   IMPERSONATED_OPTION, needsExitImpersonation, orgSwitchOptions, orgSwitchValue, urlAfterOrgSwitch,
 } from './lib/orgSwitch'
-import { IconChart, IconDown, IconForm, IconList, IconMap, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
+import { IconChart, IconDown, IconForm, IconList, IconMap, IconPlus, IconRoute, IconShield, IconUser, IconUsers } from './components/icons'
 import BrandLogo from './components/BrandLogo'
 
 /** ป้ายเมนู: ข้อความเต็มบน sidebar เดสก์ท็อป / ข้อความสั้นบน bottom nav มือถือ */
@@ -214,7 +214,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    // data-route: มือถือโชว์ช่องค้นหาบนแถบบนเฉพาะหน้ารายการ (หน้าอื่นไม่ได้ใช้ — คืนพื้นที่จอ)
+    <div className="app-shell" data-route={location.pathname}>
       {apkUpdate && (
         <div className="apk-update-bar">
           <span>
@@ -294,10 +295,22 @@ export default function App() {
                 <div className="user-menu-head">
                   <div className="umh-name">{profile.full_name || 'ผู้ใช้'}</div>
                   <div className="umh-email">{profile.email}</div>
+                  <div className="umh-role">{isSuper ? 'Super Admin' : roleName(profile.role)}{org ? ` · ${org.name}` : ''}</div>
                 </div>
                 <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/me') }}>
                   <IconUser size={16} /> โปรไฟล์ของฉัน
                 </button>
+                {/* มือถือ: แถบล่างเหลือ 5 ช่อง — ทีม/Super Admin ย้ายมาอยู่ในเมนูนี้ (จอคอมยังอยู่ใน sidebar) */}
+                {((canManageOrg && profile.org_id) || impersonating) && (
+                  <button role="menuitem" className="mob-only" onClick={() => { setMenuOpen(false); navigate('/team') }}>
+                    <IconUsers size={16} /> ทีม
+                  </button>
+                )}
+                {isSuper && (
+                  <button role="menuitem" className="mob-only" onClick={() => { setMenuOpen(false); navigate('/super') }}>
+                    <IconShield size={16} /> Super Admin
+                  </button>
+                )}
                 {(canManageOrg || impersonating) && (
                   <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/upgrade') }}>
                     อัปเกรดแพ็กเกจ
@@ -332,7 +345,12 @@ export default function App() {
           <NavLink to="/map" data-tour="nav-map"><IconMap /><NavText full="แผนที่" /></NavLink>
           {/* social = ดูได้อย่างเดียว จึงไม่ต้องมีเมนูฟอร์ม (ฐานข้อมูลก็ปฏิเสธการเขียนอยู่แล้ว) */}
           {!perm.readOnly && (
-            <NavLink to="/new" data-tour="nav-form"><IconForm /><NavText full="ฟอร์ม" /></NavLink>
+            <NavLink to="/new" data-tour="nav-form">
+              <IconForm className="ic-desk" />
+              {/* มือถือ: ปุ่มลงทรัพย์วงกลมกลางแถบล่าง */}
+              <IconPlus className="ic-mob" size={24} />
+              <NavText full="ฟอร์ม" short="ลงทรัพย์" />
+            </NavLink>
           )}
           <NavLink to="/" end data-tour="nav-list"><IconList /><NavText full="รายการทรัพย์" short="รายการ" /></NavLink>
           <NavLink to="/dashboard" data-tour="nav-dashboard"><IconChart /><NavText full="สรุปภาพรวม" short="สรุป" /></NavLink>

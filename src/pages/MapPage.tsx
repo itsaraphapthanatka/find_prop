@@ -248,7 +248,8 @@ export default function MapPage() {
           >
             {picking ? <><IconClose size={16} /> ยกเลิกวางหมุด</> : <><IconPin size={16} /> วางหมุดเพิ่มทรัพย์</>}
           </button>
-          <button className="btn primary" onClick={() => navigate('/new')}>+ เพิ่มทรัพย์</button>
+          {/* มือถือซ่อน — มีปุ่ม ＋ ลงทรัพย์ กลางแถบล่างแล้ว */}
+          <button className="btn primary hide-mob" onClick={() => navigate('/new')}>+ เพิ่มทรัพย์</button>
         </div>
       </div>
       {picking && !draft && (

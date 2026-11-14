@@ -7,7 +7,7 @@ import type { Property } from '../types'
 import { OPTIONS, formatDate, formatNumber } from '../labels'
 import PropertyDetail from '../components/PropertyDetail'
 import Combo from '../components/Combo'
-import { IconCamera, IconCompare, IconDownload, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSms, IconTrash, IconUpload } from '../components/icons'
+import { IconCamera, IconCompare, IconDownload, IconEdit, IconHouse, IconLink, IconPhone, IconPin, IconSliders, IconSms, IconTrash, IconUpload } from '../components/icons'
 import { ContractTag, DealTag, ListingTag, TypeTag } from '../lib/propertyStyle'
 import { usePlanAccess } from '../lib/plan'
 import { buildPropertiesCsv } from '../lib/importProps'
@@ -109,6 +109,10 @@ export default function ListPage({ search }: { search: string }) {
     [items],
   )
   const hasFilter = Boolean(fType || fListing || fDeal || fProvince || fOrg || priceMin || priceMax)
+  // มือถือ: ตัวกรองรอง (เช่า/ขาย · สถานะ · จังหวัด · ราคา) พับไว้ใต้ปุ่ม "ตัวกรอง" — เห็นทรัพย์ชิ้นแรกได้ทันที
+  // จอคอมแสดงครบเสมอ (CSS ไม่สนค่านี้) · ตัวเลขบนปุ่ม = จำนวนตัวกรองรองที่ตั้งอยู่ จะได้ไม่ลืมว่ากรองไว้
+  const [moreFilters, setMoreFilters] = useState(false)
+  const moreCount = [fListing, fDeal, fProvince, fOrg, priceMin, priceMax].filter(Boolean).length
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -278,12 +282,24 @@ export default function ListPage({ search }: { search: string }) {
               <IconCamera size={16} /><span className="btn-label">{migMsg ? 'กำลังย้าย…' : 'ย้ายรูปเข้าระบบ'}</span>
             </button>
           )}
-          {!perm.readOnly && <button className="btn primary" onClick={addProperty}>+ เพิ่มทรัพย์</button>}
+          {/* มือถือซ่อน — มีปุ่ม ＋ ลงทรัพย์ กลางแถบล่างแล้ว */}
+          {!perm.readOnly && <button className="btn primary hide-mob" onClick={addProperty}>+ เพิ่มทรัพย์</button>}
         </div>
       </div>
 
       <div className="filter-bar">
         <div className="filter-row">
+          <button
+            type="button"
+            className={`filter-toggle ${moreFilters ? 'on' : ''} ${moreCount ? 'has' : ''}`}
+            onClick={() => setMoreFilters((v) => !v)}
+            aria-expanded={moreFilters}
+            aria-controls="filter-more"
+          >
+            <IconSliders size={17} />
+            <span>ตัวกรอง</span>
+            {moreCount > 0 && <span className="filter-count">{moreCount}</span>}
+          </button>
           <span className="filter-label">ประเภท</span>
           <div className="chip-select">
             {OPTIONS.property_type.map((o) => (
@@ -298,6 +314,7 @@ export default function ListPage({ search }: { search: string }) {
             ))}
           </div>
         </div>
+        <div id="filter-more" className={`filter-more ${moreFilters ? 'open' : ''}`}>
         <div className="filter-row">
           <span className="filter-label">เช่า/ขาย</span>
           <div className="chip-select">
@@ -369,6 +386,7 @@ export default function ListPage({ search }: { search: string }) {
           {hasFilter && (
             <button type="button" className="btn sm" onClick={clearFilters}>✕ ล้างตัวกรอง</button>
           )}
+        </div>
         </div>
       </div>
 

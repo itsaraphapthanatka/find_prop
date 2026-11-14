@@ -248,6 +248,35 @@ export const IconDown = (p: IconProps) => (
   </Svg>
 )
 
+export const IconPlus = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </Svg>
+)
+
+/** ตัวกรอง (แถบเลื่อน 3 เส้น) */
+export const IconSliders = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10 5H3" />
+    <path d="M12 19H3" />
+    <path d="M14 3v4" />
+    <path d="M16 17v4" />
+    <path d="M21 12h-9" />
+    <path d="M21 19h-5" />
+    <path d="M21 5h-7" />
+    <path d="M8 10v4" />
+    <path d="M8 12H3" />
+  </Svg>
+)
+
+export const IconSearch = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </Svg>
+)
+
 /** โลโก้บ้านของแบรนด์ ใช้เป็น placeholder รูปทรัพย์ */
 export const IconHouse = ({ size = 26, ...rest }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" {...rest}>

@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth'
 import { usePlanAccess } from '../lib/plan'
 import { ContractTag, DealTag, ZoneSwatch } from '../lib/propertyStyle'
 import { photoList } from '../lib/photo'
-import { IconClose, IconPhone, IconSms } from './icons'
+import { IconClose, IconEdit, IconPhone, IconPin, IconSms } from './icons'
 import LocationPicker from './LocationPicker'
 import FollowUpSection from './FollowUpSection'
 import Lightbox from './Lightbox'
@@ -84,6 +84,9 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
   const pics = (p.photos?.length ? p.photos : p.photo_url ? [p.photo_url] : []).flatMap((x) => photoList(x, 1600))
   // รูปที่กดดูเต็มจอ (null = ยังไม่ได้เปิด)
   const [zoomAt, setZoomAt] = useState<number | null>(null)
+  // ปุ่มลัดติดล่าง (มือถือ) — โชว์เฉพาะที่ทำได้จริง: เบอร์ถูกปิดตามสิทธิ์ = ไม่มีปุ่มโทร
+  const hasPin = p.lat != null && p.lng != null
+  const showQuick = Boolean(p.phone || hasPin || p.map_url || onEdit)
   return (
     <>
       <div className="detail-overlay" onClick={onClose} />
@@ -311,6 +314,25 @@ export default function PropertyDetail({ property: p, onClose, onEdit, onDelete 
           {/* นัดติดตาม = ฟีเจอร์ Pro — แพ็กเกจอื่นไม่โชว์ section นี้ (สอดคล้อง route /followups) */}
           {access.followUps && <FollowUpSection property={p} />}
         </div>
+        {/* มือถือ: ปุ่มลัดติดขอบล่างของแผง — หน้างานกดได้ทันทีด้วยนิ้วโป้ง (จอคอมซ่อน ใช้ปุ่มในเนื้อหาแทน) */}
+        {showQuick && (
+          <div className="detail-quick">
+            {p.phone && (
+              <a className="dq-btn" href={`tel:${p.phone}`}><IconPhone size={19} /><span>โทร</span></a>
+            )}
+            {p.phone && (
+              <a className="dq-btn" href={`sms:${p.phone}`}><IconSms size={19} /><span>ข้อความ</span></a>
+            )}
+            {hasPin ? (
+              <a className="dq-btn" href={`#/map?focus=${p.id}`}><IconPin size={19} /><span>แผนที่</span></a>
+            ) : p.map_url ? (
+              <a className="dq-btn" href={p.map_url} target="_blank" rel="noreferrer"><IconPin size={19} /><span>แผนที่</span></a>
+            ) : null}
+            {onEdit && (
+              <button type="button" className="dq-btn primary" onClick={onEdit}><IconEdit size={19} /><span>แก้ไข</span></button>
+            )}
+          </div>
+        )}
       </aside>
       {zoomAt !== null && (
         <Lightbox images={pics} startIndex={zoomAt} label={p.code} onClose={() => setZoomAt(null)} />
