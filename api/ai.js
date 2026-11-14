@@ -1,9 +1,10 @@
 // Vercel Serverless Function — proxy ไปยัง LLM API
 // เหตุผลที่ต้อง proxy: API key ห้ามอยู่ฝั่ง client (bundle เปิดอ่านได้) จึงเก็บใน
-// env ฝั่งเซิร์ฟเวอร์ (AI_API_KEY — ไม่มี prefix VITE_) และก่อน forward จะตรวจว่า
+// env ฝั่งเซิร์ฟเวอร์ (AI_API_KEY หรือ GEMINI_API_KEY ตาม AI_PROVIDER — ดู _lib/llm.js) และก่อน forward จะตรวจว่า
 // ผู้เรียกเป็นผู้ใช้ที่ล็อกอินกับ Supabase ของแอปจริง กันคนนอกยืมใช้ LLM ฟรี
 
 import { effectivePlan, isProPlan } from './_lib/plan.js'
+import { llmConfig } from './_lib/llm.js'
 
 const MAX_BODY_CHARS = 120_000
 const UPSTREAM_TIMEOUT_MS = 80_000
@@ -29,9 +30,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const apiKey = process.env.AI_API_KEY
-  if (!apiKey) {
-    return res.status(500).json({ error: 'ยังไม่ได้ตั้งค่า AI_API_KEY ใน Vercel Environment Variables' })
+  const llm = llmConfig()
+  if (!llm.key) {
+    return res.status(500).json({ error: `ยังไม่ได้ตั้งค่า ${llm.keyName} บนเซิร์ฟเวอร์` })
   }
 
   // ── ตรวจว่าเป็นผู้ใช้ที่ล็อกอินจริง (ส่ง Supabase access token มาใน Authorization) ──
@@ -96,18 +97,16 @@ export default async function handler(req, res) {
   const timer = setTimeout(() => ctl.abort(), UPSTREAM_TIMEOUT_MS)
   try {
     const upstream = await fetch(
-      process.env.AI_API_URL || 'https://consoletoken.aunjai.org/api/v1/chat/completions',
+      llm.url,
       {
         method: 'POST',
         signal: ctl.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${llm.key}` },
         body: JSON.stringify({
-          model: process.env.AI_MODEL || 'gemma-4-12b',
+          model: llm.model,
           messages: messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
           temperature: typeof temperature === 'number' ? temperature : 0.2,
-          // เพดานความยาวคำตอบ — decode คือคอขวดของเซิร์ฟเวอร์ ถ้าปล่อยยาวไม่จำกัด
-          // คำตอบเดียวที่เพี้ยนจะกินคิวของทุกคน (คำตอบ JSON ปกติ < 500 token)
-          max_tokens: 800,
+          max_tokens: llm.maxTokens, // ดูเหตุผลของแต่ละเจ้าใน _lib/llm.js
         }),
       },
     )

@@ -1,10 +1,12 @@
 // ตรวจบริการ AI ต้นทางจากในคอนเทนเนอร์ api (ใช้คีย์ใน env โดยไม่แสดงคีย์ออกมา) — ข้อมูลทดสอบเป็นข้อมูลสมมติทั้งหมด
 // ใช้บนเครื่อง:  cd ~/hop/deploy && docker compose exec -T api node --input-type=module < ai-check.mjs
-// วัด 5 แบบ: คำขอเล็ก · คำขอขนาดเท่าผู้ช่วย AI จริง · แบบปิดการ "คิด" · แบบ stream · ยิงพร้อมกัน 3 ครั้ง
-const url = process.env.AI_API_URL || 'https://consoletoken.aunjai.org/api/v1/chat/completions'
-const model = process.env.AI_MODEL || 'gemma-4-12b'
-if (!process.env.AI_API_KEY) { console.log('❌ ไม่มี AI_API_KEY ในคอนเทนเนอร์'); process.exit(1) }
-const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.AI_API_KEY }
+// วัด: คำขอเล็ก · คำขอขนาดเท่าผู้ช่วย AI จริง · (aunjai: แบบปิดการ "คิด") · แบบ stream · ยิงพร้อมกัน 3 ครั้ง
+// ใช้ตัวเลือกผู้ให้บริการตัวเดียวกับ api/ai.js ในคอนเทนเนอร์ (AI_PROVIDER) — ผลจึงตรงกับที่ผู้ใช้เจอจริง
+const { llmConfig } = await import('/app/api/_lib/llm.js')
+const llm = llmConfig()
+const { url, model } = llm
+if (!llm.key) { console.log(`❌ ไม่มี ${llm.keyName} ในคอนเทนเนอร์`); process.exit(1) }
+const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + llm.key }
 const LIMIT_MS = 150_000
 
 const types = ['คอนโด เช่า', 'บ้านเดี่ยว ขาย', 'โกดัง เช่า', 'ออฟฟิศ เช่า', 'ที่ดินเปล่า ขาย']
@@ -23,7 +25,7 @@ async function call(tag, extra) {
   const timer = setTimeout(() => ctl.abort(), LIMIT_MS)
   try {
     const r = await fetch(url, { method: 'POST', headers, signal: ctl.signal,
-      body: JSON.stringify({ model, temperature: 0.2, max_tokens: 800, messages: real, ...extra }) })
+      body: JSON.stringify({ model, temperature: 0.2, max_tokens: llm.maxTokens, messages: real, ...extra }) })
     if (extra?.stream) {
       // stream: นับเวลาถึงชิ้นแรก + ความยาวคำตอบ/ความคิดที่ได้
       let first = null, content = '', reasoning = '', finish = null, buf = ''
@@ -58,10 +60,16 @@ async function call(tag, extra) {
   } finally { clearTimeout(timer) }
 }
 
-console.log(`โมเดล ${model} · host ${new URL(url).host} · prompt ${system.length} ตัวอักษร`)
-await call('1 คำขอเล็ก', { messages: [{ role: 'user', content: 'ตอบคำว่า ok' }], max_tokens: 50 })
+console.log(`ผู้ให้บริการ ${llm.name} · โมเดล ${model} · host ${new URL(url).host} · prompt ${system.length} ตัวอักษร`)
+try {
+  const r = await fetch(url.replace(/\/chat\/completions$/, '/models'), { headers })
+  const j = await r.json()
+  const ids = (j.data || []).map((m) => String(m.id).replace(/^models\//, ''))
+  console.log(`0 รายชื่อโมเดล: status ${r.status} · ${ids.includes(model) ? '✅ มี' : '❌ ไม่พบ'} ${model} · ${ids.filter((i) => !/embed|image|tts|veo|imagen/.test(i)).slice(0, 12).join(', ')}`)
+} catch (e) { console.log('0 รายชื่อโมเดล: ดูไม่ได้ ·', e.message) }
+await call('1 คำขอเล็ก', { messages: [{ role: 'user', content: 'ตอบคำว่า ok' }], max_tokens: llm.name === 'Gemini' ? 200 : 50 })
 await call('2 ขนาดจริง', {})
-await call('3 ปิดการคิด', { chat_template_kwargs: { enable_thinking: false } })
+if (llm.name === 'aunjai') await call('3 ปิดการคิด', { chat_template_kwargs: { enable_thinking: false } })
 await call('4 แบบ stream', { stream: true })
 await Promise.all(['5A', '5B', '5C'].map((k) => call(`${k} พร้อมกัน`, {})))
 console.log('เสร็จ')
