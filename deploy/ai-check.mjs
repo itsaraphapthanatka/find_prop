@@ -7,6 +7,12 @@ const llm = llmConfig()
 const { url, model } = llm
 if (!llm.key) { console.log(`❌ ไม่มี ${llm.keyName} ในคอนเทนเนอร์`); process.exit(1) }
 const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + llm.key }
+// error ของ Gemini ห่อเป็น array [{ error }] ส่วนเจ้าแบบ OpenAI เป็น { error }
+const errOf = (j) => { const e = (Array.isArray(j) ? j[0] : j)?.error; return e ? `${e.status || e.code || ''} ${e.message || JSON.stringify(e)}`.trim().slice(0, 220) : '' }
+// รูปร่างคีย์ (ไม่แสดงตัวคีย์) — ช่วยจับคีย์ที่วางเกิน/ขาด/ติดช่องว่างหรือเครื่องหมายคำพูด
+const k = llm.key
+console.log(`คีย์ ${llm.keyName}: ยาว ${k.length} ตัว · ช่องว่าง/ขึ้นบรรทัด ${/\s/.test(k) ? '⚠️ มี' : 'ไม่มี'} · เครื่องหมายคำพูด ${/["'`]/.test(k) ? '⚠️ มี' : 'ไม่มี'} · คำว่า Bearer นำหน้า ${/^bearer/i.test(k) ? '⚠️ มี' : 'ไม่มี'}`
+  + (llm.name === 'Gemini' ? ` · ขึ้นต้นแบบคีย์ AI Studio (AIza…) ${k.startsWith('AIza') ? 'ใช่' : '⚠️ ไม่ใช่'}` : ''))
 const LIMIT_MS = 150_000
 
 const types = ['คอนโด เช่า', 'บ้านเดี่ยว ขาย', 'โกดัง เช่า', 'ออฟฟิศ เช่า', 'ที่ดินเปล่า ขาย']
@@ -54,7 +60,7 @@ async function call(tag, extra) {
     const c = j?.choices?.[0], m = c?.message || {}
     const reasoning = m.reasoning_content ?? m.reasoning ?? ''
     console.log(`${tag}: status ${r.status} · ${sec(t)} · หยุดเพราะ ${c?.finish_reason} · คำตอบ ${String(m.content ?? '').length} ตัวอักษร · ความคิด ${String(reasoning).length} ตัวอักษร · usage ${JSON.stringify(j?.usage ?? {})}`
-      + (j ? (j.error ? ` · error ${JSON.stringify(j.error).slice(0, 160)}` : '') : ` · ตอบไม่ใช่ JSON: ${txt.slice(0, 160).replace(/\s+/g, ' ')}`))
+      + (j ? (errOf(j) ? ` · error ${errOf(j)}` : '') : ` · ตอบไม่ใช่ JSON: ${txt.slice(0, 160).replace(/\s+/g, ' ')}`))
   } catch (e) {
     console.log(`${tag}: ${e.name === 'AbortError' ? `ไม่ตอบเกิน ${LIMIT_MS / 1000}s` : 'เชื่อมต่อไม่ได้ · ' + e.message} · ${sec(t)}`)
   } finally { clearTimeout(timer) }
@@ -65,7 +71,8 @@ try {
   const r = await fetch(url.replace(/\/chat\/completions$/, '/models'), { headers })
   const j = await r.json()
   const ids = (j.data || []).map((m) => String(m.id).replace(/^models\//, ''))
-  console.log(`0 รายชื่อโมเดล: status ${r.status} · ${ids.includes(model) ? '✅ มี' : '❌ ไม่พบ'} ${model} · ${ids.filter((i) => !/embed|image|tts|veo|imagen/.test(i)).slice(0, 12).join(', ')}`)
+  console.log(`0 รายชื่อโมเดล: status ${r.status} · ${ids.includes(model) ? '✅ มี' : '❌ ไม่พบ'} ${model} · ${ids.filter((i) => !/embed|image|tts|veo|imagen/.test(i)).slice(0, 12).join(', ')}${errOf(j) ? ' · error ' + errOf(j) : ''}`)
+  if (!r.ok) { console.log('หยุดตรงนี้ — แก้ปัญหาข้อ 0 ก่อน (ทดสอบต่อก็ได้ผลเดียวกัน)'); process.exit(1) }
 } catch (e) { console.log('0 รายชื่อโมเดล: ดูไม่ได้ ·', e.message) }
 await call('1 คำขอเล็ก', { messages: [{ role: 'user', content: 'ตอบคำว่า ok' }], max_tokens: llm.name === 'Gemini' ? 200 : 50 })
 await call('2 ขนาดจริง', {})
