@@ -31,6 +31,11 @@ export async function aiChat(messages: ChatMessage[], temperature = 0.2): Promis
       if (res.ok && body?.content) return body.content
       lastError = body?.error || `เรียก AI ไม่สำเร็จ (${res.status})`
       if (res.status === 401 || res.status === 400) break // ปัญหาฝั่งเรา retry ไปก็ไม่หาย
+      // ต้นทางคิวแน่น/หมดเวลา — ยิงซ้ำยิ่งเพิ่มคิวและให้ผู้ใช้รอนานเป็นสองเท่า
+      if (res.status === 503 || res.status === 504 || res.status === 524) {
+        if (!body?.error) lastError = 'บริการ AI ตอบช้าผิดปกติตอนนี้ — ลองใหม่อีกสักครู่'
+        break
+      }
     } catch {
       lastError = 'เชื่อมต่อ AI ไม่ได้ — เช็คอินเทอร์เน็ตแล้วลองใหม่'
     }

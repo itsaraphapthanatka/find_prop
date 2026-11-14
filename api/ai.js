@@ -6,6 +6,9 @@
 import { effectivePlan, isProPlan } from './_lib/plan.js'
 
 const MAX_BODY_CHARS = 120_000
+const UPSTREAM_TIMEOUT_MS = 80_000
+const BUSY_STATUSES = new Set([429, 502, 503, 504, 524])
+const BUSY_MESSAGE = 'บริการ AI คิวแน่นหรือตอบช้าผิดปกติตอนนี้ — ลองใหม่อีกสักครู่'
 
 export default async function handler(req, res) {
   // ── CORS: ให้แอปมือถือ (Capacitor) และ dev server เรียกข้ามโดเมนได้ ──
@@ -87,11 +90,16 @@ export default async function handler(req, res) {
   }
 
   // ── forward ไปยัง LLM ──
+  // ตัดรอที่ 80 วินาที: Cloudflare หน้าเว็บเราตัดที่ 100 วินาทีเป็นหน้า HTML 524 ซึ่งแอปอ่านไม่ออก
+  // (2026-11-14 ต้นทางคิวแน่น — คำขอค้างจนโดน Cloudflare ฝั่งต้นทางตัดที่ ~125 วินาที)
+  const ctl = new AbortController()
+  const timer = setTimeout(() => ctl.abort(), UPSTREAM_TIMEOUT_MS)
   try {
     const upstream = await fetch(
       process.env.AI_API_URL || 'https://consoletoken.aunjai.org/api/v1/chat/completions',
       {
         method: 'POST',
+        signal: ctl.signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
           model: process.env.AI_MODEL || 'gemma-4-12b',
@@ -103,6 +111,8 @@ export default async function handler(req, res) {
         }),
       },
     )
+    // ต้นทางล้น/หมดเวลา (เกตเวย์หรือ Cloudflare ฝั่งเขาตอบ 502/503/504/524 หรือ 429) → 503 พร้อมข้อความที่คนอ่านเข้าใจ
+    if (BUSY_STATUSES.has(upstream.status)) return res.status(503).json({ error: BUSY_MESSAGE, busy: true })
     const data = await upstream.json().catch(() => null)
     const content = data?.choices?.[0]?.message?.content
     if (!upstream.ok || typeof content !== 'string') {
@@ -111,7 +121,10 @@ export default async function handler(req, res) {
         .json({ error: data?.error?.message || `AI ตอบกลับผิดพลาด (${upstream.status})` })
     }
     return res.status(200).json({ content })
-  } catch {
+  } catch (err) {
+    if (err?.name === 'AbortError') return res.status(503).json({ error: BUSY_MESSAGE, busy: true })
     return res.status(502).json({ error: 'เชื่อมต่อบริการ AI ไม่สำเร็จ' })
+  } finally {
+    clearTimeout(timer)
   }
 }
