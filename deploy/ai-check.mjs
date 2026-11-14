@@ -1,7 +1,7 @@
 // ตรวจบริการ AI ต้นทางจากในคอนเทนเนอร์ api (ใช้คีย์ใน env โดยไม่แสดงคีย์ออกมา) — ข้อมูลทดสอบเป็นข้อมูลสมมติทั้งหมด
 // ใช้บนเครื่อง:  cd ~/hop/deploy && docker compose exec -T api node --input-type=module < ai-check.mjs
 // ใช้ตัวเลือกผู้ให้บริการ + รูปแบบคำขอ/คำตอบตัวเดียวกับ api/ai.js ในคอนเทนเนอร์ (AI_PROVIDER) — ผลจึงตรงกับที่ผู้ใช้เจอจริง
-// วัด: รายชื่อโมเดล · คำขอเล็ก · คำขอขนาดเท่าผู้ช่วย AI จริง · (aunjai: ปิดการ "คิด" / stream) · ยิงพร้อมกัน 3 ครั้ง
+// วัด: รายชื่อโมเดล · คำขอเล็ก · คำขอขนาดเท่าผู้ช่วย AI จริง · (aunjai: ปิดการ "คิด") · stream · ยิงพร้อมกัน 3 ครั้ง
 const { llmConfig, llmRequest, llmParse } = await import('/app/api/_lib/llm.js')
 const llm = llmConfig()
 const LIMIT_MS = 150_000
@@ -12,7 +12,7 @@ const k = llm.key
 const kind = k.startsWith('AQ.') ? 'แบบใหม่ AQ.' : k.startsWith('AIza') ? 'แบบเก่า AIza' : '⚠️ ไม่รู้จักรูปแบบ'
 console.log(`คีย์ ${llm.keyName}: ยาว ${k.length} ตัว · ช่องว่าง/ขึ้นบรรทัด ${/\s/.test(k) ? '⚠️ มี' : 'ไม่มี'} · เครื่องหมายคำพูด ${/["'`]/.test(k) ? '⚠️ มี' : 'ไม่มี'}`
   + (llm.name === 'Gemini' ? ` · ${kind}` : ''))
-const host = new URL(llm.url || llm.base).host
+const host = new URL(llm.url).host
 
 const types = ['คอนโด เช่า', 'บ้านเดี่ยว ขาย', 'โกดัง เช่า', 'ออฟฟิศ เช่า', 'ที่ดินเปล่า ขาย']
 const areas = ['บางนา กรุงเทพฯ', 'บางพลี สมุทรปราการ', 'ลาดกระบัง กรุงเทพฯ', 'เมืองชลบุรี ชลบุรี', 'ประเวศ กรุงเทพฯ']
@@ -32,7 +32,7 @@ async function call(tag, { messages = real, maxTokens, extraBody, stream } = {})
     const rq = llmRequest(llm, messages, { temperature: 0.2, maxTokens, extraBody: stream ? { ...extraBody, stream: true } : extraBody })
     const r = await fetch(rq.url, { method: 'POST', headers: rq.headers, body: JSON.stringify(rq.body), signal: ctl.signal })
     if (stream) {
-      // stream (เฉพาะแบบ OpenAI): นับเวลาถึงชิ้นแรก + ความยาวคำตอบ/ความคิดที่ได้
+      // stream: นับเวลาถึงชิ้นแรก + ความยาวคำตอบ/ความคิดที่ได้
       let first = null, content = '', reasoning = '', finish = null, buf = ''
       const dec = new TextDecoder()
       for await (const chunk of r.body) {
@@ -67,12 +67,9 @@ async function call(tag, { messages = real, maxTokens, extraBody, stream } = {})
 
 console.log(`ผู้ให้บริการ ${llm.name} · โมเดล ${llm.model} · host ${host} · prompt ${system.length} ตัวอักษร`)
 try {
-  const isGemini = llm.name === 'Gemini'
-  const listUrl = isGemini ? `${llm.base}/models?pageSize=200` : llm.url.replace(/\/chat\/completions$/, '/models')
-  const headers = isGemini ? { 'x-goog-api-key': llm.key } : { Authorization: 'Bearer ' + llm.key }
-  const r = await fetch(listUrl, { headers })
+  const r = await fetch(llm.url.replace(/\/chat\/completions$/, '/models'), { headers: { Authorization: 'Bearer ' + llm.key } })
   const j = await r.json().catch(() => null)
-  const ids = (isGemini ? j?.models ?? [] : j?.data ?? []).map((m) => String(m.name ?? m.id).replace(/^models\//, ''))
+  const ids = (j?.data ?? []).map((m) => String(m.id).replace(/^models\//, ''))
   const err = llmParse(llm, j).error
   console.log(`0 รายชื่อโมเดล: status ${r.status} · ${ids.includes(llm.model) ? '✅ มี' : '❌ ไม่พบ'} ${llm.model}`
     + (ids.length ? ` · ${ids.filter((i) => !/embed|image|tts|veo|imagen|aqa|live|audio/.test(i)).slice(0, 12).join(', ')}` : '')
@@ -82,9 +79,7 @@ try {
 
 await call('1 คำขอเล็ก', { messages: [{ role: 'user', content: 'ตอบคำว่า ok' }], maxTokens: llm.name === 'Gemini' ? 200 : 50 })
 await call('2 ขนาดจริง')
-if (llm.name === 'aunjai') {
-  await call('3 ปิดการคิด', { extraBody: { chat_template_kwargs: { enable_thinking: false } } })
-  await call('4 แบบ stream', { stream: true })
-}
+if (llm.name === 'aunjai') await call('3 ปิดการคิด', { extraBody: { chat_template_kwargs: { enable_thinking: false } } })
+await call('4 แบบ stream', { stream: true })
 await Promise.all(['5A', '5B', '5C'].map((x) => call(`${x} พร้อมกัน`)))
 console.log('เสร็จ')

@@ -96,7 +96,7 @@ export default async function handler(req, res) {
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), UPSTREAM_TIMEOUT_MS)
   try {
-    // รูปแบบคำขอ/คำตอบต่างกันตามเจ้า (aunjai = แบบ OpenAI · Gemini = generateContent) — ดู _lib/llm.js
+    // คำขอ/คำตอบแบบ OpenAI ทั้ง aunjai และ Gemini — ต่างกันที่ url/คีย์/โมเดล/เพดาน (ดู _lib/llm.js)
     const rq = llmRequest(llm, messages, { temperature: typeof temperature === 'number' ? temperature : 0.2 })
     const upstream = await fetch(rq.url, { method: 'POST', signal: ctl.signal, headers: rq.headers, body: JSON.stringify(rq.body) })
     // ต้นทางล้น/หมดเวลา (เกตเวย์หรือ Cloudflare ฝั่งเขาตอบ 502/503/504/524 หรือ 429) → 503 พร้อมข้อความที่คนอ่านเข้าใจ
