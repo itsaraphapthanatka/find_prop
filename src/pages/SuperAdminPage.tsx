@@ -40,6 +40,8 @@ interface OrgOverview {
   internal?: boolean | null
   /** ใช้คนเดียว / ทีม-บริษัท (supabase/account-type.sql) · null = สมัครก่อนมีตัวเลือก */
   account_type?: string | null
+  /** ที่นั่งฟรีที่ super ให้ (supabase/bonus-seats.sql) · ยังไม่รัน SQL = undefined */
+  bonus_seats?: number
 }
 
 // องค์กรกำลังอยู่ในช่วงทดลองใช้ (ยังไม่ได้จ่ายจริง)
@@ -553,7 +555,10 @@ export default function SuperAdminPage() {
       // ประเภทบัญชีไม่อยู่ใน overview — ดึงแยก (ยังไม่รัน account-type.sql = error → แค่ไม่โชว์)
       const { data: kinds } = await supabase.from('organizations').select('id, account_type')
       const kindById = new Map(((kinds ?? []) as { id: string; account_type: string | null }[]).map((k) => [k.id, k.account_type]))
-      setOrgs(list.map((o) => ({ ...o, account_type: kindById.get(o.id) ?? null })))
+      // ที่นั่งฟรีก็ดึงแยก (คนละคำขอ — ยังไม่รัน bonus-seats.sql แล้ว error จะไม่ลากประเภทบัญชีหายไปด้วย)
+      const { data: bonus } = await supabase.from('organizations').select('id, bonus_seats')
+      const bonusById = new Map(((bonus ?? []) as { id: string; bonus_seats: number | null }[]).map((b) => [b.id, Number(b.bonus_seats ?? 0)]))
+      setOrgs(list.map((o) => ({ ...o, account_type: kindById.get(o.id) ?? null, bonus_seats: bonusById.get(o.id) })))
     }
     setLoading(false)
   }
@@ -593,6 +598,36 @@ export default function SuperAdminPage() {
   }
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [bonusBusy, setBonusBusy] = useState<string | null>(null)
+
+  // ให้ที่นั่งฟรีกับองค์กร (ตั้งยอดใหม่ · 0 = ยกเลิก) — บวกทับที่นั่งของแพ็กเกจและที่ซื้อเพิ่ม ไม่มีวันหมดอายุ
+  async function giveBonusSeats(o: OrgOverview) {
+    const cur = o.bonus_seats ?? 0
+    const typed = window.prompt(
+      `ที่นั่งฟรีให้ "${o.name}"\n\n` +
+        `ตอนนี้ได้ฟรี ${cur} ที่นั่ง · สมาชิก ${o.member_count} คน\n` +
+        `บวกเพิ่มจากที่นั่งของแพ็กเกจและที่ซื้อเพิ่ม · ไม่มีวันหมดอายุ (ช่วงทดลองใช้/Enterprise ไม่จำกัดอยู่แล้ว)\n\n` +
+        `ใส่จำนวนที่นั่งฟรีทั้งหมด (0 = ยกเลิก):`,
+      String(cur),
+    )
+    if (typed === null) return
+    const qty = Number(typed.trim())
+    if (!Number.isInteger(qty) || qty < 0 || qty > 500) {
+      alert('ใส่เป็นเลขจำนวนเต็ม 0–500')
+      return
+    }
+    if (qty === cur) return
+    setBonusBusy(o.id)
+    const { error } = await supabase.rpc('super_set_bonus_seats', { p_org: o.id, p_qty: qty })
+    setBonusBusy(null)
+    if (error) {
+      alert(error.message.includes('super_set_bonus_seats')
+        ? 'ยังไม่ได้รัน supabase/bonus-seats.sql ใน Supabase SQL Editor'
+        : `บันทึกไม่สำเร็จ: ${error.message}`)
+      return
+    }
+    await reload()
+  }
 
   // ลบองค์กรถาวร — อันตรายสูง (ทรัพย์/แผน/ประวัติหาย cascade) จึงบังคับพิมพ์ชื่อองค์กรยืนยัน
   async function removeOrg(o: OrgOverview) {
@@ -1265,7 +1300,20 @@ export default function SuperAdminPage() {
                           </button>
                         </div>
                       </td>
-                      <td data-label="สมาชิก">{o.member_count}</td>
+                      <td data-label="สมาชิก">
+                        {o.member_count}
+                        {(o.bonus_seats ?? 0) > 0 && <div className="td-sub">ได้ที่นั่งฟรี +{o.bonus_seats}</div>}
+                        <div>
+                          <button
+                            className="btn sm"
+                            disabled={bonusBusy === o.id}
+                            title="ให้ที่นั่งฟรีกับองค์กรนี้ — เชิญลูกทีมได้เพิ่มโดยไม่ต้องซื้อที่นั่ง"
+                            onClick={() => void giveBonusSeats(o)}
+                          >
+                            {bonusBusy === o.id ? '…' : (o.bonus_seats ?? 0) > 0 ? 'แก้ที่นั่งฟรี' : 'ให้ที่นั่งฟรี'}
+                          </button>
+                        </div>
+                      </td>
                       <td data-label="ทรัพย์">{o.property_count}</td>
                       <td data-label="นับใน /stats">
                         {/* หน้ายอดสมัครสาธารณะต้องโชว์แต่ผู้ใช้จริง — องค์กรทดสอบของทีมกดปิดที่นี่ */}

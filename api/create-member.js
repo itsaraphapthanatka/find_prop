@@ -64,7 +64,7 @@ export default async function handler(req, res) {
   // ถามฐานข้อมูลตรงๆ (org_seat_limit/org_seats_used) เพื่อให้ใช้กติกาชุดเดียวกับ create_team_invite
   if (!isSuper) {
     const oRes = await fetch(
-      `${url}/rest/v1/organizations?id=eq.${targetOrg}&select=plan,plan_tier,trial_plan,trial_expires_at,extra_seats,extra_seats_expires_at`,
+      `${url}/rest/v1/organizations?id=eq.${targetOrg}&select=*`,
       { headers: svc },
     )
     const orgRow = ((await oRes.json().catch(() => [])) || [])[0]
@@ -150,6 +150,7 @@ async function seatUsage(url, svc, orgId, orgRow) {
       )
       used = ((await r.json().catch(() => [])) || []).length
     } catch { used = 0 }
-    return { limit: base === null ? null : base + extra, used }
+    const bonus = Math.max(0, Number(orgRow?.bonus_seats || 0)) // ที่นั่งฟรีจาก super (bonus-seats.sql)
+    return { limit: base === null ? null : base + extra + bonus, used }
   }
 }

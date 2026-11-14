@@ -31,7 +31,7 @@ export function baseSeats(plan?: string | null, tier?: number | null, base?: Sea
 }
 
 /**
- * ที่นั่งทั้งหมดที่องค์กรใช้ได้ = ของแพ็กเกจ + ที่ซื้อเพิ่ม (ที่ยังไม่หมดอายุ) — null = ไม่จำกัด
+ * ที่นั่งทั้งหมดที่องค์กรใช้ได้ = ของแพ็กเกจ + ที่ซื้อเพิ่ม (ที่ยังไม่หมดอายุ) + ที่ super ให้ฟรี — null = ไม่จำกัด
  * ⏳ ช่วงทดลองใช้ = ไม่จำกัด (เชิญทีมได้เต็มที่ · หมดทดลองแล้วโควตากลับมาเป็นของแพ็กเกจที่จ่ายจริง)
  * ตรงกับ org_seat_limit() ในฐานข้อมูล (ฐานข้อมูลเป็นตัวบังคับจริง อันนี้ไว้โชว์/กันกดเปล่า)
  */
@@ -39,7 +39,7 @@ export function seatLimit(org?: Organization | null, base?: SeatBase): number | 
   if (onTrial(org)) return null
   const b = baseSeats(effectivePlan(org), org?.plan_tier, base)
   if (b === null) return null
-  return b + activeExtraSeats(org)
+  return b + activeExtraSeats(org) + bonusSeats(org)
 }
 
 /**
@@ -74,6 +74,12 @@ export function seatBlock(org?: Organization | null): SeatBlock {
   if (org.plan === 'enterprise') return 'enterprise'
   if (org.sub_cancel_at_period_end) return 'canceling'
   return null
+}
+
+/** ที่นั่งที่ super admin ให้ฟรี (ไม่มีวันหมดอายุ) — ตรงกับ bonus_seats ใน org_seat_limit() */
+export function bonusSeats(org?: Organization | null): number {
+  const n = Number(org?.bonus_seats ?? 0)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
 }
 
 /** ที่นั่งที่ซื้อเพิ่มและยังไม่หมดอายุ */

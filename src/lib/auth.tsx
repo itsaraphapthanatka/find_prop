@@ -44,6 +44,8 @@ export interface Organization {
   /** ที่นั่งที่ซื้อเพิ่มนอกเหนือจากแพ็กเกจ (supabase/seats.sql) */
   extra_seats?: number | null
   extra_seats_expires_at?: string | null
+  /** ที่นั่งที่ super admin ให้ฟรี (supabase/bonus-seats.sql) · ไม่มีวันหมดอายุ · ยังไม่รัน SQL = undefined */
+  bonus_seats?: number | null
   /** Stripe (supabase/stripe.sql) — มี subscription = ตัดบัตรอัตโนมัติทุกรอบ */
   stripe_customer_id?: string | null
   stripe_subscription_id?: string | null
