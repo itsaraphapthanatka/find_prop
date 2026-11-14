@@ -4,7 +4,7 @@
 // ผู้เรียกเป็นผู้ใช้ที่ล็อกอินกับ Supabase ของแอปจริง กันคนนอกยืมใช้ LLM ฟรี
 
 import { effectivePlan, isProPlan } from './_lib/plan.js'
-import { llmConfig } from './_lib/llm.js'
+import { llmConfig, llmParse, llmRequest } from './_lib/llm.js'
 
 const MAX_BODY_CHARS = 120_000
 const UPSTREAM_TIMEOUT_MS = 80_000
@@ -96,31 +96,20 @@ export default async function handler(req, res) {
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), UPSTREAM_TIMEOUT_MS)
   try {
-    const upstream = await fetch(
-      llm.url,
-      {
-        method: 'POST',
-        signal: ctl.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${llm.key}` },
-        body: JSON.stringify({
-          model: llm.model,
-          messages: messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
-          temperature: typeof temperature === 'number' ? temperature : 0.2,
-          max_tokens: llm.maxTokens, // ดูเหตุผลของแต่ละเจ้าใน _lib/llm.js
-        }),
-      },
-    )
+    // รูปแบบคำขอ/คำตอบต่างกันตามเจ้า (aunjai = แบบ OpenAI · Gemini = generateContent) — ดู _lib/llm.js
+    const rq = llmRequest(llm, messages, { temperature: typeof temperature === 'number' ? temperature : 0.2 })
+    const upstream = await fetch(rq.url, { method: 'POST', signal: ctl.signal, headers: rq.headers, body: JSON.stringify(rq.body) })
     // ต้นทางล้น/หมดเวลา (เกตเวย์หรือ Cloudflare ฝั่งเขาตอบ 502/503/504/524 หรือ 429) → 503 พร้อมข้อความที่คนอ่านเข้าใจ
     if (BUSY_STATUSES.has(upstream.status)) return res.status(503).json({ error: BUSY_MESSAGE, busy: true })
     const data = await upstream.json().catch(() => null)
-    const content = data?.choices?.[0]?.message?.content
+    const { content, finish, error: upstreamError } = llmParse(llm, data)
     if (!upstream.ok || typeof content !== 'string') {
-      // Gemini ห่อ error เป็น array [{ error: {...} }] ส่วนเจ้าแบบ OpenAI เป็น { error: {...} }
-      const upstreamError = (Array.isArray(data) ? data[0] : data)?.error?.message
       return res
         .status(upstream.ok ? 502 : upstream.status)
         .json({ error: upstreamError ? `${llm.name}: ${upstreamError}` : `AI ตอบกลับผิดพลาด (${upstream.status})` })
     }
+    // ตอบว่าง (เช่นความคิดกินเพดานจนหมด หรือโดนตัวกรองเนื้อหา) — บอกเหตุแทนการส่งข้อความว่างไปให้แอป
+    if (!content.trim()) return res.status(502).json({ error: `AI ตอบกลับว่าง (${finish || 'ไม่ทราบสาเหตุ'}) — ลองใหม่อีกครั้ง` })
     return res.status(200).json({ content })
   } catch (err) {
     if (err?.name === 'AbortError') return res.status(503).json({ error: BUSY_MESSAGE, busy: true })
