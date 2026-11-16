@@ -205,6 +205,18 @@ export interface Shortlist {
   /** สำเนาข้อมูลทรัพย์ที่ตรึงไว้ตอนสร้างลิงก์ — ลูกค้าเห็นราคานี้ ไม่ใช่ราคาปัจจุบัน */
   snapshot?: SharedItem[] | null
   snapshot_at?: string | null
+  /** ลิงก์/เอกสารเปิดเป็นแบบไหน — ดู supabase/proposal-share.sql (ยังไม่รัน SQL = undefined = ตารางเปรียบเทียบ) */
+  doc_mode?: 'compare' | 'proposal' | null
+  /** ข้อมูลบนข้อเสนอ (ช่องทางติดต่อของนายหน้าผู้เสนอ · ข้อความถึงลูกค้า · วันหมดอายุข้อเสนอ) */
+  proposal?: ProposalData | null
+}
+
+/** ข้อมูลบนเอกสารข้อเสนอ — เก็บใน shortlists.proposal และส่งถึงลูกค้าผ่าน proposal_public() (whitelist ทีละคีย์) */
+export interface ProposalData {
+  agent?: { name?: string; phone?: string; line?: string; email?: string }
+  note?: string
+  /** YYYY-MM-DD */
+  valid_until?: string
 }
 
 /** ทรัพย์ 1 รายการในสำเนาที่ตรึงไว้ (ชุดฟิลด์เดียวกับ shortlist_items ใน SQL) */

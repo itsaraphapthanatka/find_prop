@@ -6,7 +6,7 @@ import { usePerm } from '../hooks/usePerm'
 import { supabase } from '../lib/supabase'
 import { aiChat, extractJson, propertyDetailText } from '../lib/ai'
 import { daysLeft, priceDrift, shareShortlist, shareUrl, unshareShortlist, useShareSetting } from '../lib/share'
-import type { CompareResult, Property, Shortlist } from '../types'
+import type { CompareResult, Property, ProposalData, Shortlist } from '../types'
 import { formatDate } from '../labels'
 import PropertyPicker, { PropThumb } from '../components/PropertyPicker'
 import CompareSheet from '../components/CompareSheet'
@@ -20,6 +20,12 @@ const MAX_PICK = 4
 // ข้อมูลติดต่อผู้เสนอบนเอกสารข้อเสนอ — จำไว้ในเครื่องนี้ (ความสะดวกของแต่ละคน ไม่ใช่ข้อมูลที่ต้องแชร์)
 const AGENT_KEY = 'hop_proposal_agent_v1'
 const plusDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+/** รูปแบบมาตรฐานของข้อมูลข้อเสนอ — ใช้ทั้งตอนบันทึกและเทียบว่ามีการแก้ (ค่าว่างตัดทิ้ง) */
+function normProposal(p?: ProposalData | null): ProposalData {
+  const t = (v?: string) => (v ?? '').trim() || undefined
+  const agent = { name: t(p?.agent?.name), phone: t(p?.agent?.phone), line: t(p?.agent?.line), email: t(p?.agent?.email) }
+  return JSON.parse(JSON.stringify({ agent, note: t(p?.note), valid_until: t(p?.valid_until) })) as ProposalData
+}
 
 export default function ComparePage() {
   const { items } = useProperties()
@@ -42,6 +48,9 @@ export default function ComparePage() {
     name: agent.name || profile?.full_name || '',
     email: agent.email || profile?.email || '',
   }
+  const proposalData = normProposal({ agent: agentShown, note: proposalNote, valid_until: validUntil })
+  // ข้อเสนอเสนอทรัพย์รายการเดียวได้ · ตารางเปรียบเทียบต้อง 2 รายการขึ้นไป
+  const minPick = docMode === 'proposal' ? 1 : 2
   function setAgentField(k: keyof ProposalAgent, v: string) {
     setAgent((a) => {
       const next = { ...a, [k]: v }
@@ -106,7 +115,9 @@ export default function ComparePage() {
       || (cur.requirement ?? '') !== requirement.trim()
       || cur.codes.join(',') !== codes.join(',')
       || JSON.stringify(cur.ai ?? null) !== JSON.stringify(ai ?? null)
-    : picked.length >= 2
+      || (cur.doc_mode ?? 'compare') !== docMode
+      || (docMode === 'proposal' && JSON.stringify(normProposal(cur.proposal)) !== JSON.stringify(proposalData))
+    : picked.length >= minPick
 
   function openList(sl: Shortlist) {
     setCurId(sl.id)
@@ -119,6 +130,17 @@ export default function ComparePage() {
     setCodes(sl.codes.slice(0, MAX_PICK))
     setAi(sl.ai ?? null)
     setAiError(null)
+    // รูปแบบเอกสาร + ข้อมูลข้อเสนอที่บันทึกไว้ (ลิงก์ที่ส่งลูกค้าไปแล้วจะตรงกับที่เห็นตรงนี้)
+    setDocMode(sl.doc_mode === 'proposal' ? 'proposal' : 'compare')
+    if (sl.proposal) {
+      const sp = sl.proposal
+      setAgent((a) => ({
+        name: sp.agent?.name ?? a.name, phone: sp.agent?.phone ?? a.phone,
+        line: sp.agent?.line ?? a.line, email: sp.agent?.email ?? a.email,
+      }))
+      setProposalNote(sp.note ?? '')
+      setValidUntil(sp.valid_until ?? plusDays(30))
+    }
     appliedParam.current = true // เปิดชุดที่บันทึกไว้แล้ว — อย่าให้ ?codes= มาทับ
   }
 
@@ -130,6 +152,9 @@ export default function ComparePage() {
     setCodes([])
     setAi(null)
     setAiError(null)
+    setDocMode('compare')
+    setProposalNote('')
+    setValidUntil(plusDays(30))
   }
 
   /** ชื่อชุดอัตโนมัติเมื่อผู้ใช้ไม่ได้ตั้งเอง */
@@ -137,18 +162,31 @@ export default function ComparePage() {
     customer.trim() ? `เสนอ ${customer.trim()}` : `ชอร์ตลิสต์ ${codes.join(' · ')}`
 
   async function saveList(asNew = false) {
-    if (picked.length < 2) return
+    if (picked.length < minPick) return
     setSaving(true)
-    const payload = {
+    const base = {
       title: title.trim() || autoTitle(),
       customer_name: customer.trim() || null,
       requirement: requirement.trim() || null,
       codes,
       ai,
     }
-    const res = curId && !asNew
-      ? await supabase.from('shortlists').update(payload).eq('id', curId).select().single()
-      : await supabase.from('shortlists').insert(payload).select().single()
+    // ลิงก์ที่ส่งลูกค้าจะเปิดเป็นเอกสารแบบที่บันทึกไว้ · สลับกลับเป็นตารางไม่ลบข้อมูลข้อเสนอเดิม
+    const withDoc = {
+      ...base,
+      doc_mode: docMode,
+      ...(docMode === 'proposal' ? { proposal: proposalData } : {}),
+    }
+    const write = (payload: typeof base) => curId && !asNew
+      ? supabase.from('shortlists').update(payload).eq('id', curId).select().single()
+      : supabase.from('shortlists').insert(payload).select().single()
+    let res = await write(withDoc)
+    // ยังไม่ได้รัน supabase/proposal-share.sql (ไม่มีคอลัมน์ doc_mode/proposal) → บันทึกแบบเดิมไปก่อน
+    let docColsMissing = false
+    if (res.error && /doc_mode|proposal/.test(res.error.message)) {
+      docColsMissing = true
+      res = await write(base)
+    }
     setSaving(false)
     if (res.error) {
       alert(
@@ -164,6 +202,9 @@ export default function ComparePage() {
     setCurId(saved.id)
     setTitle(saved.title)
     await reloadLists()
+    if (docColsMissing && docMode === 'proposal') {
+      alert('บันทึกชอร์ตลิสต์แล้ว แต่ลิงก์ยังเปิดเป็นตารางเปรียบเทียบ — ผู้ดูแลระบบต้องรัน supabase/proposal-share.sql ก่อน ลิงก์ถึงจะเปิดเป็นข้อเสนอ')
+    }
   }
 
   async function deleteList(sl: Shortlist) {
@@ -258,7 +299,7 @@ ${details}
       <div className="view-header">
         <h1>เปรียบเทียบทรัพย์ {picked.length > 0 && <span className="count-badge">{picked.length}</span>}</h1>
         <div className="header-actions">
-          {!perm.readOnly && picked.length >= 2 && (
+          {!perm.readOnly && picked.length >= minPick && (
             <>
               <button className="btn primary" disabled={saving || !dirty} onClick={() => void saveList()}>
                 {saving ? 'กำลังบันทึก…' : curId ? 'บันทึกการแก้ไข' : 'บันทึกชอร์ตลิสต์'}
@@ -361,7 +402,7 @@ ${details}
         </section>
 
         {/* ลิงก์แชร์ให้ลูกค้า — ต้องบันทึกชุดก่อน (ลิงก์ชี้ไปที่ชุดที่บันทึกไว้) */}
-        {!perm.readOnly && (curId || picked.length >= 2) && (
+        {!perm.readOnly && (curId || picked.length >= minPick) && (
           <section className="form-card compare-share">
             <h3><IconLink size={16} /> ส่งลิงก์ให้ลูกค้าดู</h3>
             {shareSet.maxDays <= 0 ? (
@@ -370,6 +411,10 @@ ${details}
               <p className="stop-sub">บันทึกชอร์ตลิสต์ก่อน แล้วจะสร้างลิงก์ได้</p>
             ) : (
               <>
+                <p className="ai-hint" style={{ marginBottom: 6 }}>
+                  ลิงก์เปิดเป็น <b>{(cur?.doc_mode ?? 'compare') === 'proposal' ? 'ข้อเสนอ (Proposal)' : 'ตารางเปรียบเทียบ'}</b> ตามที่บันทึกไว้
+                  {dirty && ' · มีการแก้ไขที่ยังไม่บันทึก — กดบันทึกก่อน ลูกค้าถึงจะเห็นของใหม่'}
+                </p>
                 <p className="ai-hint">
                   ลูกค้าเปิดดูได้เลยไม่ต้องล็อกอิน · เห็นเท่าที่อยู่ในเอกสารที่พิมพ์ให้
                   (<b>ไม่เห็น</b>ชื่อ/เบอร์เจ้าของทรัพย์ · บ้านเลขที่ · พิกัดแผนที่)

@@ -26,6 +26,8 @@ interface Props {
   note?: string
   /** วันที่ข้อเสนอสิ้นสุด (YYYY-MM-DD) · ว่าง = ไม่ระบุ */
   validUntil?: string
+  /** วันที่จัดทำบนเอกสาร (ไม่ส่ง = วันนี้) — ลิงก์แชร์ใช้วันที่เสนอ (ราคาตรึงไว้วันนั้น) */
+  issuedAt?: Date
 }
 
 const thaiDate = (d: Date) => d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -79,11 +81,11 @@ function AgentCard({ agent, orgName }: { agent: ProposalAgent; orgName?: string 
   )
 }
 
-export default function ProposalSheet({ picked, orgName, customer, requirement, ai, agent, note, validUntil }: Props) {
+export default function ProposalSheet({ picked, orgName, customer, requirement, ai, agent, note, validUntil, issuedAt }: Props) {
   const cust = (customer ?? '').trim()
   const req = (requirement ?? '').trim()
   const intro = (note ?? '').trim() || ai?.intro?.trim() || ''
-  const today = thaiDate(new Date())
+  const today = thaiDate(issuedAt ?? new Date())
   const valid = validUntil ? thaiDate(new Date(`${validUntil}T00:00:00`)) : null
   const hero = picked.map((p) => photosOf(p, 1)[0]).find(Boolean)
   const aiOf = (code: string) => ai?.items?.find((i) => i.code === code)

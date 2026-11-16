@@ -3,8 +3,9 @@
 // ฝั่งนี้จึงไม่มีทางแสดงเบอร์เจ้าของ/บ้านเลขที่/พิกัด แม้เขียนโค้ดผิด — ดู supabase/shortlist-share.sql
 import { useEffect, useState } from 'react'
 import { supabase, supabaseConfigured } from '../lib/supabase'
-import type { CompareResult, Property, SharedItem } from '../types'
+import type { CompareResult, Property, ProposalData, SharedItem } from '../types'
 import CompareSheet from '../components/CompareSheet'
+import ProposalSheet from '../components/ProposalSheet'
 import { IconPrint } from '../components/icons'
 import { printPage } from '../lib/native'
 
@@ -20,6 +21,9 @@ interface PublicShortlist {
   /** วันที่ของข้อมูลในเอกสาร = วันที่นายหน้าเสนอ (ราคาถูกตรึงไว้ ณ วันนี้) */
   offered_at?: string | null
   items?: SharedItem[]
+  /** 'proposal' = เปิดเป็นเอกสารข้อเสนอ (supabase/proposal-share.sql) · ไม่มี = ตารางเปรียบเทียบ */
+  doc_mode?: 'compare' | 'proposal'
+  proposal?: ProposalData | null
 }
 
 export default function SharePage({ token }: { token: string }) {
@@ -82,6 +86,23 @@ export default function SharePage({ token }: { token: string }) {
       </div>
       {picked.length === 0 ? (
         <div className="banner-warn">เอกสารนี้ยังไม่มีรายการทรัพย์</div>
+      ) : data.doc_mode === 'proposal' ? (
+        <ProposalSheet
+          picked={picked}
+          orgName={data.org_name}
+          customer={data.customer_name}
+          requirement={data.requirement}
+          ai={data.ai ?? null}
+          agent={{
+            name: data.proposal?.agent?.name ?? '',
+            phone: data.proposal?.agent?.phone ?? '',
+            line: data.proposal?.agent?.line ?? '',
+            email: data.proposal?.agent?.email ?? '',
+          }}
+          note={data.proposal?.note}
+          validUntil={data.proposal?.valid_until}
+          issuedAt={data.offered_at ? new Date(data.offered_at) : undefined}
+        />
       ) : (
         <CompareSheet
           picked={picked}
