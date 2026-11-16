@@ -82,7 +82,9 @@ language sql immutable set search_path = public as $$
       'email', left(nullif(btrim(p->'agent'->>'email'), ''), 160)
     )) end,
     'note', left(nullif(btrim(p->>'note'), ''), 2000),
-    'valid_until', case when (p->>'valid_until') ~ '^\d{4}-\d{2}-\d{2}$' then p->>'valid_until' end
+    'valid_until', case when (p->>'valid_until') ~ '^\d{4}-\d{2}-\d{2}$' then p->>'valid_until' end,
+    -- โลโก้องค์กร (org-logo.sql) — https เท่านั้น · นิยามตรงกับ org-logo.sql (รันไฟล์ไหนซ้ำก็ได้ผลเดียวกัน)
+    'logo_url', case when (p->>'logo_url') ~ '^https://' and length(p->>'logo_url') <= 500 then p->>'logo_url' end
   )) end
 $$;
 

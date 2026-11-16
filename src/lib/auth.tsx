@@ -46,6 +46,8 @@ export interface Organization {
   extra_seats_expires_at?: string | null
   /** ที่นั่งที่ super admin ให้ฟรี (supabase/bonus-seats.sql) · ไม่มีวันหมดอายุ · ยังไม่รัน SQL = undefined */
   bonus_seats?: number | null
+  /** โลโก้องค์กร (supabase/org-logo.sql) — แสดงบนหน้าปกข้อเสนอ · ยังไม่รัน SQL = undefined */
+  logo_url?: string | null
   /** Stripe (supabase/stripe.sql) — มี subscription = ตัดบัตรอัตโนมัติทุกรอบ */
   stripe_customer_id?: string | null
   stripe_subscription_id?: string | null

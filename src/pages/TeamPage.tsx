@@ -29,6 +29,62 @@ export default function TeamPage() {
   const [error, setError] = useState<string | null>(null)
   const [orgName, setOrgName] = useState(org?.name ?? '')
   const [savingOrg, setSavingOrg] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false)
+
+  // โลโก้องค์กร (org-logos/<org_id>/...) — แสดงบนหน้าปกข้อเสนอ · ต้องรัน supabase/org-logo.sql ก่อน
+  const LOGO_BUCKET = 'org-logos'
+  const oldLogoPath = () => {
+    const m = /\/org-logos\/(.+)$/.exec(org?.logo_url ?? '')
+    return m ? decodeURIComponent(m[1]) : null
+  }
+  async function uploadOrgLogo(f: File) {
+    if (!org?.id) return
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(f.type)) {
+      alert('ใช้ไฟล์ PNG, JPG หรือ WebP')
+      return
+    }
+    if (f.size > 1024 * 1024) {
+      alert('ไฟล์ใหญ่เกิน 1MB — ย่อรูปก่อนอัปโหลด (โลโก้ควรเล็ก โหลดไว)')
+      return
+    }
+    setLogoBusy(true)
+    const ext = f.type === 'image/png' ? 'png' : f.type === 'image/webp' ? 'webp' : 'jpg'
+    const path = `${org.id}/logo-${Date.now()}.${ext}` // ชื่อใหม่ทุกครั้ง — กันแคชค้างรูปเก่า
+    const up = await supabase.storage.from(LOGO_BUCKET).upload(path, f, { contentType: f.type })
+    if (up.error) {
+      setLogoBusy(false)
+      alert(/bucket|not found/i.test(up.error.message)
+        ? 'ยังเปิดระบบโลโก้องค์กรไม่ได้ — ผู้ดูแลระบบต้องรัน supabase/org-logo.sql ก่อน'
+        : `อัปโหลดไม่สำเร็จ: ${up.error.message}`)
+      return
+    }
+    const url = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path).data.publicUrl
+    const prev = oldLogoPath()
+    const { error } = await supabase.from('organizations').update({ logo_url: url }).eq('id', org.id)
+    if (error) {
+      void supabase.storage.from(LOGO_BUCKET).remove([path])
+      setLogoBusy(false)
+      alert(/logo_url/.test(error.message)
+        ? 'ยังเปิดระบบโลโก้องค์กรไม่ได้ — ผู้ดูแลระบบต้องรัน supabase/org-logo.sql ก่อน'
+        : `บันทึกโลโก้ไม่สำเร็จ: ${error.message}`)
+      return
+    }
+    if (prev) void supabase.storage.from(LOGO_BUCKET).remove([prev]) // ลบไฟล์เก่า (พลาดก็ไม่เป็นไร)
+    await refreshProfile()
+    setLogoBusy(false)
+  }
+  async function removeOrgLogo() {
+    if (!org?.id || !window.confirm('ลบโลโก้องค์กร? (ข้อเสนอที่ส่งลิงก์ไปแล้วยังแสดงโลโก้เดิม)')) return
+    setLogoBusy(true)
+    const prev = oldLogoPath()
+    const { error } = await supabase.from('organizations').update({ logo_url: null }).eq('id', org.id)
+    if (error) alert(`ลบโลโก้ไม่สำเร็จ: ${error.message}`)
+    else {
+      if (prev) void supabase.storage.from(LOGO_BUCKET).remove([prev])
+      await refreshProfile()
+    }
+    setLogoBusy(false)
+  }
 
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<Role>('manager')
@@ -361,6 +417,27 @@ export default function TeamPage() {
               </button>
             </div>
           </form>
+          <div className="org-logo-row">
+            <div className="org-logo-box">
+              {org?.logo_url ? <img src={org.logo_url} alt="โลโก้องค์กร" /> : <span>ยังไม่มีโลโก้</span>}
+            </div>
+            <div className="org-logo-text">
+              <div className="org-logo-title">โลโก้องค์กร</div>
+              <div className="stop-sub">แสดงบนหน้าปกข้อเสนอที่ส่งลูกค้า · PNG/JPG/WebP ไม่เกิน 1MB · พื้นโปร่งใสดูดีที่สุด</div>
+            </div>
+            <div className="org-logo-actions">
+              <label className={`btn sm ${logoBusy ? 'disabled' : ''}`} style={{ cursor: logoBusy ? 'default' : 'pointer' }}>
+                {logoBusy ? 'กำลังบันทึก…' : org?.logo_url ? 'เปลี่ยนโลโก้' : 'อัปโหลดโลโก้'}
+                <input
+                  type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={logoBusy}
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void uploadOrgLogo(f) }}
+                />
+              </label>
+              {org?.logo_url && (
+                <button type="button" className="btn sm" disabled={logoBusy} onClick={() => void removeOrgLogo()}>ลบ</button>
+              )}
+            </div>
+          </div>
           {org?.plan && (
             <p className="plan-line">
               แพ็กเกจ:{' '}

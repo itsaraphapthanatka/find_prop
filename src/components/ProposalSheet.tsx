@@ -18,6 +18,8 @@ export interface ProposalAgent {
 interface Props {
   picked: Property[]
   orgName?: string | null
+  /** โลโก้องค์กร (https) — ไม่มี = แสดงชื่อองค์กรอย่างเดียว */
+  logoUrl?: string | null
   customer?: string | null
   requirement?: string | null
   ai?: CompareResult | null
@@ -81,7 +83,7 @@ function AgentCard({ agent, orgName }: { agent: ProposalAgent; orgName?: string 
   )
 }
 
-export default function ProposalSheet({ picked, orgName, customer, requirement, ai, agent, note, validUntil, issuedAt }: Props) {
+export default function ProposalSheet({ picked, orgName, logoUrl, customer, requirement, ai, agent, note, validUntil, issuedAt }: Props) {
   const cust = (customer ?? '').trim()
   const req = (requirement ?? '').trim()
   const intro = (note ?? '').trim() || ai?.intro?.trim() || ''
@@ -96,7 +98,10 @@ export default function ProposalSheet({ picked, orgName, customer, requirement, 
       {/* ── หน้าปก ── */}
       <section className="pp-page pp-cover">
         <div className="pp-cover-top">
-          <span className="pp-brand">{brand}</span>
+          <span className="pp-brand">
+            {logoUrl && <img className="pp-logo" src={logoUrl} alt={brand} />}
+            <span>{brand}</span>
+          </span>
           <span className="pp-date">{today}</span>
         </div>
         <div className="pp-hero">

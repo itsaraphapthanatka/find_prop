@@ -217,6 +217,8 @@ export interface ProposalData {
   note?: string
   /** YYYY-MM-DD */
   valid_until?: string
+  /** โลโก้องค์กร ณ วันที่เสนอ (https) — ติดไปกับข้อเสนอเหมือนราคาที่ตรึงไว้ */
+  logo_url?: string
 }
 
 /** ทรัพย์ 1 รายการในสำเนาที่ตรึงไว้ (ชุดฟิลด์เดียวกับ shortlist_items ใน SQL) */

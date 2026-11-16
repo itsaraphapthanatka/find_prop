@@ -24,7 +24,7 @@ const plusDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + 
 function normProposal(p?: ProposalData | null): ProposalData {
   const t = (v?: string) => (v ?? '').trim() || undefined
   const agent = { name: t(p?.agent?.name), phone: t(p?.agent?.phone), line: t(p?.agent?.line), email: t(p?.agent?.email) }
-  return JSON.parse(JSON.stringify({ agent, note: t(p?.note), valid_until: t(p?.valid_until) })) as ProposalData
+  return JSON.parse(JSON.stringify({ agent, note: t(p?.note), valid_until: t(p?.valid_until), logo_url: t(p?.logo_url) })) as ProposalData
 }
 
 export default function ComparePage() {
@@ -48,7 +48,7 @@ export default function ComparePage() {
     name: agent.name || profile?.full_name || '',
     email: agent.email || profile?.email || '',
   }
-  const proposalData = normProposal({ agent: agentShown, note: proposalNote, valid_until: validUntil })
+  const proposalData = normProposal({ agent: agentShown, note: proposalNote, valid_until: validUntil, logo_url: org?.logo_url ?? undefined })
   // ข้อเสนอเสนอทรัพย์รายการเดียวได้ · ตารางเปรียบเทียบต้อง 2 รายการขึ้นไป
   const minPick = docMode === 'proposal' ? 1 : 2
   function setAgentField(k: keyof ProposalAgent, v: string) {
@@ -551,7 +551,7 @@ ${details}
 
         {docMode === 'proposal' && picked.length >= 1 && (
           <ProposalSheet
-            picked={picked} orgName={org?.name} customer={customer} requirement={requirement} ai={ai}
+            picked={picked} orgName={org?.name} logoUrl={org?.logo_url} customer={customer} requirement={requirement} ai={ai}
             agent={agentShown} note={proposalNote} validUntil={validUntil}
           />
         )}

@@ -1194,6 +1194,18 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
   max-height: 240px; overflow: auto;
 }
 
+/* ── โลโก้องค์กร (การ์ดองค์กร หน้าทีม) ── */
+.org-logo-row { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+.org-logo-box {
+  width: 120px; height: 56px; flex: none; border: 1px dashed var(--line); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden;
+}
+.org-logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; padding: 6px; }
+.org-logo-box span { color: var(--muted); font-size: 12px; }
+.org-logo-text { flex: 1; min-width: 180px; }
+.org-logo-title { font-weight: 600; font-size: 14px; }
+.org-logo-actions { display: flex; gap: 8px; }
+
 /* ── ข้อเสนอทรัพย์ (Proposal) ─────────────────
    จอ: หน้ากระดาษเรียงลงมาให้ดูก่อนพิมพ์ · พิมพ์: หน้าละแผ่น A4 แนวตั้ง (ดู @page proposal ด้านล่าง)
    ม่วงใช้แค่หัวเรื่องเล็ก/เส้นแบ่ง — ตัวเอกสารเป็นหมึกบนขาว ให้รูปทรัพย์เป็นพระเอก */
@@ -1207,8 +1219,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .pp-h2 { font-size: 18px; letter-spacing: -0.3px; margin: 0 0 10px; }
 .pp-muted { color: var(--muted); font-size: 12px; margin-top: 2px; }
 .pp-cover { display: flex; flex-direction: column; gap: 18px; }
-.pp-cover-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.pp-brand { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
+.pp-cover-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.pp-brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
+.pp-logo { height: 40px; max-width: 160px; object-fit: contain; display: block; }
 .pp-date { color: var(--muted); font-size: 12px; }
 .pp-hero {
   aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden;

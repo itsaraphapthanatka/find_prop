@@ -90,6 +90,7 @@ export default function SharePage({ token }: { token: string }) {
         <ProposalSheet
           picked={picked}
           orgName={data.org_name}
+          logoUrl={data.proposal?.logo_url}
           customer={data.customer_name}
           requirement={data.requirement}
           ai={data.ai ?? null}
