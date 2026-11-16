@@ -26,3 +26,6 @@ deploy/.env.*
 .env*
 # ต้องอยู่หลัง .env* — แม่แบบค่าลับ (ไม่มีค่าจริง) ต้องเข้า git
 !deploy/.env.example
+
+# ผล cron ตอนรัน server/index.mjs ในเครื่อง (บนเซิร์ฟเวอร์อยู่ใน volume hop-data)
+/data

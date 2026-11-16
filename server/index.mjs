@@ -16,6 +16,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const API_DIR = process.env.HOP_API_DIR || path.join(ROOT, 'api')
 const PORT = Number(process.env.PORT || 3000)
 const BODY_LIMIT = 12 * 1024 * 1024 // เผื่อรูปจากผู้ช่วย AI (Vercel จำกัดราว 4.5MB)
+// ที่เก็บข้อมูลถาวรของเซิร์ฟเวอร์ — ในคอนเทนเนอร์คือ /app/data (volume hop-data ใน docker-compose.yml)
+const DATA_DIR = process.env.HOP_DATA_DIR || path.join(ROOT, 'data')
 
 // ── โหลด handler (แคชไว้หลังโหลดครั้งแรก) ──
 const handlers = new Map()
@@ -82,9 +84,44 @@ function enhance(req, res, url) {
   }
 }
 
-// สถานะตัวตั้งเวลา — โชว์ใน /healthz ให้ตรวจจากข้างนอกได้ว่ารอบล่าสุดยิงสำเร็จไหม (log หายเมื่อสร้างคอนเทนเนอร์ใหม่)
+// สถานะตัวตั้งเวลา — โชว์ใน /healthz ให้ตรวจจากข้างนอกได้ว่ารอบล่าสุดยิงสำเร็จไหม
 // ไม่มีข้อมูลส่วนตัว: แค่เวลา สถานะ และจำนวนที่ส่ง
-const cron = { enabled: false, next: null, last: null }
+// ผลแต่ละรอบเก็บลงดิสก์ (DATA_DIR/cron-state.json) — เดิมอยู่ในหน่วยความจำ deploy ทีไรหายหมด
+// (2026-11-16: ดูผลรอบ 15–16 พ.ย. ย้อนหลังไม่ได้เพราะ deploy ทับ) · history = 14 รอบล่าสุด ใหม่สุดก่อน
+// disk = 'ok' | ข้อความ error — ตรวจได้ทันทีหลัง deploy ว่า volume เขียนได้ ไม่ต้องรอรอบ 07:00
+export const cron = { enabled: false, next: null, last: null, history: [], disk: null }
+const CRON_FILE = path.join(DATA_DIR, 'cron-state.json')
+const CRON_HISTORY = 14
+
+function saveCronState() {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true })
+    const tmp = `${CRON_FILE}.tmp`
+    fs.writeFileSync(tmp, JSON.stringify({ last: cron.last, history: cron.history }))
+    fs.renameSync(tmp, CRON_FILE) // เขียนไฟล์ชั่วคราวแล้วสลับ — ไฟล์ไม่ขาดครึ่งถ้าดับกลางทาง
+    cron.disk = 'ok'
+  } catch (e) {
+    cron.disk = `เขียนไม่ได้: ${e.code || e.message}`
+    console.error('[cron] บันทึกผลลงดิสก์ไม่สำเร็จ:', e.message)
+  }
+}
+
+/** โหลดผลรอบก่อนๆ จากดิสก์ แล้วเขียนกลับหนึ่งครั้งเพื่อเช็คว่า volume เขียนได้ (ผลอยู่ใน cron.disk) */
+export function loadCronState() {
+  try {
+    const s = JSON.parse(fs.readFileSync(CRON_FILE, 'utf8'))
+    cron.last = s?.last ?? null
+    cron.history = Array.isArray(s?.history) ? s.history.slice(0, CRON_HISTORY) : []
+  } catch { /* ยังไม่มีไฟล์ (ครั้งแรก) หรือไฟล์เสีย — เริ่มว่าง */ }
+  saveCronState()
+}
+
+/** บันทึกผลรอบล่าสุด (หน่วยความจำ + ดิสก์) */
+export function recordCronRun(entry) {
+  cron.last = entry
+  cron.history = [entry, ...cron.history].slice(0, CRON_HISTORY)
+  saveCronState()
+}
 
 const sendJson = (res, status, obj) => {
   res.statusCode = status
@@ -133,7 +170,7 @@ function scheduleDailyUtc(hour, job) {
   cron.next = next.toISOString()
   setTimeout(async () => {
     try { await job() } catch (e) {
-      cron.last = { at: new Date().toISOString(), status: 0, error: true }
+      recordCronRun({ at: new Date().toISOString(), status: 0, error: true })
       console.error('[cron]', e)
     }
     scheduleDailyUtc(hour, job)
@@ -146,10 +183,11 @@ if (isMain) {
   server.listen(PORT, () => console.log(`HOP API พร้อมที่พอร์ต ${PORT} (api: ${API_DIR})`))
   if (process.env.CRON_SECRET && process.env.ENABLE_CRON !== '0') {
     cron.enabled = true
+    loadCronState()
     scheduleDailyUtc(0, async () => {
       const r = await fetch(`http://127.0.0.1:${PORT}/api/push-cron`, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } })
       const out = await r.json().catch(() => ({}))
-      cron.last = { at: new Date().toISOString(), status: r.status, sent: out.sent ?? null, jobs: out.jobs ?? null }
+      recordCronRun({ at: new Date().toISOString(), status: r.status, sent: out.sent ?? null, jobs: out.jobs ?? null })
       console.log('[cron] push-cron', r.status, `sent=${out.sent ?? '-'} jobs=${out.jobs ?? '-'}`)
     })
     console.log('ตั้งเวลา push-cron ทุกวัน 00:00 UTC (07:00 เวลาไทย) แล้ว')

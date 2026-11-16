@@ -12,6 +12,8 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean -
 COPY api ./api
 COPY server/index.mjs ./server/index.mjs
 
+# ที่เก็บข้อมูลถาวร (ผล cron) — volume hop-data มาเมานต์ทับ · volume ใหม่จะได้เจ้าของ node ตามโฟลเดอร์นี้
+RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

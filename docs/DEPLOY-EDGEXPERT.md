@@ -15,6 +15,7 @@
 - **ไม่ต้องเปิดพอร์ตเราเตอร์ / ไม่ต้องมี IP จริง** เพราะ cloudflared ต่อออกไปหา Cloudflare เอง — HOP ใช้ tunnel ตัวเดียวกับเว็บ appreview (จัดการจากแดชบอร์ด)
 - **ไม่ build บนเครื่อง:** แรมเครื่องถูก vLLM (`aunjai-vllm`) จองไว้เกือบหมด (เหลือว่างราว 2GB) — GitHub Actions build image ARM64 ให้ (`.github/workflows/deploy-images.yml`) เครื่องแค่ pull · แต่ละคอนเทนเนอร์จำกัดแรมไว้ (รวม ≤ 900MB ใช้จริงราว 150MB)
 - `server/index.mjs` โหลด `api/*.js` ตัวเดิมโดยไม่แก้โค้ด (เลียนแบบ Vercel) และยิง push-cron เองทุกวันตอน 07:00 เวลาไทย
+  ผลแต่ละรอบเก็บใน volume `hop_hop-data` (`/app/data/cron-state.json`) อยู่รอดข้ามการ deploy · ดูได้ที่ `/healthz` → `cron.last` / `cron.history` (14 รอบล่าสุด) / `cron.disk` (`ok` = เขียนดิสก์ได้)
 - `deploy/Caddyfile` แปลงกฎ redirect/rewrite/header จาก `vercel.json` มาครบ → ตรวจด้วย `npm run test:server`
 - Vercel ยังเก็บไว้เป็น **ตัวส่งต่อ** (`deploy/vercel-forwarder`) เพราะแอปที่ติดตั้งไว้แล้วยังเรียก `hob-alpha.vercel.app`
 

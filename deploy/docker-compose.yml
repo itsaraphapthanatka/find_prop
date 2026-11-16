@@ -20,6 +20,9 @@ services:
       PORT: "3000"
       # deploy.sh ใส่ลายนิ้วมือของ .env — .env เปลี่ยน = api ถูกสร้างใหม่ให้อ่านค่าล่าสุด
       HOP_ENV_HASH: ${HOP_ENV_HASH:-}
+    # ผลรอบ cron (cron-state.json) — อยู่รอดข้ามการ deploy/สร้างคอนเทนเนอร์ใหม่ · ดูใน /healthz
+    volumes:
+      - hop-data:/app/data
     # เครื่องใช้ร่วมกับบริการอื่น — จำกัดไว้ไม่ให้ HOP กินแรมคนอื่น (ใช้จริงราว 100MB)
     mem_limit: 512m
     restart: unless-stopped
@@ -54,3 +57,7 @@ services:
     mem_limit: 128m
     restart: unless-stopped
     logging: *logging
+
+volumes:
+  # ข้อมูลถาวรของ api (ตอนนี้มีแค่ผล cron) — ชื่อจริงบนเครื่อง: hop_hop-data
+  hop-data:
