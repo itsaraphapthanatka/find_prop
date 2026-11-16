@@ -76,6 +76,13 @@ export default function App() {
     window.addEventListener('hob-apk-update', onApk)
     return () => window.removeEventListener('hob-apk-update', onApk)
   }, [])
+  // มีเวอร์ชันใหม่ของตัวเว็บ/แอป (lib/freshness.ts) — กดเพื่อใช้ทันที · ไม่กดก็ได้รุ่นใหม่ตอนเปิดครั้งหน้า
+  const [codeUpdate, setCodeUpdate] = useState<{ apply: () => void } | null>(null)
+  useEffect(() => {
+    const onReady = (e: Event) => setCodeUpdate((e as CustomEvent<{ apply: () => void }>).detail)
+    window.addEventListener('hob-update-ready', onReady)
+    return () => window.removeEventListener('hob-update-ready', onReady)
+  }, [])
   // ลงทะเบียนรับแจ้งเตือนแผนเยี่ยมชมหลังล็อกอิน (ทำงานเฉพาะในแอป — ดู lib/push.ts)
   const userId = session?.user.id ?? null
   const userOrg = profile?.org_id ?? null
@@ -225,6 +232,17 @@ export default function App() {
             ดาวน์โหลด
           </button>
           <button className="btn sm" onClick={() => setApkUpdate(null)}>ไว้ก่อน</button>
+        </div>
+      )}
+      {codeUpdate && !apkUpdate && (
+        <div className="apk-update-bar" role="status">
+          <span>
+            มี HOP เวอร์ชันใหม่ · บันทึกงานที่กรอกค้างไว้ก่อนกดอัปเดต
+          </span>
+          <button className="btn sm primary" onClick={() => codeUpdate.apply()}>
+            อัปเดตเลย
+          </button>
+          <button className="btn sm" onClick={() => setCodeUpdate(null)}>ไว้ก่อน</button>
         </div>
       )}
       {impersonating && (

@@ -18,7 +18,10 @@ if (!Capacitor.isNativePlatform()) {
     void navigator.serviceWorker?.getRegistrations().then((rs) => rs.forEach((r) => void r.unregister()))
     void caches?.keys().then((ks) => ks.forEach((k) => void caches.delete(k)))
   } else {
-    registerSW({ immediate: true })
+    let swReg: ServiceWorkerRegistration | undefined
+    registerSW({ immediate: true, onRegisteredSW: (_url, r) => { swReg = r } })
+    // เดิม SW เช็ครุ่นใหม่แค่ตอนโหลดหน้า — แท็บ/PWA บนมือถือที่เปิดค้างจึงล้าหลังจอคอม (ดู lib/freshness.ts)
+    void import('./lib/freshness').then((m) => m.watchWebUpdates(() => swReg)).catch(() => {})
   }
   // Vercel Speed Insights + Web Analytics — ทำงานเฉพาะตอนเว็บอยู่บน Vercel (*.vercel.app)
   // บนเครื่องของเราเอง (hopai.online) ไม่มีปลายทาง /_vercel/* ให้ส่ง — ใช้ Cloudflare Web Analytics แทน

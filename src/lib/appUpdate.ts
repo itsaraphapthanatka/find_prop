@@ -1,6 +1,7 @@
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { App as NativeApp } from '@capacitor/app'
 import { API_BASE, platform } from './native'
+import { announceUpdate, onReturn } from './freshness'
 
 // live-update แบบ self-hosted: ทุก deploy เว็บจะแนบ dist ทั้งก้อนเป็น zip + manifest
 // (scripts/update-zip.mjs) — แอปเช็ค /app-update.json ตอนเปิด ถ้าเป็นคนละ commit
@@ -21,6 +22,9 @@ export async function initAppUpdate() {
   setTimeout(() => {
     void check().catch(() => {}) // พลาดก็เงียบไว้ เปิดแอปครั้งหน้าลองใหม่เอง
   }, 3000)
+  // เช็คซ้ำทุกครั้งที่กลับเข้าแอป — ผู้ใช้แทบไม่เคยปิดแอปจริง เดิมจึงค้างรุ่นเก่าได้หลายวัน (lib/freshness.ts)
+  const recheck = onReturn(check)
+  void NativeApp.addListener('resume', recheck).catch(() => {})
 }
 
 interface Manifest {
@@ -52,6 +56,8 @@ async function check() {
   })
   await CapacitorUpdater.next(bundle)
   localStorage.setItem(APPLIED_KEY, manifest.version)
+  // รุ่นใหม่จะเริ่มใช้เองตอนสลับออกจากแอปครั้งถัดไป — หรือกดในแถบเพื่อใช้ทันที
+  announceUpdate(() => { void CapacitorUpdater.reload() })
 }
 
 /** true เมื่อ a ใหม่กว่า b (เทียบตัวเลขทีละท่อน — "1.10" ชนะ "1.9") */
