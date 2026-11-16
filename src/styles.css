@@ -826,6 +826,21 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 }
 .plan-row:hover { background: var(--purple-tint); }
 .plan-row.selected { border-color: var(--purple); background: var(--purple-tint); }
+/* รายละเอียดแผนกางต่อใต้การ์ดที่เลือก (กรอบม่วงต่อเนื่อง = ชิ้นเดียวกัน) */
+.plan-row.open { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.plan-detail {
+  border: 1px solid var(--purple); border-top: none; background: #fff;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 14px 14px 4px; margin-bottom: 8px; cursor: default;
+}
+.plan-detail-sec + .plan-detail-sec { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.plan-detail-h {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--purple); letter-spacing: -0.2px;
+}
+@media (max-width: 640px) {
+  .plan-detail { padding: 12px 10px 4px; }
+}
 .plan-info { flex: 1; min-width: 0; }
 .plan-title { font-weight: 700; font-size: 14.5px; }
 .plan-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }

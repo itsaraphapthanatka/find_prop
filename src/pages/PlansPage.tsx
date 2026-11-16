@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { deleteProperty, useProperties } from '../hooks/useProperties'
@@ -241,7 +241,8 @@ ${catalog}
             </div>
           )}
           {plans.map((pl) => (
-            <div key={pl.id} className={`plan-row ${selId === pl.id ? 'selected' : ''}`} onClick={() => pickPlan(pl)}>
+            <Fragment key={pl.id}>
+            <div className={`plan-row ${selId === pl.id ? 'selected open' : ''}`} onClick={() => pickPlan(pl)}>
               <div className="plan-info">
                 <div className="plan-title">{pl.title}</div>
                 <div className="plan-sub">
@@ -253,13 +254,11 @@ ${catalog}
               <button className="icon-btn danger" title="ลบแผน"
                 onClick={(e) => { e.stopPropagation(); void deletePlan(pl) }}><IconTrash /></button>
             </div>
-          ))}
-        </section>
-
-        {sel && (
-          <>
-            <section className="form-card">
-              <h3>รูทเยี่ยมชม · {sel.title}</h3>
+            {/* รายละเอียดแผนกางใต้การ์ดที่เลือก — ไม่ต้องเลื่อนลงไปหาท้ายรายการ */}
+            {selId === pl.id && sel && (
+              <div className="plan-detail">
+            <div className="plan-detail-sec">
+              <h4 className="plan-detail-h">รูทเยี่ยมชม</h4>
               {sel.requirement && (
                 <p className="plan-req">requirement ปัจจุบัน: {sel.requirement}</p>
               )}
@@ -371,10 +370,10 @@ ${catalog}
                   </a>
                 )}
               </div>
-            </section>
+            </div>
 
-            <section className="form-card ai-card">
-              <h3><IconSparkles size={16} /> ลูกค้าเปลี่ยน requirement?</h3>
+            <div className="plan-detail-sec ai-sec">
+              <h4 className="plan-detail-h"><IconSparkles size={16} /> ลูกค้าเปลี่ยน requirement?</h4>
               <p className="ai-hint">
                 ใส่ requirement ใหม่ แล้วให้ AI สแกนทรัพย์ทั้งหมดในระบบ หาตัวที่ตรงให้ทันที
                 พร้อมชี้ว่าจุดแวะไหนในรูทเดิมไม่ตรงแล้ว
@@ -459,9 +458,13 @@ ${catalog}
                   )}
                 </div>
               )}
-            </section>
-          </>
-        )}
+            </div>
+              </div>
+            )}
+            </Fragment>
+          ))}
+        </section>
+
       </div>
 
       {preview && (
