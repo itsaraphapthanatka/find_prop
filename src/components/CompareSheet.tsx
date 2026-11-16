@@ -54,7 +54,6 @@ export default function CompareSheet({ picked, customer, requirement, ai, dateTe
   const cust = (customer ?? '').trim()
   const req = (requirement ?? '').trim()
   const today = dateText ?? new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
-  const aiOf = (code: string) => ai?.items?.find((i) => i.code === code)
 
   return (
     <div className="compare-sheet">
@@ -77,59 +76,7 @@ export default function CompareSheet({ picked, customer, requirement, ai, dateTe
 
       {ai?.intro && <p className="sheet-intro">{ai.intro}</p>}
 
-      <div className="compare-scroll">
-        <table className="compare-table">
-          <thead>
-            <tr>
-              <th className="spec-col"></th>
-              {picked.map((p) => (
-                <th key={p.code}>
-                  <div className="cmp-photo">
-                    {photoThumb(p.photo_url, 640) ? <img src={photoThumb(p.photo_url, 640)!} alt={p.code} /> : <IconHouse size={30} />}
-                  </div>
-                  <div className="cmp-code">{p.code}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {SPEC_ROWS.filter((row) => picked.some((p) => row.get(p))).map((row) => (
-              <tr key={row.label}>
-                <td className="spec-col">{row.label}</td>
-                {picked.map((p) => <td key={p.code}>{row.get(p) ?? '—'}</td>)}
-              </tr>
-            ))}
-            {ai && (
-              <>
-                <tr className="ai-row">
-                  <td className="spec-col"><IconSparkles size={13} /> จุดเด่น</td>
-                  {picked.map((p) => (
-                    <td key={p.code}>
-                      <ul className="cmp-list">
-                        {(aiOf(p.code)?.pros ?? []).map((x, i) => <li key={i}>{x}</li>)}
-                      </ul>
-                    </td>
-                  ))}
-                </tr>
-                <tr className="ai-row">
-                  <td className="spec-col"><IconSparkles size={13} /> ข้อควรพิจารณา</td>
-                  {picked.map((p) => (
-                    <td key={p.code}>
-                      <ul className="cmp-list">
-                        {(aiOf(p.code)?.cons ?? []).map((x, i) => <li key={i}>{x}</li>)}
-                      </ul>
-                    </td>
-                  ))}
-                </tr>
-                <tr className="ai-row">
-                  <td className="spec-col"><IconSparkles size={13} /> ความเหมาะสม</td>
-                  {picked.map((p) => <td key={p.code}>{aiOf(p.code)?.fit ?? '—'}</td>)}
-                </tr>
-              </>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <CompareTable picked={picked} ai={ai} />
 
       {ai?.recommendation && (
         <div className="sheet-reco">
@@ -143,6 +90,66 @@ export default function CompareSheet({ picked, customer, requirement, ai, dateTe
         เอกสารนี้จัดทำจากข้อมูลในระบบ HOP เพื่อประกอบการตัดสินใจเบื้องต้น
         ข้อมูลอาจเปลี่ยนแปลงได้ กรุณาตรวจสอบหน้างานอีกครั้ง
       </footer>
+    </div>
+  )
+}
+
+/** ตารางเปรียบเทียบสเปก (+ จุดเด่น/ข้อควรพิจารณา/ความเหมาะสมจาก AI) — ใช้ทั้งเอกสารเปรียบเทียบและข้อเสนอ (ProposalSheet) */
+export function CompareTable({ picked, ai }: { picked: Property[]; ai?: CompareResult | null }) {
+  const aiOf = (code: string) => ai?.items?.find((i) => i.code === code)
+  return (
+    <div className="compare-scroll">
+      <table className="compare-table">
+        <thead>
+          <tr>
+            <th className="spec-col"></th>
+            {picked.map((p) => (
+              <th key={p.code}>
+                <div className="cmp-photo">
+                  {photoThumb(p.photo_url, 640) ? <img src={photoThumb(p.photo_url, 640)!} alt={p.code} /> : <IconHouse size={30} />}
+                </div>
+                <div className="cmp-code">{p.code}</div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {SPEC_ROWS.filter((row) => picked.some((p) => row.get(p))).map((row) => (
+            <tr key={row.label}>
+              <td className="spec-col">{row.label}</td>
+              {picked.map((p) => <td key={p.code}>{row.get(p) ?? '—'}</td>)}
+            </tr>
+          ))}
+          {ai && (
+            <>
+              <tr className="ai-row">
+                <td className="spec-col"><IconSparkles size={13} /> จุดเด่น</td>
+                {picked.map((p) => (
+                  <td key={p.code}>
+                    <ul className="cmp-list">
+                      {(aiOf(p.code)?.pros ?? []).map((x, i) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </td>
+                ))}
+              </tr>
+              <tr className="ai-row">
+                <td className="spec-col"><IconSparkles size={13} /> ข้อควรพิจารณา</td>
+                {picked.map((p) => (
+                  <td key={p.code}>
+                    <ul className="cmp-list">
+                      {(aiOf(p.code)?.cons ?? []).map((x, i) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </td>
+                ))}
+              </tr>
+              <tr className="ai-row">
+                <td className="spec-col"><IconSparkles size={13} /> ความเหมาะสม</td>
+                {picked.map((p) => <td key={p.code}>{aiOf(p.code)?.fit ?? '—'}</td>)}
+              </tr>
+            </>
+          )}
+        </tbody>
+      </table>
     </div>
   )
 }

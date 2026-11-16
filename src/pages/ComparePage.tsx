@@ -10,17 +10,45 @@ import type { CompareResult, Property, Shortlist } from '../types'
 import { formatDate } from '../labels'
 import PropertyPicker, { PropThumb } from '../components/PropertyPicker'
 import CompareSheet from '../components/CompareSheet'
+import ProposalSheet, { type ProposalAgent } from '../components/ProposalSheet'
+import { useAuth } from '../lib/auth'
 import VoiceButton from '../components/VoiceButton'
 import { IconClose, IconLink, IconPrint, IconSparkles, IconTrash } from '../components/icons'
 import { printPage } from '../lib/native'
 
 const MAX_PICK = 4
+// ข้อมูลติดต่อผู้เสนอบนเอกสารข้อเสนอ — จำไว้ในเครื่องนี้ (ความสะดวกของแต่ละคน ไม่ใช่ข้อมูลที่ต้องแชร์)
+const AGENT_KEY = 'hop_proposal_agent_v1'
+const plusDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
 
 export default function ComparePage() {
   const { items } = useProperties()
   const { lists, loading: listsLoading, error: listsError, reload: reloadLists } = useShortlists()
   const perm = usePerm()
+  const { profile, org } = useAuth()
   const [codes, setCodes] = useState<string[]>([])
+  // รูปแบบเอกสาร: ตารางเปรียบเทียบ (เดิม) หรือ ข้อเสนอ (Proposal) ส่งลูกค้า
+  const [docMode, setDocMode] = useState<'compare' | 'proposal'>('compare')
+  const [agent, setAgent] = useState<ProposalAgent>(() => {
+    let saved: Partial<ProposalAgent> = {}
+    try { saved = JSON.parse(localStorage.getItem(AGENT_KEY) || '{}') } catch { /* โหมดส่วนตัว/ไม่มีค่า */ }
+    return { name: saved.name ?? '', phone: saved.phone ?? '', email: saved.email ?? '', line: saved.line ?? '' }
+  })
+  const [proposalNote, setProposalNote] = useState('')
+  const [validUntil, setValidUntil] = useState(() => plusDays(30))
+  // ค่าเริ่มของชื่อ/อีเมลผู้เสนอ = บัญชีที่ล็อกอิน (ถ้ายังไม่เคยกรอกเอง)
+  const agentShown: ProposalAgent = {
+    ...agent,
+    name: agent.name || profile?.full_name || '',
+    email: agent.email || profile?.email || '',
+  }
+  function setAgentField(k: keyof ProposalAgent, v: string) {
+    setAgent((a) => {
+      const next = { ...a, [k]: v }
+      try { localStorage.setItem(AGENT_KEY, JSON.stringify(next)) } catch { /* ไม่เป็นไร */ }
+      return next
+    })
+  }
   const [customer, setCustomer] = useState('')
   const [requirement, setRequirement] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
@@ -240,8 +268,10 @@ ${details}
               )}
             </>
           )}
-          {picked.length >= 2 && (
-            <button className="btn" onClick={() => void printPage()}><IconPrint size={16} /> พิมพ์ / บันทึก PDF</button>
+          {(picked.length >= 2 || (docMode === 'proposal' && picked.length >= 1)) && (
+            <button className="btn" onClick={() => void printPage()}>
+              <IconPrint size={16} /> {docMode === 'proposal' ? 'พิมพ์ข้อเสนอ / PDF' : 'พิมพ์ / บันทึก PDF'}
+            </button>
           )}
         </div>
       </div>
@@ -419,12 +449,77 @@ ${details}
           </section>
         )}
 
-        {picked.length >= 2 && (
+        {picked.length >= 1 && (
+          <div className="doc-mode" role="group" aria-label="รูปแบบเอกสาร">
+            <button type="button" className={`chip-toggle ${docMode === 'compare' ? 'on' : ''}`}
+              aria-pressed={docMode === 'compare'} onClick={() => setDocMode('compare')}>
+              ตารางเปรียบเทียบ
+            </button>
+            <button type="button" className={`chip-toggle ${docMode === 'proposal' ? 'on' : ''}`}
+              aria-pressed={docMode === 'proposal'} onClick={() => setDocMode('proposal')}>
+              ข้อเสนอ (Proposal)
+            </button>
+            <span className="stop-sub">
+              {docMode === 'proposal'
+                ? 'เอกสารเสนอลูกค้าแบบเต็ม: หน้าปก · สรุป · หน้าละ 1 ทรัพย์ · ตารางเปรียบเทียบ · ช่องทางติดต่อ'
+                : 'ตารางเปรียบเทียบหน้าเดียว (ส่งลิงก์ให้ลูกค้าเปิดดูได้)'}
+            </span>
+          </div>
+        )}
+
+        {docMode === 'proposal' && picked.length >= 1 && (
+          <section className="form-card proposal-controls">
+            <h3>ข้อมูลบนข้อเสนอ</h3>
+            <div className="form-grid-2">
+              <div className="form-field">
+                <label>ชื่อผู้เสนอ</label>
+                <input type="text" value={agentShown.name} placeholder="ชื่อ-นามสกุล" onChange={(e) => setAgentField('name', e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label>เบอร์โทร</label>
+                <input type="tel" value={agent.phone} placeholder="เช่น 081-234-5678" onChange={(e) => setAgentField('phone', e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label>LINE ID (ไม่บังคับ)</label>
+                <input type="text" value={agent.line} placeholder="เช่น @hopproperty" onChange={(e) => setAgentField('line', e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label>อีเมล</label>
+                <input type="email" value={agentShown.email} onChange={(e) => setAgentField('email', e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label>ข้อเสนอมีผลถึง</label>
+                <input type="date" className="date-input" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-field">
+              <label>ข้อความถึงลูกค้า (ไม่บังคับ — ว่างไว้จะใช้บทเกริ่นจาก AI)</label>
+              <textarea value={proposalNote} placeholder={ai?.intro || 'เช่น ตามที่คุยกันไว้ ทีมงานคัดทรัพย์ที่ตรงความต้องการมาให้พิจารณา 3 รายการ'}
+                onChange={(e) => setProposalNote(e.target.value)} />
+            </div>
+            <p className="stop-sub" style={{ margin: 0 }}>
+              ชื่อ เบอร์ LINE อีเมล จำไว้ในเครื่องนี้ ครั้งหน้าไม่ต้องกรอกใหม่ ·
+              {ai ? ' ใส่จุดเด่น/คำแนะนำจากบทวิเคราะห์ AI ให้แล้ว' : ' กด "สร้างบทวิเคราะห์ด้วย AI" ด้านบน เพื่อใส่จุดเด่นและคำแนะนำในข้อเสนอ'}
+            </p>
+          </section>
+        )}
+
+        {docMode === 'proposal' && picked.length >= 1 && (
+          <ProposalSheet
+            picked={picked} orgName={org?.name} customer={customer} requirement={requirement} ai={ai}
+            agent={agentShown} note={proposalNote} validUntil={validUntil}
+          />
+        )}
+
+        {docMode === 'compare' && picked.length >= 2 && (
           <CompareSheet picked={picked} customer={customer} requirement={requirement} ai={ai} dateText={today} />
         )}
 
-        {picked.length < 2 && (
-          <div className="empty-state">เลือกทรัพย์อย่างน้อย 2 รายการ เพื่อสร้างตารางเปรียบเทียบ</div>
+        {picked.length === 0 && (
+          <div className="empty-state">เลือกทรัพย์อย่างน้อย 1 รายการเพื่อทำข้อเสนอ หรือ 2 รายการขึ้นไปเพื่อเปรียบเทียบ</div>
+        )}
+        {docMode === 'compare' && picked.length === 1 && (
+          <div className="empty-state">เลือกอีกอย่างน้อย 1 รายการเพื่อเปรียบเทียบ — หรือกด "ข้อเสนอ (Proposal)" เพื่อเสนอทรัพย์นี้รายการเดียว</div>
         )}
       </div>
     </>
